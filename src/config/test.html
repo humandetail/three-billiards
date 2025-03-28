@@ -1,0 +1,223 @@
+<html>
+  <body>
+    <div
+        class="test"
+        style="
+          position: absolute;
+          right: 50%;
+          top: 50%;
+          transform: translate(50%, -50%);
+        "
+      >
+        <div
+          :style="`
+            width: ${PARAMETERS.tableWidth}px;
+            height: ${PARAMETERS.tableHeight}px;
+            border: 1px solid black;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="外边"
+          :style="`
+            position: absolute;
+            top: ${-PARAMETERS.middlePocketRadius}px;
+            left: ${-PARAMETERS.middlePocketRadius}px;
+            width: ${PARAMETERS.tableWidth + PARAMETERS.middlePocketRadius * 2}px;
+            height: ${PARAMETERS.tableHeight + PARAMETERS.middlePocketRadius * 2}px;
+            border: 1px dashed red;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="左上"
+          :style="`
+            position: absolute;
+            top: ${-PARAMETERS.cornerPocketRadius + cs}px;
+            left: ${-PARAMETERS.cornerPocketRadius + cs}px;
+            width: ${PARAMETERS.cornerPocketRadius * 2}px;
+            height: ${PARAMETERS.cornerPocketRadius * 2}px;
+            border-radius: 50%;
+            border: 1px solid orange;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="右上"
+          :style="`
+            position: absolute;
+            top: ${-PARAMETERS.cornerPocketRadius + cs}px;
+            left: ${PARAMETERS.tableWidth - PARAMETERS.cornerPocketRadius - cs}px;
+            width: ${PARAMETERS.cornerPocketRadius * 2}px;
+            height: ${PARAMETERS.cornerPocketRadius * 2}px;
+            border-radius: 50%;
+            border: 1px solid orange;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="左下"
+          :style="`
+            position: absolute;
+            top: ${PARAMETERS.tableHeight - PARAMETERS.cornerPocketRadius - cs}px;
+            left: ${-PARAMETERS.cornerPocketRadius + cs}px;
+            width: ${PARAMETERS.cornerPocketRadius * 2}px;
+            height: ${PARAMETERS.cornerPocketRadius * 2}px;
+            border-radius: 50%;
+            border: 1px solid orange;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="右下"
+          :style="`
+            position: absolute;
+            top: ${PARAMETERS.tableHeight - PARAMETERS.cornerPocketRadius - cs}px;
+            left: ${PARAMETERS.tableWidth - PARAMETERS.cornerPocketRadius - cs}px;
+            width: ${PARAMETERS.cornerPocketRadius * 2}px;
+            height: ${PARAMETERS.cornerPocketRadius * 2}px;
+            border-radius: 50%;
+            border: 1px solid orange;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="中上"
+          :style="`
+            position: absolute;
+            top: -${PARAMETERS.cornerPocketRadius}px;
+            left: ${PARAMETERS.tableWidth / 2 - PARAMETERS.middlePocketRadius}px;
+            width: ${PARAMETERS.middlePocketRadius * 2}px;
+            height: ${PARAMETERS.middlePocketRadius * 2}px;
+            border-radius: 50%;
+            border: 1px solid orange;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="中下"
+          :style="`
+            position: absolute;
+            top: ${PARAMETERS.tableHeight - PARAMETERS.middlePocketRadius}px;
+            left: ${PARAMETERS.tableWidth / 2 - PARAMETERS.middlePocketRadius}px;
+            width: ${PARAMETERS.middlePocketRadius * 2}px;
+            height: ${PARAMETERS.middlePocketRadius * 2}px;
+            border-radius: 50%;
+            border: 1px solid orange;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="白球"
+          :style="`
+            position: absolute;
+            top: ${PARAMETERS.cornerPocketRadius - PARAMETERS.ballRadius}px;
+            left: ${PARAMETERS.cornerPocketRadius - PARAMETERS.ballRadius}px;
+            width: ${PARAMETERS.ballRadius * 2}px;
+            height: ${PARAMETERS.ballRadius * 2}px;
+            border-radius: 50%;
+            border: 1px solid red;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="左上库边"
+          :style="`
+            position: absolute;
+            top: ${0}px;
+            left: ${PARAMETERS.cornerPocketRadius + cs}px;
+            width: ${PARAMETERS.tableWidth / 2 - PARAMETERS.cornerPocketRadius - cs - PARAMETERS.middlePocketRadius}px;
+            height: ${PARAMETERS.cornerPocketWidth}px;
+            border: 1px solid green;
+            border-bottom-left-radius: ${PARAMETERS.cornerPocketWidth}px;
+            border-bottom-right-radius: ${PARAMETERS.cornerPocketWidth}px;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="右上库边"
+          :style="`
+            position: absolute;
+            top: ${0}px;
+            left: ${PARAMETERS.tableWidth / 2 + PARAMETERS.middlePocketRadius}px;
+            width: ${PARAMETERS.tableWidth / 2 - PARAMETERS.cornerPocketRadius - cs - PARAMETERS.middlePocketRadius}px;
+            height: ${PARAMETERS.cornerPocketWidth}px;
+            border: 1px solid green;
+            border-bottom-left-radius: ${PARAMETERS.cornerPocketWidth}px;
+            border-bottom-right-radius: ${PARAMETERS.cornerPocketWidth}px;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="右库边"
+          :style="`
+            position: absolute;
+            top: ${0 + PARAMETERS.cornerPocketRadius + cs}px;
+            right: ${0}px;
+            width: ${PARAMETERS.cornerPocketWidth}px;
+            height: ${PARAMETERS.tableHeight - (PARAMETERS.cornerPocketRadius + cs) * 2}px;
+            border: 1px solid green;
+            border-top-left-radius: ${PARAMETERS.cornerPocketWidth}px;
+            border-bottom-left-radius: ${PARAMETERS.cornerPocketWidth}px;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="右下库边"
+          :style="`
+            position: absolute;
+            bottom: ${0}px;
+            left: ${PARAMETERS.tableWidth / 2 + PARAMETERS.middlePocketRadius}px;
+            width: ${PARAMETERS.tableWidth / 2 - PARAMETERS.cornerPocketRadius - cs - PARAMETERS.middlePocketRadius}px;
+            height: ${PARAMETERS.cornerPocketWidth}px;
+            border: 1px solid green;
+            border-top-left-radius: ${PARAMETERS.cornerPocketWidth}px;
+            border-top-right-radius: ${PARAMETERS.cornerPocketWidth}px;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="左下库边"
+          :style="`
+            position: absolute;
+            bottom: ${0}px;
+            left: ${PARAMETERS.cornerPocketRadius + cs}px;
+            width: ${PARAMETERS.tableWidth / 2 - PARAMETERS.cornerPocketRadius - cs - PARAMETERS.middlePocketRadius}px;
+            height: ${PARAMETERS.cornerPocketWidth}px;
+            border: 1px solid green;
+            border-top-left-radius: ${PARAMETERS.cornerPocketWidth}px;
+            border-top-right-radius: ${PARAMETERS.cornerPocketWidth}px;
+            box-sizing: border-box;
+          `"
+        ></div>
+
+        <div
+          name="左库边"
+          :style="`
+            position: absolute;
+            top: ${PARAMETERS.cornerPocketRadius + cs}px;
+            left: ${0}px;
+            width: ${PARAMETERS.cornerPocketWidth}px;
+            height: ${PARAMETERS.tableHeight - (PARAMETERS.cornerPocketRadius + cs) * 2}px;
+            border: 1px solid green;
+            border-top-right-radius: ${PARAMETERS.cornerPocketWidth}px;
+            border-bottom-right-radius: ${PARAMETERS.cornerPocketWidth}px;
+            box-sizing: border-box;
+          `"
+        ></div>
+      </div>
+  </body>
+</html>

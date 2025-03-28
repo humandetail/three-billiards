@@ -10,15 +10,15 @@ export const PARAMETERS = {
   offGroundHeight: 7.5,
 
   /** 库边的高度（宽度） */
-  bankHeight: 0.7,
+  bankHeight: 0.6,
   /** 库边的厚度（高度） */
-  bankWidth: 0.35,
+  bankThickness: 0.35,
   /** 库边的反弹系数 */
   bankRestitution: 0.8,
   /** 球台的球袋半径（角袋） */
-  cornerPocketRadius: 0.53,
+  cornerPocketRadius: 0.43,
   /** 球台的球袋半径（中袋） */
-  middlePocketRadius: 0.6,
+  middlePocketRadius: 0.45,
   /** 球袋的高度 */
   pocketHeight: 1.2,
 
@@ -28,7 +28,7 @@ export const PARAMETERS = {
   cueBallPosition: 3 / 4,
 
   /** 球的半径 */
-  ballRadius: 0.285,
+  ballRadius: 0.286,
   /** 球的质量 */
   ballMass: 1,
   /** 球的反弹系数 */
@@ -37,4 +37,9 @@ export const PARAMETERS = {
   ballFriction: 0.15,
   /** 台球与库边的摩擦系数 */
   ballFrictionWithBank: 0.1,
+
+  // 要让库边开口是角袋的直径，也就是尾袋圆心在将尾袋往前移动
+  get cornerPocketTranslate() {
+    return Math.sin(Math.PI / 4) * this.cornerPocketRadius * 2 / 2.5
+  },
 }

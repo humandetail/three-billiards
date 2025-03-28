@@ -14,6 +14,9 @@ dependencies:
   three-csg-ts:
     specifier: ^3.2.0
     version: 3.2.0(@types/three@0.174.0)(three@0.174.0)
+  unit-path:
+    specifier: ^0.0.4
+    version: 0.0.4
 
 devDependencies:
   '@antfu/eslint-config':
@@ -3188,6 +3191,10 @@ packages:
       unist-util-is: 6.0.0
       unist-util-visit-parents: 6.0.1
     dev: true
+
+  /unit-path@0.0.4:
+    resolution: {integrity: sha512-nqqdyOO9JBvUwfXwWhnqaG/EG2/7poCveC0aD5SgsuFR+x3a359n6wmn19Uat+1BkW0H+/jmyM+hGxr7WtqAeg==}
+    dev: false
 
   /update-browserslist-db@1.1.3(browserslist@4.24.4):
     resolution: {integrity: sha512-UxhIZQ+QInVdunkDAaiazvvT/+fXL5Osr0JZlJulepYu6Jd7qJtDZjlur0emRlT71EN3ScPoE7gvsuIKKNavKw==}

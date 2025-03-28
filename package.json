@@ -19,6 +19,7 @@
   "dependencies": {
     "cannon": "^0.6.2",
     "three": "^0.174.0",
-    "three-csg-ts": "^3.2.0"
+    "three-csg-ts": "^3.2.0",
+    "unit-path": "^0.0.4"
   }
 }

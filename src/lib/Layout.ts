@@ -100,8 +100,11 @@ export default class Layout {
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(40, 40),
-      new THREE.MeshPhongMaterial({
-        map: texture,
+      // new THREE.MeshPhongMaterial({
+      //   map: texture,
+      // }),
+      new THREE.MeshBasicMaterial({
+        color: 'gray',
       }),
     )
     ground.rotation.x = THREE.MathUtils.degToRad(-90)
