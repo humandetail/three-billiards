@@ -24,7 +24,8 @@ export default class Layout {
       canvas: this.canvas,
       antialias: true,
     })
-    this.camera.position.set(-20, 20, 0)
+    // this.camera.position.set(-20, 20, 0)
+    this.camera.position.set(0, 200, 0)
     this.camera.lookAt(0, 0, 0)
 
     this.renderer.setClearColor(0xFFFFFF)
@@ -79,8 +80,8 @@ export default class Layout {
   }
 
   initLight() {
-    const light = new THREE.PointLight(0xFFFFFF, 100)
-    light.position.set(0, 15, 0)
+    const light = new THREE.PointLight(0xFFFFFF, 10000)
+    light.position.set(0, 180, 0)
 
     light.castShadow = true
 
@@ -121,8 +122,8 @@ export default class Layout {
   initControls() {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.enableDamping = true
-    this.controls.maxDistance = 28
-    this.controls.minDistance = 1
+    this.controls.maxDistance = 500
+    this.controls.minDistance = 100
   }
 
   render() {

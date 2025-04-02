@@ -6,475 +6,534 @@ import { PARAMETERS } from '../config'
 import { getPoints } from '../utils'
 
 export default class Table {
-  pocketY = PARAMETERS.offGroundHeight + PARAMETERS.tableThickness / 2 - PARAMETERS.pocketHeight / 2
-  pockets = [
-    // 左上
-    {
-      x: -PARAMETERS.tableWidth / 2,
-      y: this.pocketY,
-      z: -PARAMETERS.tableHeight / 2,
-      radius: PARAMETERS.cornerPocketRadius,
-    },
-    {
-      x: -PARAMETERS.tableWidth / 2,
-      y: this.pocketY,
-      z: PARAMETERS.tableHeight / 2,
-      radius: PARAMETERS.cornerPocketRadius,
-    },
-    {
-      x: PARAMETERS.tableWidth / 2,
-      y: this.pocketY,
-      z: PARAMETERS.tableHeight / 2,
-      radius: PARAMETERS.cornerPocketRadius,
-    },
-    {
-      x: PARAMETERS.tableWidth / 2,
-      y: this.pocketY,
-      z: -PARAMETERS.tableHeight / 2,
-      radius: PARAMETERS.cornerPocketRadius,
-    },
+  offGround = {
+    tableBottom: PARAMETERS.offGroundHeight,
+    tableCenter: PARAMETERS.offGroundHeight + PARAMETERS.tableThickness / 2,
+    tableTop: PARAMETERS.offGroundHeight + PARAMETERS.tableThickness,
 
+    bankBottom: PARAMETERS.offGroundHeight + PARAMETERS.tableThickness,
+    bankCenter: PARAMETERS.offGroundHeight + PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness / 2,
+    bankTop: PARAMETERS.offGroundHeight + PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness,
+  }
+
+  cornerPocketCenterPoints = [
+    // 左上角
+    {
+      x: -(PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius),
+      z: -(PARAMETERS.withWoodHeight / 2 - PARAMETERS.cornerPocketRadius),
+    },
+    // 右上角
+    {
+      x: PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius,
+      z: -(PARAMETERS.withWoodHeight / 2 - PARAMETERS.cornerPocketRadius),
+    },
+    // 左下角
+    {
+      x: -(PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius),
+      z: PARAMETERS.withWoodHeight / 2 - PARAMETERS.cornerPocketRadius,
+    },
+    // 右下角
+    {
+      x: PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius,
+      z: PARAMETERS.withWoodHeight / 2 - PARAMETERS.cornerPocketRadius,
+    },
+  ]
+
+  middlePocketCenterPoints = [
     {
       x: 0,
-      y: this.pocketY,
-      z: PARAMETERS.tableHeight / 2,
-      radius: PARAMETERS.middlePocketRadius,
+      z: -(PARAMETERS.withWoodHeight / 2 - PARAMETERS.middlePocketRadius),
     },
     {
       x: 0,
-      y: this.pocketY,
-      z: -PARAMETERS.tableHeight / 2,
-      radius: PARAMETERS.middlePocketRadius,
+      z: PARAMETERS.withWoodHeight / 2 - PARAMETERS.middlePocketRadius,
+    },
+  ]
+
+  // 补齐板
+  horizontalFixedBoardCenterPoints = [
+    {
+      x: -(PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 - PARAMETERS.middlePocketRadius / 2,
+      z: -(PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.cornerPocketRadius,
+    },
+    {
+      x: (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 + PARAMETERS.middlePocketRadius / 2,
+      z: -(PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.cornerPocketRadius,
+    },
+    {
+      x: -(PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 - PARAMETERS.middlePocketRadius / 2,
+      z: (PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4) / 2 + PARAMETERS.cornerPocketRadius,
+    },
+    {
+      x: (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 + PARAMETERS.middlePocketRadius / 2,
+      z: (PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4) / 2 + PARAMETERS.cornerPocketRadius,
+    },
+  ]
+
+  verticalFixedBoardCenterPoints = [
+    {
+      x: -(PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.cornerPocketRadius,
+      z: 0,
+    },
+    {
+      x: (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 2 + PARAMETERS.cornerPocketRadius,
+      z: 0,
+    },
+  ]
+
+  // 木质支撑层
+  horizontalWoodSupportLayerCenterPoints = [
+    {
+      x: -(PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 - PARAMETERS.middlePocketRadius / 2,
+      z: -(PARAMETERS.withWoodHeight - PARAMETERS.woodWidth) / 2,
+    },
+    {
+      x: (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 + PARAMETERS.middlePocketRadius / 2,
+      z: -(PARAMETERS.withWoodHeight - PARAMETERS.woodWidth) / 2,
+    },
+    {
+      x: -(PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 - PARAMETERS.middlePocketRadius / 2,
+      z: (PARAMETERS.withWoodHeight - PARAMETERS.woodWidth) / 2,
+    },
+    {
+      x: (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 + PARAMETERS.middlePocketRadius / 2,
+      z: (PARAMETERS.withWoodHeight - PARAMETERS.woodWidth) / 2,
+    },
+  ]
+
+  verticalWoodSupportLayerCenterPoints = [
+    {
+      x: -(PARAMETERS.withWoodWidth - PARAMETERS.woodWidth) / 2,
+      z: 0,
+    },
+    {
+      x: (PARAMETERS.withWoodWidth - PARAMETERS.woodWidth) / 2,
+      z: 0,
+    },
+  ]
+
+  // 橡胶条
+  horizontalRubberCenterPoints = [
+    {
+      x: -(PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 - PARAMETERS.middlePocketRadius / 2,
+      z: -(PARAMETERS.withWoodHeight / 2 - PARAMETERS.woodWidth - PARAMETERS.rubberWidth / 2),
+    },
+    {
+      x: (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 + PARAMETERS.middlePocketRadius / 2,
+      z: -(PARAMETERS.withWoodHeight / 2 - PARAMETERS.woodWidth - PARAMETERS.rubberWidth / 2),
+    },
+    {
+      x: -(PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 - PARAMETERS.middlePocketRadius / 2,
+      z: (PARAMETERS.withWoodHeight / 2 - PARAMETERS.woodWidth - PARAMETERS.rubberWidth / 2),
+    },
+    {
+      x: (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 + PARAMETERS.middlePocketRadius / 2,
+      z: (PARAMETERS.withWoodHeight / 2 - PARAMETERS.woodWidth - PARAMETERS.rubberWidth / 2),
+    },
+  ]
+
+  verticalRubberCenterPoints = [
+    {
+      x: -(PARAMETERS.withWoodWidth / 2 - PARAMETERS.woodWidth - PARAMETERS.rubberWidth / 2),
+      z: 0,
+    },
+    {
+      x: (PARAMETERS.withWoodWidth / 2 - PARAMETERS.woodWidth - PARAMETERS.rubberWidth / 2),
+      z: 0,
     },
   ]
 
   constructor(public layout: Layout) {}
 
   makeTable() {
-    // this.makeTableBoard()
-
-    // this.makeInnerBank()
-    // this.makeOuterBank()
-
-    // this.makeFrame()
-
-    // this.makeBorder()
-
-    // this.pockets.forEach((pocket) => {
-    //   this.makePocket(pocket.x, pocket.y, pocket.z, pocket.radius)
-    // })
+    this.makeTableBoard()
 
     // make a ball
-    const ball = new THREE.Mesh(
-      new THREE.SphereGeometry(PARAMETERS.ballRadius, 32, 32),
-      new THREE.MeshPhongMaterial({ color: 'white' }),
-    )
-    ball.position.set(
-      -PARAMETERS.tableWidth / 2 + PARAMETERS.ballRadius,
-      PARAMETERS.offGroundHeight + PARAMETERS.ballRadius + PARAMETERS.ballRadius,
-      PARAMETERS.tableHeight / 2 - PARAMETERS.ballRadius,
-    )
-    this.layout.addObject(ball)
+    {
+      const geometry = new THREE.SphereGeometry(PARAMETERS.ballRadius, 32, 32)
+      const material = new THREE.MeshPhongMaterial({ color: 'white' })
+      const mesh = new THREE.Mesh(geometry, material)
+      mesh.position.y = this.offGround.tableTop + PARAMETERS.ballRadius
+      mesh.position.x = -PARAMETERS.tableWidth / 2 + PARAMETERS.cornerPocketRadius * 2
+      mesh.position.z = -PARAMETERS.tableHeight / 2 + PARAMETERS.cornerPocketRadius * 2
+      this.layout.addObject(mesh)
+    }
   }
 
   makeTableBoard() {
-    const material = new THREE.MeshPhongMaterial({ color: 'green' })
+    // 中间整个大板
+    {
+      const width = PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4
+      const height = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
 
-    const translate = PARAMETERS.cornerPocketTranslate
-    const scale = 10
-
-    const angles = [
-      // 左
-      {
-        startAngle: Math.PI / 2,
-        endAngle: 0,
-        antiClockwise: true,
-      },
-      // 中
-      {
-        startAngle: Math.PI,
-        endAngle: Math.PI * 2,
-        antiClockwise: true,
-      },
-      // 右
-      {
-        startAngle: Math.PI,
-        endAngle: Math.PI / 2,
-        antiClockwise: true,
-      },
-    ]
-
-    angles.forEach((angle, angleIndex) => {
-      const r = angleIndex % 2 === 0 ? PARAMETERS.cornerPocketRadius + translate : PARAMETERS.middlePocketRadius
-      const startAngle = angle.startAngle
-      const endAngle = angle.endAngle
-      const l = Math.ceil(scale * Math.abs(endAngle - startAngle) * r / 0.1)
-
-      const points = getPoints(0, -r, r, startAngle, endAngle, true, l)
-
-      points.forEach((point) => {
-        const side = new THREE.Mesh(
-          new THREE.BoxGeometry(
-            0.1,
-            PARAMETERS.tableThickness,
-            (PARAMETERS.tableHeight - 2 * r) + Math.abs(point.y) * 2,
-          ),
-          material,
-        )
-
-        const x = [
-          point.x - PARAMETERS.tableWidth / 2,
-          point.x,
-          point.x + PARAMETERS.tableWidth / 2,
-        ]
-        side.position.set(
-          x[angleIndex],
-          PARAMETERS.offGroundHeight,
-          0,
-        )
-        this.layout.addObject(side)
-      })
-    })
-
-    // 中间的板
-    for (let i = 0; i < 2; i++) {
-      const side = new THREE.Mesh(
-        new THREE.BoxGeometry(
-          PARAMETERS.tableWidth / 2 - PARAMETERS.cornerPocketRadius - PARAMETERS.middlePocketRadius - translate,
-          PARAMETERS.tableThickness,
-          PARAMETERS.tableHeight,
-        ),
-        material,
+      const geometry = new THREE.BoxGeometry(
+        width,
+        PARAMETERS.tableThickness,
+        height,
       )
-      side.position.set(
-        i === 0
-          ? 0 - PARAMETERS.tableWidth / 4 + translate / 2
-          : 0 + PARAMETERS.tableWidth / 4 - translate / 2,
-        PARAMETERS.offGroundHeight,
-        0,
-      )
-      this.layout.addObject(side)
+      const material = new THREE.MeshPhongMaterial({ color: 'green' })
+      const mesh = new THREE.Mesh(geometry, material)
+      mesh.position.y = this.offGround.tableCenter
+      this.layout.addObject(mesh)
     }
-  }
+    // 袋口位置
+    // {
+    //   const cylinderMaterial = new THREE.MeshPhongMaterial({ color: 'blue' })
+    //   this.cornerPocketCenterPoints.forEach((point) => {
+    //     const cylinderGeometry = new THREE.CylinderGeometry(PARAMETERS.cornerPocketRadius, PARAMETERS.cornerPocketRadius, PARAMETERS.tableThickness, 32)
+    //     const cylinderMesh = new THREE.Mesh(cylinderGeometry, cylinderMaterial)
+    //     cylinderMesh.position.y = this.offGround.tableCenter
+    //     cylinderMesh.position.x = point.x
+    //     cylinderMesh.position.z = point.z
+    //     this.layout.addObject(cylinderMesh)
+    //   })
 
-  makeInnerBank() {
-    const translate = PARAMETERS.cornerPocketTranslate
-    const scale = 10
+    //   this.middlePocketCenterPoints.forEach((point) => {
+    //     const cylinderGeometry = new THREE.CylinderGeometry(PARAMETERS.middlePocketRadius, PARAMETERS.middlePocketRadius, PARAMETERS.tableThickness, 32)
+    //     const cylinderMesh = new THREE.Mesh(cylinderGeometry, cylinderMaterial)
+    //     cylinderMesh.position.y = this.offGround.tableCenter
+    //     cylinderMesh.position.x = point.x
+    //     cylinderMesh.position.z = point.z
+    //     this.layout.addObject(cylinderMesh)
+    //   })
+    // }
+    // 袋口包边
+    {
+      // 角袋周长
+      const scale = 10
+      const size = 0.1
+      const quarterCornerPocketPerimeter = Math.ceil(2 * PARAMETERS.cornerPocketRadius * Math.PI * scale / 4)
+      const quarterMiddlePocketPerimeter = Math.ceil(2 * PARAMETERS.middlePocketRadius * Math.PI * scale / 4)
 
-    const horizontalBanks = [
-      // 左上
-      {
-        startAngle1: Math.PI,
-        endAngle1: Math.PI / 2,
-        antiClockwise1: true,
-        startAngle2: 0,
-        endAngle2: Math.PI / 2,
-        antiClockwise2: false,
-      },
-      // 右上
-      {
-        startAngle1: Math.PI,
-        endAngle1: Math.PI / 2,
-        antiClockwise1: true,
-        startAngle2: 0,
-        endAngle2: Math.PI / 2,
-        antiClockwise2: false,
-      },
-      // 左下
-      {
-        startAngle1: Math.PI,
-        endAngle1: Math.PI * 1.5,
-        antiClockwise1: false,
-        startAngle2: 0,
-        endAngle2: Math.PI * 1.5,
-        antiClockwise2: true,
-      },
-      // 右下
-      {
-        startAngle1: Math.PI,
-        endAngle1: Math.PI * 1.5,
-        antiClockwise1: false,
-        startAngle2: 0,
-        endAngle2: Math.PI * 1.5,
-        antiClockwise2: true,
-      },
-    ]
+      // 分入口和非入口
+      const materialA = new THREE.MeshPhongMaterial({ color: 'green' })
+      const materialB = new THREE.MeshPhongMaterial({ color: 'brown' })
+      const openSide = [0, 1, 3, 2]
 
-    horizontalBanks.forEach((bank, bankIndex) => {
-      const leftRadius = bankIndex % 2 === 0 ? PARAMETERS.cornerPocketRadius : PARAMETERS.middlePocketRadius
-      const rightRadius = bankIndex % 2 === 0 ? PARAMETERS.middlePocketRadius : PARAMETERS.cornerPocketRadius
-      const maxRadius = Math.max(leftRadius, rightRadius)
+      let thickness = PARAMETERS.tableThickness
+      let y = this.offGround.tableCenter
+      let material = materialA
 
-      const material = new THREE.MeshPhongMaterial({ color: 'blue' })
-      const width = PARAMETERS.tableWidth / 2 - leftRadius * 2 - rightRadius * 2 - translate
-      const depth = 0.1
+      this.cornerPocketCenterPoints.forEach(({ x: cx, z: cz }, cIndex) => {
+        for (let i = 0; i < 4; i++) {
+          const points = getPoints(
+            cx,
+            cz,
+            PARAMETERS.cornerPocketRadius,
+            i * (Math.PI / 2),
+            (i + 1) * (Math.PI / 2),
+            false,
+            quarterCornerPocketPerimeter,
+          )
+          if (openSide[cIndex] === i) {
+            thickness = PARAMETERS.tableThickness
+            y = this.offGround.tableCenter
+            material = materialA
+          }
+          else {
+            thickness = PARAMETERS.bankTotalThickness + PARAMETERS.tableThickness
+            y = this.offGround.tableBottom + thickness / 2
+            material = materialB
+          }
+          points.forEach((p) => {
+            const height = PARAMETERS.cornerPocketRadius - (
+              cIndex < 2
+                ? i < 2
+                  ? (Math.abs(cz) - Math.abs(p.y))
+                  : (Math.abs(p.y) - Math.abs(cz))
+                : i < 2
+                  ? (Math.abs(p.y) - Math.abs(cz))
+                  : (Math.abs(cz) - Math.abs(p.y))
+            )
 
-      const arcLength = Math.ceil(scale * (Math.abs(bank.endAngle1 - bank.startAngle1) * maxRadius) / depth)
-      const points = getPoints(0, 0, leftRadius, bank.startAngle1, bank.endAngle1, bank.antiClockwise1, arcLength)
-      const points2 = getPoints(0, 0, rightRadius, bank.startAngle2, bank.endAngle2, bank.antiClockwise2, arcLength)
+            const mesh = new THREE.Mesh(
+              new THREE.BoxGeometry(
+                size,
+                thickness,
+                height,
+              ),
+              material,
+            )
+            mesh.position.x = p.x
+            mesh.position.y = y
+            mesh.position.z = i < 2
+              ? cz + PARAMETERS.cornerPocketRadius - height / 2
+              : cz - PARAMETERS.cornerPocketRadius + height / 2
+            this.layout.addObject(mesh)
+          })
+        }
+      })
 
-      points.forEach((point, pointIndex) => {
-        const height = PARAMETERS.ballRadius * ((arcLength - pointIndex) / arcLength)
-        const side = new THREE.Mesh(
+      this.middlePocketCenterPoints.forEach(({ x: cx, z: cz }, cIndex) => {
+        for (let i = 0; i < 4; i++) {
+          const points = getPoints(cx, cz, PARAMETERS.middlePocketRadius, i * (Math.PI / 2), (i + 1) * (Math.PI / 2), false, quarterMiddlePocketPerimeter)
+          if ((cIndex === 0 && i < 2) || (cIndex === 1 && i >= 2)) {
+            thickness = PARAMETERS.tableThickness
+            y = this.offGround.tableCenter
+            material = materialA
+          }
+          else {
+            thickness = PARAMETERS.bankTotalThickness + PARAMETERS.tableThickness
+            y = this.offGround.tableBottom + thickness / 2
+            material = materialB
+          }
+          points.forEach((p) => {
+            const height = PARAMETERS.middlePocketRadius - (
+              cIndex === 0
+                ? i < 2
+                  ? (Math.abs(cz) - Math.abs(p.y))
+                  : (Math.abs(p.y) - Math.abs(cz))
+                : i < 2
+                  ? (Math.abs(p.y) - Math.abs(cz))
+                  : (Math.abs(cz) - Math.abs(p.y))
+            )
+            const mesh = new THREE.Mesh(
+              new THREE.BoxGeometry(size, thickness, height),
+              material,
+            )
+            mesh.position.x = p.x
+            mesh.position.y = y
+            mesh.position.z = i < 2
+              ? cz + PARAMETERS.middlePocketRadius - height / 2
+              : cz - PARAMETERS.middlePocketRadius + height / 2
+            this.layout.addObject(mesh)
+          })
+        }
+      })
+    }
+    // 补齐板
+    {
+      const material = new THREE.MeshPhongMaterial({ color: 'green' })
+      this.horizontalFixedBoardCenterPoints.forEach(({ x: cx, z: cz }) => {
+        const mesh = new THREE.Mesh(
           new THREE.BoxGeometry(
-            width + Math.abs(point.x) + Math.abs(points2[pointIndex].x),
-            height,
-            depth,
+            (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.middlePocketRadius,
+            PARAMETERS.tableThickness,
+            PARAMETERS.cornerPocketRadius * 2,
           ),
           material,
         )
-        side.position.set(
-          bankIndex % 2 === 0
-            ? translate / 2 - PARAMETERS.tableWidth / 4
-            : PARAMETERS.tableWidth / 4 - translate / 2,
-          PARAMETERS.offGroundHeight + PARAMETERS.tableThickness - height / 2,
-          bankIndex < 2
-            ? point.y - (PARAMETERS.tableHeight / 2 - depth / 2)
-            : point.y + (PARAMETERS.tableHeight / 2 - depth / 2),
-        )
-
-        this.layout.addObject(side)
+        mesh.position.x = cx
+        mesh.position.y = this.offGround.tableCenter
+        mesh.position.z = cz
+        this.layout.addObject(mesh)
       })
-    })
 
-    const verticalBanks = [
-      // 左
-      {
-        startAngle1: Math.PI * 1.5,
-        endAngle1: 0,
-        antiClockwise1: false,
-        startAngle2: Math.PI / 2,
-        endAngle2: 0,
-        antiClockwise2: true,
-      },
-      // 右
-      {
-        startAngle1: Math.PI * 1.5,
-        endAngle1: Math.PI,
-        antiClockwise1: true,
-        startAngle2: Math.PI / 2,
-        endAngle2: Math.PI,
-        antiClockwise2: false,
-      },
-    ]
+      this.verticalFixedBoardCenterPoints.forEach(({ x: cx, z: cz }) => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            PARAMETERS.cornerPocketRadius * 2,
+            PARAMETERS.tableThickness,
+            (PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4),
+          ),
+          material,
+        )
+        mesh.position.x = cx
+        mesh.position.y = this.offGround.tableCenter
+        mesh.position.z = cz
+        this.layout.addObject(mesh)
+      })
 
-    verticalBanks.forEach((bank, bankIndex) => {
-      const radius = PARAMETERS.cornerPocketRadius
+      // 中袋缺口
+      for (let i = 0; i < 2; i++) {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            PARAMETERS.middlePocketRadius * 2,
+            PARAMETERS.tableThickness,
+            PARAMETERS.cornerPocketRadius * 2 - PARAMETERS.middlePocketRadius * 2,
+          ),
+          material,
+        )
+        mesh.position.x = 0
+        mesh.position.y = this.offGround.tableCenter
+        mesh.position.z = ((PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4) / 2 + (PARAMETERS.cornerPocketRadius * 2 - PARAMETERS.middlePocketRadius * 2) / 2) * (i === 0 ? -1 : 1)
+        this.layout.addObject(mesh)
+      }
+    }
+    // 木条外边框 cloth
+    {
+      const material = new THREE.MeshPhongMaterial({ color: 'brown' })
+      for (let i = 0; i < 2; i++) {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            PARAMETERS.outerWidth,
+            PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness,
+            PARAMETERS.clothWidth,
+          ),
+          material,
+        )
+        mesh.position.y = this.offGround.tableBottom + (PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness) / 2
+        mesh.position.z = (PARAMETERS.outerHeight / 2 - PARAMETERS.clothWidth / 2) * (i === 0 ? -1 : 1)
+        this.layout.addObject(mesh)
+      }
 
-      const material = new THREE.MeshPhongMaterial({ color: 'pink' })
+      for (let j = 0; j < 2; j++) {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            PARAMETERS.clothWidth,
+            PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness,
+            PARAMETERS.outerHeight,
+          ),
+          material,
+        )
+        mesh.position.x = (PARAMETERS.outerWidth / 2 - PARAMETERS.clothWidth / 2) * (j === 0 ? -1 : 1)
+        mesh.position.y = this.offGround.tableBottom + (PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness) / 2
+        this.layout.addObject(mesh)
+      }
+    }
+    // 木质支撑层
+    {
+      const material = new THREE.MeshPhongMaterial({ color: 'brown' })
 
-      const depth = PARAMETERS.tableHeight - radius * 4 - translate * 2
-      const width = 0.1
+      this.horizontalWoodSupportLayerCenterPoints.forEach(({ x: cx, z: cz }) => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.middlePocketRadius,
+            PARAMETERS.bankTotalThickness,
+            PARAMETERS.woodWidth,
+          ),
+          material,
+        )
+        mesh.position.x = cx
+        mesh.position.y = this.offGround.bankCenter
+        mesh.position.z = cz
+        this.layout.addObject(mesh)
+      })
 
-      const scale = 10
-      const arcLength = Math.ceil(scale * (Math.abs(bank.endAngle1 - bank.startAngle1) * radius) / width)
+      this.verticalWoodSupportLayerCenterPoints.forEach(({ x: cx, z: cz }) => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            PARAMETERS.woodWidth,
+            PARAMETERS.bankTotalThickness,
+            PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4,
+          ),
+          material,
+        )
+        mesh.position.x = cx
+        mesh.position.y = this.offGround.bankCenter
+        mesh.position.z = cz
+        this.layout.addObject(mesh)
+      })
+    }
 
-      const points = getPoints(0, 0, radius, bank.startAngle1, bank.endAngle1, bank.antiClockwise1, arcLength)
-      const points2 = getPoints(0, 0, radius, bank.startAngle2, bank.endAngle2, bank.antiClockwise2, arcLength)
+    // 胶条
+    {
+      // @todo - 胶条是带有 45 度角的，需要处理
+      const material = new THREE.MeshPhongMaterial({ color: 'green' })
 
-      points.forEach((point, pointIndex) => {
-        const height = PARAMETERS.ballRadius * ((arcLength - pointIndex) / arcLength)
-        const side = new THREE.Mesh(
+      this.horizontalRubberCenterPoints.forEach(({ x: cx, z: cz }, cIndex) => {
+        const width = (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.middlePocketRadius - PARAMETERS.rubberWidth * 2
+        const mesh = new THREE.Mesh(
           new THREE.BoxGeometry(
             width,
-            height,
-            depth + Math.abs(point.y) + Math.abs(points2[pointIndex].y),
+            PARAMETERS.bankTotalThickness,
+            PARAMETERS.rubberWidth,
           ),
           material,
         )
-        side.position.set(
-          bankIndex % 2 === 0
-            ? point.x - (PARAMETERS.tableWidth / 2 - width / 2)
-            : point.x + (PARAMETERS.tableWidth / 2 - width / 2),
-          PARAMETERS.offGroundHeight + PARAMETERS.tableThickness - height / 2,
-          0,
-        )
+        mesh.position.x = cx
+        mesh.position.y = this.offGround.bankCenter
+        mesh.position.z = cz
+        this.layout.addObject(mesh)
 
-        this.layout.addObject(side)
+        {
+          // @todo - 先使用简单的圆柱体
+          const mesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(
+              PARAMETERS.rubberWidth,
+              PARAMETERS.rubberWidth,
+              PARAMETERS.bankTotalThickness,
+              128,
+              128,
+              false,
+              cIndex < 2 ? Math.PI * 1.5 : Math.PI,
+              Math.PI / 2,
+            ),
+            material,
+          )
+          mesh.position.x = cx - width / 2
+          mesh.position.y = this.offGround.bankCenter
+          mesh.position.z = cz + (cIndex < 2 ? -1 : 1) * PARAMETERS.rubberWidth / 2
+          this.layout.addObject(mesh)
+        }
+        {
+          // @todo - 先使用简单的圆柱体
+          const mesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(
+              PARAMETERS.rubberWidth,
+              PARAMETERS.rubberWidth,
+              PARAMETERS.bankTotalThickness,
+              128,
+              128,
+              false,
+              cIndex < 2 ? 0 : Math.PI / 2,
+              Math.PI / 2,
+            ),
+            material,
+          )
+          mesh.position.x = cx + width / 2
+          mesh.position.y = this.offGround.bankCenter
+          mesh.position.z = cz + (cIndex < 2 ? -1 : 1) * PARAMETERS.rubberWidth / 2
+          this.layout.addObject(mesh)
+        }
       })
-    })
-  }
 
-  makeOuterBank() {
-    const material = new THREE.MeshPhongMaterial({ color: 'blue' })
-
-    const translate = PARAMETERS.cornerPocketTranslate
-    const scale = 10
-
-    const verticalBanks = [
-      // 左
-      {
-        startAngle: Math.PI,
-        endAngle: Math.PI / 2,
-        antiClockwise: true,
-      },
-      // 右
-      {
-        startAngle: Math.PI / 2,
-        endAngle: 0,
-        antiClockwise: true,
-      },
-    ]
-
-    verticalBanks.forEach((bank, bankIndex) => {
-      const r = PARAMETERS.cornerPocketRadius + translate
-      const startAngle = bank.startAngle
-      const endAngle = bank.endAngle
-      const l = Math.ceil(scale * Math.abs(endAngle - startAngle) * r / 0.1)
-
-      const points = getPoints(0, -r, r, startAngle, endAngle, true, l)
-
-      points.forEach((point) => {
-        const side = new THREE.Mesh(
+      this.verticalRubberCenterPoints.forEach(({ x: cx, z: cz }, cIndex) => {
+        const height = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4 - PARAMETERS.rubberWidth * 2
+        const mesh = new THREE.Mesh(
           new THREE.BoxGeometry(
-            0.1,
-            PARAMETERS.tableThickness,
-            (PARAMETERS.tableHeight - 2 * r) + Math.abs(point.y) * 2,
-          ),
-          material,
-        )
-
-        const x = [
-          point.x - PARAMETERS.tableWidth / 2,
-          point.x + PARAMETERS.tableWidth / 2,
-        ]
-        side.position.set(
-          x[bankIndex],
-          PARAMETERS.offGroundHeight + PARAMETERS.tableThickness,
-          0,
-        )
-        this.layout.addObject(side)
-      })
-    })
-
-    const horizontalBanks = [
-      // 左上
-      {
-        startAngle1: Math.PI * 1.5,
-        endAngle1: 0,
-        antiClockwise1: false,
-        startAngle2: Math.PI * 1.5,
-        endAngle2: Math.PI,
-        antiClockwise2: true,
-      },
-      // 右上
-      {
-        startAngle1: Math.PI * 1.5,
-        endAngle1: 0,
-        antiClockwise1: false,
-        startAngle2: Math.PI * 1.5,
-        endAngle2: Math.PI,
-        antiClockwise2: true,
-      },
-      // // 左下
-      // {
-      //   startAngle1: Math.PI,
-      //   endAngle1: Math.PI * 1.5,
-      //   antiClockwise1: false,
-      //   startAngle2: 0,
-      //   endAngle2: Math.PI * 1.5,
-      //   antiClockwise2: true,
-      // },
-      // // 右下
-      // {
-      //   startAngle1: Math.PI,
-      //   endAngle1: Math.PI * 1.5,
-      //   antiClockwise1: false,
-      //   startAngle2: 0,
-      //   endAngle2: Math.PI * 1.5,
-      //   antiClockwise2: true,
-      // },
-    ]
-
-    horizontalBanks.forEach((bank, bankIndex) => {
-      const leftRadius = bankIndex % 2 === 0 ? PARAMETERS.cornerPocketRadius + translate : PARAMETERS.middlePocketRadius
-      const rightRadius = bankIndex % 2 === 0 ? PARAMETERS.middlePocketRadius : PARAMETERS.cornerPocketRadius + translate
-      // const maxRadius = Math.max(leftRadius, rightRadius)
-      const maxRadius = PARAMETERS.middlePocketRadius
-
-      const material = new THREE.MeshPhongMaterial({ color: 'red' })
-      const width = PARAMETERS.tableWidth / 2
-      const depth = 0.1
-
-      const arcLength = Math.ceil(scale * (Math.abs(bank.endAngle1 - bank.startAngle1) * maxRadius) / depth)
-      const points = getPoints(0, 0, leftRadius, bank.startAngle1, bank.endAngle1, bank.antiClockwise1, arcLength)
-      const points2 = getPoints(0, 0, rightRadius, bank.startAngle2, bank.endAngle2, bank.antiClockwise2, arcLength)
-
-      points.forEach((point, pointIndex) => {
-        const height = PARAMETERS.tableThickness
-        console.log(point.y)
-        const side = new THREE.Mesh(
-          new THREE.BoxGeometry(
-            width - Math.abs(point.x) - Math.abs(points2[pointIndex].x),
+            PARAMETERS.rubberWidth,
+            PARAMETERS.bankTotalThickness,
             height,
-            depth,
           ),
           material,
         )
-        side.position.set(
-          bankIndex % 2 === 0
-            ? -PARAMETERS.tableWidth / 4 + translate / 2
-            : PARAMETERS.tableWidth / 4 - translate / 2,
-          PARAMETERS.offGroundHeight + PARAMETERS.tableThickness,
-          bankIndex < 2
-            ? point.y - (PARAMETERS.tableHeight / 2 + depth / 2)
-            : point.y + (PARAMETERS.tableHeight / 2 - depth / 2),
-        )
+        mesh.position.x = cx
+        mesh.position.y = this.offGround.bankCenter
+        mesh.position.z = cz
+        this.layout.addObject(mesh)
 
-        this.layout.addObject(side)
+        {
+          // @todo - 先使用简单的圆柱体
+          const mesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(
+              PARAMETERS.rubberWidth,
+              PARAMETERS.rubberWidth,
+              PARAMETERS.bankTotalThickness,
+              128,
+              128,
+              false,
+              cIndex === 0 ? Math.PI / 2 : Math.PI,
+              Math.PI / 2,
+            ),
+            material,
+          )
+          mesh.position.x = cx + (cIndex === 0 ? -1 : 1) * PARAMETERS.rubberWidth / 2
+          mesh.position.y = this.offGround.bankCenter
+          mesh.position.z = cz - height / 2
+          this.layout.addObject(mesh)
+        }
+        {
+          // @todo - 先使用简单的圆柱体
+          const mesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(
+              PARAMETERS.rubberWidth,
+              PARAMETERS.rubberWidth,
+              PARAMETERS.bankTotalThickness,
+              128,
+              128,
+              false,
+              cIndex === 0 ? 0 : Math.PI * 1.5,
+              Math.PI / 2,
+            ),
+            material,
+          )
+          mesh.position.x = cx + (cIndex === 0 ? -1 : 1) * PARAMETERS.rubberWidth / 2
+          mesh.position.y = this.offGround.bankCenter
+          mesh.position.z = cz + height / 2
+          this.layout.addObject(mesh)
+        }
       })
-    })
-  }
-
-  makePocket(x: number, y: number, z: number, radius: number) {
-    const cylinderGeometry = new THREE.CylinderGeometry(radius, radius, PARAMETERS.pocketHeight, 128)
-    const cylinderMaterial = new THREE.MeshPhongMaterial({ color: 0xFF0000, side: THREE.DoubleSide })
-    const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial)
-
-    cylinder.position.set(x, y, z)
-
-    this.layout.addObject(cylinder)
-  }
-
-  makeFrame() {
-    const cylinderGeometry = new THREE.CylinderGeometry(PARAMETERS.tableHeight / 3, PARAMETERS.tableHeight / 2, PARAMETERS.offGroundHeight - PARAMETERS.tableThickness, 4)
-    const cylinderMaterial = new THREE.MeshPhongMaterial({ color: 'brown', side: THREE.DoubleSide })
-    const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial)
-
-    cylinder.position.set(0, PARAMETERS.offGroundHeight / 2, 0)
-
-    this.layout.addObject(cylinder)
-  }
-
-  makeBorder() {
-    const boxMaterial = new THREE.MeshPhongMaterial({ color: 'green', side: THREE.DoubleSide })
-    for (let i = 0; i < 2; i++) {
-      const boxGeometry = new THREE.BoxGeometry(
-        PARAMETERS.tableWidth,
-        PARAMETERS.tableThickness,
-        PARAMETERS.tableThickness * 2,
-      )
-      const box = new THREE.Mesh(boxGeometry, boxMaterial)
-
-      box.position.set(0, PARAMETERS.offGroundHeight, (i === 0 ? -1 : 1) * (PARAMETERS.tableHeight / 2) - PARAMETERS.tableThickness / 2)
-      box.rotation.x = THREE.MathUtils.degToRad(-90)
-
-      this.layout.addObject(box)
-    }
-
-    for (let i = 0; i < 2; i++) {
-      const boxGeometry = new THREE.BoxGeometry(
-        PARAMETERS.tableHeight,
-        PARAMETERS.tableThickness,
-        PARAMETERS.tableThickness * 2,
-      )
-      const box = new THREE.Mesh(boxGeometry, boxMaterial)
-
-      box.position.set((i === 0 ? -1 : 1) * (PARAMETERS.tableWidth / 2) - PARAMETERS.tableThickness / 2, PARAMETERS.offGroundHeight, 0)
-      box.rotation.x = THREE.MathUtils.degToRad(-90)
-      box.rotation.z = THREE.MathUtils.degToRad(90)
-
-      this.layout.addObject(box)
     }
   }
 }

@@ -54,3 +54,15 @@ export function getPoints(x: number, y: number, r: number, startAngle: number, e
   }
   return points
 }
+
+/**
+ * 获取角袋的半径
+ * @param width 角袋最小开口宽度
+ * @param rubberWidth 橡胶条宽度
+ */
+export function getConnerPocketRadius(width: number, rubberWidth: number) {
+  // 斜边
+  const c = width + rubberWidth * 2
+  const side = Math.sqrt(c ** 2 / 2)
+  return side - rubberWidth
+}
