@@ -58,7 +58,7 @@ export const PARAMETERS = {
   /** 木质支撑层尺寸 */
   woodWidth: 4,
   /** 外包台呢尺寸 */
-  clothWidth: 1.5,
+  sideWidth: 1.5,
   /** 橡胶条尺寸 */
   rubberWidth: 7,
   /** 中袋半径 */
@@ -76,10 +76,10 @@ export const PARAMETERS = {
     return this.tableHeight + this.woodWidth * 2
   },
   get outerWidth() {
-    return this.tableWidth + this.woodWidth * 2 + this.clothWidth * 2
+    return this.tableWidth + this.woodWidth * 2 + this.sideWidth * 2
   },
   get outerHeight() {
-    return this.tableHeight + this.woodWidth * 2 + this.clothWidth * 2
+    return this.tableHeight + this.woodWidth * 2 + this.sideWidth * 2
   },
 
   /** 离地高度 */

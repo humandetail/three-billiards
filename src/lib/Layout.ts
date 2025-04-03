@@ -16,6 +16,8 @@ export default class Layout {
 
   renderRequested = false
 
+  #sceneObjects = new Map<string, THREE.Object3D>()
+
   constructor(protected canvas: HTMLCanvasElement) {
     const rect = this.canvas.getBoundingClientRect()
     this.scene = new THREE.Scene()
@@ -24,8 +26,8 @@ export default class Layout {
       canvas: this.canvas,
       antialias: true,
     })
-    // this.camera.position.set(-20, 20, 0)
-    this.camera.position.set(0, 200, 0)
+    this.camera.position.set(-200, 300, 0)
+    // this.camera.position.set(0, 200, 0)
     this.camera.lookAt(0, 0, 0)
 
     this.renderer.setClearColor(0xFFFFFF)
@@ -115,8 +117,27 @@ export default class Layout {
     this.scene.add(ground)
   }
 
-  addObject(object: THREE.Object3D) {
-    this.scene.add(object)
+  getSceneObject(name: string) {
+    return this.#sceneObjects.get(name)
+  }
+
+  makeSceneObject(name: string, parent: THREE.Object3D = this.scene) {
+    const object = new THREE.Object3D()
+    this.#sceneObjects.set(name, object)
+    parent.add(object)
+    return object
+  }
+
+  addObject(name: 'root' | string, object: THREE.Object3D) {
+    if (name === 'root') {
+      this.scene.add(object)
+    }
+    else {
+      if (!this.#sceneObjects.has(name)) {
+        this.makeSceneObject(name)
+      }
+      this.#sceneObjects.get(name)!.add(object)
+    }
   }
 
   initControls() {
