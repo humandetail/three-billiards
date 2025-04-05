@@ -102,7 +102,7 @@ export default class Layout {
     texture.repeat.set(4, 2)
 
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(40, 40),
+      new THREE.PlaneGeometry(400, 400),
       // new THREE.MeshPhongMaterial({
       //   map: texture,
       // }),
