@@ -1,4 +1,5 @@
 import type Layout from './Layout'
+import Cannon from 'cannon'
 import * as THREE from 'three'
 import { PARAMETERS } from '../config'
 
@@ -29,6 +30,8 @@ export default class Ball {
     { x: PARAMETERS.ballRadius * 4 * Math.sqrt(3), z: PARAMETERS.ballRadius * 2 },
     { x: PARAMETERS.ballRadius * Math.sqrt(3), z: PARAMETERS.ballRadius }, // 3
   ]
+
+  ballMaterial = new Cannon.Material('ball')
 
   constructor(public layout: Layout) {
     this.ballSceneObject = this.layout.makeSceneObject('ball')
@@ -69,6 +72,32 @@ export default class Ball {
     const ball = new THREE.Mesh(ballGeometry, material)
     ball.name = `ball-${name}`
     ball.position.set(x, this.tableTop + ballRadius, z)
+
+    ball.castShadow = true
+    ball.receiveShadow = true
+
+    this.layout.balls.push(ball)
+
+    const ballBody = new Cannon.Body({
+      mass: 1,
+      position: new Cannon.Vec3(ball.position.x, ball.position.y, ball.position.z),
+      shape: new Cannon.Sphere(ballRadius),
+      linearDamping: 0.3, // 模拟空气阻力+桌面摩擦
+      angularDamping: 0.5, // 模拟旋转衰减
+    })
+    ballBody.velocity.set(0, 0, 0)
+    ballBody.angularVelocity.set(0, 0, 0)
+
+    ballBody.material = this.layout.ballMaterial
+
+    this.layout.world.addBody(ballBody)
+    this.layout.ballsBody.push(ballBody)
+
+    if (name === 0) {
+      // 给白球一个初始速度
+      ballBody.velocity.set(500, 0, 0)
+    }
+
     return ball
   }
 }

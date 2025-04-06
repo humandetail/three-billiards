@@ -1,6 +1,7 @@
 import * as CANNON from 'cannon'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { PARAMETERS } from '../config'
 import { getTexturePath } from '../utils'
 
 export default class Layout {
@@ -18,6 +19,16 @@ export default class Layout {
 
   #sceneObjects = new Map<string, THREE.Object3D>()
 
+  balls: THREE.Object3D[] = []
+  ballsBody: CANNON.Body[] = []
+  ballMaterial = new CANNON.Material('ball')
+
+  boxs: THREE.Object3D[] = []
+  boxsBody: CANNON.Body[] = []
+
+  tableMaterial = new CANNON.Material('table')
+  rubberMaterial = new CANNON.Material('rubber')
+
   constructor(protected canvas: HTMLCanvasElement) {
     const rect = this.canvas.getBoundingClientRect()
     this.scene = new THREE.Scene()
@@ -26,7 +37,7 @@ export default class Layout {
       canvas: this.canvas,
       antialias: true,
     })
-    this.camera.position.set(-200, 300, 0)
+    this.camera.position.set(-200, 200, 0)
     // this.camera.position.set(0, 200, 0)
     this.camera.lookAt(0, 0, 0)
 
@@ -52,7 +63,7 @@ export default class Layout {
       this.scene.add(...this.helpers)
 
       this.scene.add(new THREE.AxesHelper(10))
-      this.scene.add(new THREE.GridHelper(this.renderer.domElement.width, this.renderer.domElement.height))
+      // this.scene.add(new THREE.GridHelper(this.renderer.domElement.width, this.renderer.domElement.height))
     }
   }
 
@@ -60,6 +71,28 @@ export default class Layout {
     const world = new CANNON.World()
     // 设置重力
     world.gravity.set(0, -9.82, 0)
+    world.broadphase = new CANNON.NaiveBroadphase() // 使用默认碰撞检测
+    world.solver.iterations = 10 // 提高碰撞精度
+
+    // 设置摩擦系数和弹性系数
+    const ballBallContact = new CANNON.ContactMaterial(this.ballMaterial, this.ballMaterial, {
+      friction: 0.05, // 摩擦系数（0=无摩擦，1=完全摩擦）
+      restitution: 0.9, // 弹性系数（0=完全非弹性，1=完全弹性）
+    })
+
+    const ballTableContact = new CANNON.ContactMaterial(this.ballMaterial, this.tableMaterial, {
+      friction: 0.2, // 摩擦系数（0=无摩擦，1=完全摩擦）
+      restitution: 0.5, // 弹性系数（0=完全非弹性，1=完全弹性）
+    })
+
+    const ballRubberContact = new CANNON.ContactMaterial(this.ballMaterial, this.rubberMaterial, {
+      friction: 0.1, // 摩擦系数（0=无摩擦，1=完全摩擦）
+      restitution: 0.8, // 弹性系数（0=完全非弹性，1=完全弹性）
+    })
+
+    world.addContactMaterial(ballBallContact)
+    world.addContactMaterial(ballTableContact)
+    world.addContactMaterial(ballRubberContact)
 
     this.world = world
   }
@@ -110,11 +143,25 @@ export default class Layout {
         color: 'gray',
       }),
     )
+    ground.position.y = -2
     ground.rotation.x = THREE.MathUtils.degToRad(-90)
 
     ground.receiveShadow = true
 
     this.scene.add(ground)
+
+    // 创建 Cannon.js 的静态地板（质量 mass=0 表示静态）
+    const floorShape = new CANNON.Plane()
+    const floorBody = new CANNON.Body({
+      mass: 0, // mass=0 表示静态物体（不受重力影响）
+      shape: floorShape,
+    })
+    floorBody.quaternion.setFromAxisAngle(
+      new CANNON.Vec3(1, 0, 0), // 绕 x 轴旋转
+      -Math.PI / 2, // 旋转 -90 度（让平面平铺）
+    )
+    floorBody.position.set(0, -2, 0) // 设置位置
+    this.world.addBody(floorBody)
   }
 
   getSceneObject(name: string) {
@@ -138,6 +185,21 @@ export default class Layout {
       }
       this.#sceneObjects.get(name)!.add(object)
     }
+
+    object.castShadow = true
+    object.receiveShadow = true
+
+    this.boxs.push(object)
+  }
+
+  contactMaterial(body: CANNON.Body) {
+    this.ballsBody.forEach((ballBody) => {
+      const contactMaterial = new CANNON.ContactMaterial(body.material, ballBody.material, {
+        friction: 0.15, // 摩擦系数（0=无摩擦，1=完全摩擦）
+        restitution: 0, // 弹性系数（0=完全非弹性，1=完全弹性）
+      })
+      this.world.addContactMaterial(contactMaterial)
+    })
   }
 
   initControls() {
@@ -147,9 +209,31 @@ export default class Layout {
     this.controls.minDistance = 100
   }
 
+  syncPhysicsToGraphics() {
+    this.balls.forEach((ball, index) => {
+      const ballBody = this.ballsBody[index]
+      ball.position.set(
+        Number.parseFloat(ballBody.position.x.toFixed(4)),
+        Number.parseFloat(ballBody.position.y.toFixed(4)),
+        Number.parseFloat(ballBody.position.z.toFixed(4)),
+      ) // 同步位置
+
+      ball.quaternion.copy(ballBody.quaternion) // 同步旋转
+    })
+
+    // this.boxs.forEach((box, index) => {
+    //   const body = this.boxsBody[index]
+    //   box.position.copy(body.position) // 同步位置
+    //   box.quaternion.copy(body.quaternion) // 同步旋转
+    // })
+  }
+
   render() {
     this.renderRequested = false
+    this.syncPhysicsToGraphics()
+    this.world.step(1 / 60) // 60fps
     this.renderer.render(this.scene, this.camera)
+    requestAnimationFrame(this.render.bind(this))
   }
 
   requestRenderIfNotRequested() {

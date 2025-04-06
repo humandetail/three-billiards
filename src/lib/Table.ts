@@ -1,7 +1,7 @@
 import type Layout from './Layout'
 
+import Cannon from 'cannon'
 import * as THREE from 'three'
-import { CSG } from 'three-csg-ts'
 import { PARAMETERS } from '../config'
 import { getPoints } from '../utils'
 
@@ -25,12 +25,30 @@ export default class Table {
     const sceneObject = this.layout.makeSceneObject('table')
     sceneObject.position.y = this.offGround.tableCenter
 
+    // const mesh = new THREE.Mesh(
+    //   new THREE.BoxGeometry(
+    //     10,
+    //     4,
+    //     20,
+    //   ),
+    //   new THREE.MeshPhongMaterial({ color: 'brown' }),
+    // )
+    // mesh.position.y = 0
+    // this.layout.addObject(
+    //   'root',
+    //   mesh,
+    //   10,
+    //   4,
+    //   20,
+    // )
+
+    // this.makeTableLegs()
     this.makeTableBoard()
     this.makeTableLine()
   }
 
   makeTableBoard() {
-    // // 中间整个大板
+    // 中间整个大板
     {
       const sceneObject = this.layout.getSceneObject('table')!
 
@@ -44,6 +62,8 @@ export default class Table {
       )
       const mesh = new THREE.Mesh(geometry, this.clothMaterial)
       sceneObject.add(mesh)
+
+      this.createTableBody(mesh, width, PARAMETERS.tableThickness, height)
     }
     // 袋口包边
     {
@@ -146,6 +166,9 @@ export default class Table {
                 ? PARAMETERS.cornerPocketRadius - height / 2
                 : -PARAMETERS.cornerPocketRadius + height / 2
             obj.add(mesh)
+
+            // 创建物理刚体
+            this.createTableBody(mesh, isOpenRight ? width : size, thickness, isOpenRight ? size : height)
           })
         }
       })
@@ -182,6 +205,9 @@ export default class Table {
               ? 0 + PARAMETERS.middlePocketRadius - height / 2
               : 0 - PARAMETERS.middlePocketRadius + height / 2
             obj.add(mesh)
+
+            // 创建物理刚体
+            this.createTableBody(mesh, size, thickness, height)
           })
         }
       })
@@ -210,6 +236,9 @@ export default class Table {
           ? -horizontalZ
           : horizontalZ
         tableSceneObject.add(mesh)
+
+        // 创建物理刚体
+        this.createTableBody(mesh, horizontalWidth, PARAMETERS.tableThickness, horizontalHeight)
       }
 
       const verticalWidth = PARAMETERS.cornerPocketRadius * 2
@@ -229,6 +258,9 @@ export default class Table {
           ? -verticalX
           : verticalX
         tableSceneObject.add(mesh)
+
+        // 创建物理刚体
+        this.createTableBody(mesh, verticalWidth, PARAMETERS.tableThickness, verticalHeight)
       }
 
       const fixedBoardWidth = PARAMETERS.middlePocketRadius * 2
@@ -248,6 +280,9 @@ export default class Table {
           ? -fixedBoardZ
           : fixedBoardZ
         tableSceneObject.add(mesh)
+
+        // 创建物理刚体
+        this.createTableBody(mesh, fixedBoardWidth, PARAMETERS.tableThickness, fixedBoardHeight)
       }
     }
     // 木条外边框 side
@@ -374,6 +409,9 @@ export default class Table {
           mesh.position.y = bankTop - thickness / 2
           mesh.position.z = cz + (PARAMETERS.rubberWidth / 2 - size * i) * (cIndex < 2 ? 1 : -1)
           tableSceneObject.add(mesh)
+
+          // 创建物理刚体
+          this.createRubberBody(mesh, horizontalWidth + Math.abs(x) * 2, thickness, size)
         })
 
         return null
@@ -403,6 +441,9 @@ export default class Table {
           mesh.position.x = cx + (PARAMETERS.rubberWidth / 2 - size * i) * (cIndex === 0 ? 1 : -1)
           mesh.position.y = bankTop - thickness / 2
           tableSceneObject.add(mesh)
+
+          // 创建物理刚体
+          this.createRubberBody(mesh, size, thickness, verticalHeight + Math.abs(y) * 2)
         })
 
         return null
@@ -440,5 +481,57 @@ export default class Table {
     cueBallMesh.position.y = PARAMETERS.tableThickness / 2
     cueBallMesh.rotation.x = -Math.PI / 2
     tableSceneObject.add(cueBallMesh)
+  }
+
+  // 创建桌脚
+  makeTableLegs() {
+    const geometry = new THREE.BoxGeometry(10, PARAMETERS.offGroundHeight, 10)
+    const material = new THREE.MeshPhongMaterial({ color: 0x8B4513 }) // 棕色木材材质
+    const mesh = new THREE.Mesh(geometry, material)
+    mesh.castShadow = true
+    mesh.receiveShadow = true
+    mesh.position.y = PARAMETERS.offGroundHeight / 2
+
+    this.layout.addObject('root', mesh)
+  }
+
+  // 创建台面底部的物理刚体
+  createTableBody(mesh: THREE.Mesh, width: number, height: number, thickness: number) {
+    // 创建物理刚体
+    const position = mesh.getWorldPosition(new THREE.Vector3())
+
+    const body = new Cannon.Body({
+      mass: 0,
+      position: new Cannon.Vec3(position.x, position.y, position.z),
+      shape: new Cannon.Box(new Cannon.Vec3(
+        width / 2,
+        height / 2,
+        thickness / 2,
+      )),
+    })
+    this.layout.world.addBody(body)
+    this.layout.boxsBody.push(body)
+
+    body.material = this.layout.tableMaterial
+  }
+
+  // 创建胶条的物理刚体
+  createRubberBody(mesh: THREE.Mesh, width: number, height: number, thickness: number) {
+    // 创建物理刚体
+    const position = mesh.getWorldPosition(new THREE.Vector3())
+
+    const body = new Cannon.Body({
+      mass: 0,
+      position: new Cannon.Vec3(position.x, position.y, position.z),
+      shape: new Cannon.Box(new Cannon.Vec3(
+        width / 2,
+        height / 2,
+        thickness / 2,
+      )),
+    })
+    this.layout.world.addBody(body)
+    this.layout.boxsBody.push(body)
+
+    body.material = this.layout.rubberMaterial
   }
 }
