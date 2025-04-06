@@ -1,3 +1,5 @@
+import * as THREE from 'three'
+
 export function getTexturePath(name: string): string {
   const PATHNAME = import.meta.env.VITE_APP_PATHNAME || '/'
   return `${PATHNAME.replace(/\/$/, '')}/textures/${name}`
@@ -65,4 +67,19 @@ export function getConnerPocketRadius(width: number, rubberWidth: number) {
   const c = width + rubberWidth * 2
   const side = Math.sqrt(c ** 2 / 2)
   return side - rubberWidth
+}
+
+export function createBoxGeometry(
+  width: number,
+  height: number,
+  depth: number,
+  x: number,
+  y: number,
+  z: number,
+): THREE.BoxGeometry {
+  const geometry = new THREE.BoxGeometry(width, height, depth)
+  const matrix = new THREE.Matrix4()
+  matrix.makeTranslation(x, y, z)
+  geometry.applyMatrix4(matrix)
+  return geometry
 }
