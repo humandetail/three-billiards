@@ -4,7 +4,8 @@ import Cannon from 'cannon'
 import * as THREE from 'three'
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
 import { PARAMETERS } from '../config'
-import { createBoxGeometry, getPoints } from '../utils'
+import { getPoints } from '../utils'
+import Compound from './Compound'
 
 export default class Table {
   offGround = {
@@ -17,8 +18,8 @@ export default class Table {
     bankTop: PARAMETERS.offGroundHeight + PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness,
   }
 
-  clothMaterial = new THREE.MeshPhongMaterial({ color: 'green' })
-  woodMaterial = new THREE.MeshPhongMaterial({ color: 'brown' })
+  clothMaterial = new THREE.MeshPhongMaterial({ color: 0x00AA00 })
+  woodMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 })
 
   constructor(public layout: Layout) {}
 
@@ -26,47 +27,28 @@ export default class Table {
     const sceneObject = this.layout.makeSceneObject('table')
     sceneObject.position.y = this.offGround.tableCenter
 
-    // const mesh = new THREE.Mesh(
-    //   new THREE.BoxGeometry(
-    //     10,
-    //     4,
-    //     20,
-    //   ),
-    //   new THREE.MeshPhongMaterial({ color: 'brown' }),
-    // )
-    // mesh.position.y = 0
-    // this.layout.addObject(
-    //   'root',
-    //   mesh,
-    //   10,
-    //   4,
-    //   20,
-    // )
-
-    // this.makeTableLegs()
+    this.makeTableLegs()
     this.makeTableBoard()
     this.makeTableLine()
   }
 
   makeTableBoard() {
-    const scale = 1
-    // // 中间整个大板
-    // {
-    //   const sceneObject = this.layout.getSceneObject('table')!
+    // 中间整个大板
+    {
+      const sceneObject = this.layout.getSceneObject('table')!
 
-    //   const width = PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4
-    //   const height = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
+      const width = PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4
+      const height = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
 
-    //   const geometry = new THREE.BoxGeometry(
-    //     width,
-    //     PARAMETERS.tableThickness,
-    //     height,
-    //   )
-    //   const mesh = new THREE.Mesh(geometry, this.clothMaterial)
-    //   sceneObject.add(mesh)
-
-    //   this.createTableBody(mesh, width, PARAMETERS.tableThickness, height)
-    // }
+      const geometry = new THREE.BoxGeometry(
+        width,
+        PARAMETERS.tableThickness,
+        height,
+      )
+      const mesh = new THREE.Mesh(geometry, this.clothMaterial)
+      sceneObject.add(mesh)
+      this.createTableBody(mesh, width, PARAMETERS.tableThickness, height)
+    }
     // 袋口包边
     {
       const tableSceneObject = this.layout.getSceneObject('table')!
@@ -78,7 +60,6 @@ export default class Table {
 
       let thickness = PARAMETERS.tableThickness
       let y = 0
-      let material = this.clothMaterial
       const colorGreen = new THREE.Color('green')
       const colorBrown = new THREE.Color('brown')
       let color = colorGreen
@@ -101,8 +82,8 @@ export default class Table {
         obj.position.z = z
         return obj
       }).forEach((obj, cIndex) => {
-        const geometries: THREE.BoxGeometry[] = []
-        const list: any[] = []
+        const p = obj.getWorldPosition(new THREE.Vector3())
+        const compound = new Compound(0, p.x, p.y, p.z)
         for (let i = 0; i < 4; i++) {
           const startAngle = i * (Math.PI / 2)
           const endAngle = (i + 1) * (Math.PI / 2)
@@ -137,7 +118,6 @@ export default class Table {
                 Math.abs(p.y) <= diff && isOpenRight
               )
             ) {
-              material = this.clothMaterial
               color = colorGreen
               thickness = PARAMETERS.tableThickness
               y = 0
@@ -145,367 +125,344 @@ export default class Table {
             else {
               thickness = PARAMETERS.bankTotalThickness + PARAMETERS.tableThickness
               y = -PARAMETERS.tableThickness / 2 + thickness / 2
-              material = this.woodMaterial
               color = colorBrown
             }
 
-            const attrs: [number, number, number, number, number, number] = [
-              // width
-              isOpenRight ? width : size,
-              // height
-              thickness,
-              // depth
-              isOpenRight ? size : height,
-              // x
-              isOpenRight
+            compound.add({
+              width: isOpenRight ? width : size,
+              height: thickness,
+              depth: isOpenRight ? size : height,
+              x: isOpenRight
                 ? cIndex === 0 || cIndex === 3
                   ? PARAMETERS.cornerPocketRadius - width / 2
                   : -PARAMETERS.cornerPocketRadius + width / 2
                 : p.x,
-              // y
               y,
-              // z
-              isOpenRight
+              z: isOpenRight
                 ? p.y
                 : i < 2
                   ? PARAMETERS.cornerPocketRadius - height / 2
                   : -PARAMETERS.cornerPocketRadius + height / 2,
-            ]
-            const geometry = createBoxGeometry(...attrs)
-
-            const colors = new Float32Array(geometry.attributes.position.count * 3)
-            for (let i = 0; i < colors.length; i += 3) {
-              colors[i] = color.r
-              colors[i + 1] = color.g
-              colors[i + 2] = color.b
-            }
-
-            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-
-            // const mesh = new THREE.Mesh(
-            //   geometry,
-            //   material,
-            // )
-            // mesh.position.x = isOpenRight
-            //   ? cIndex === 0 || cIndex === 3
-            //     ? PARAMETERS.cornerPocketRadius - width / 2
-            //     : -PARAMETERS.cornerPocketRadius + width / 2
-            //   : p.x
-            // mesh.position.y = y
-            // mesh.position.z = isOpenRight
-            //   ? p.y
-            //   : i < 2
-            //     ? PARAMETERS.cornerPocketRadius - height / 2
-            //     : -PARAMETERS.cornerPocketRadius + height / 2
-            // obj.add(mesh)
-
-            geometries.push(geometry)
-            list.push(attrs)
-
-            // this.createTableBody(
-            //   attrs[0],
-            //   attrs[1],
-            //   attrs[2],
-            //   attrs[3],
-            //   attrs[4] + this.offGround.tableCenter,
-            //   attrs[5],
-            // )
-
-            // 创建物理刚体
-            // this.createTableBody(mesh, isOpenRight ? width : size, thickness, isOpenRight ? size : height)
+              color,
+            })
           })
         }
 
-        const mergedGeometry = BufferGeometryUtils.mergeGeometries(geometries, false)
-        const mesh = new THREE.Mesh(
-          mergedGeometry,
-          // 创建材质并启用顶点颜色
-          new THREE.MeshPhongMaterial({
-            vertexColors: true,
-            side: THREE.DoubleSide,
-          }),
-        )
+        const { mesh, body } = compound.generate()
         obj.add(mesh)
+        this.layout.world.addBody(body)
 
-        this.createTableCompoundBody(list, obj.position.x, obj.position.y, obj.position.z)
+        body.material = this.layout.rubberMaterial
+        this.layout.boxes.push(mesh)
+        this.layout.boxesBody.push(body)
       })
 
-      // Array.from({ length: 2 }, (_, cIndex) => {
-      //   const obj = this.layout.makeSceneObject(`middlePocket-${cIndex}`, tableSceneObject)
-      //   obj.position.x = 0
-      //   obj.position.z = cIndex === 0
-      //     ? -PARAMETERS.withWoodHeight / 2 + PARAMETERS.middlePocketRadius
-      //     : PARAMETERS.withWoodHeight / 2 - PARAMETERS.middlePocketRadius
-      //   return obj
-      // }).forEach((obj, cIndex) => {
-      //   for (let i = 0; i < 4; i++) {
-      //     const points = getPoints(0, 0, PARAMETERS.middlePocketRadius, i * (Math.PI / 2), (i + 1) * (Math.PI / 2), false, quarterMiddlePocketPerimeter)
-      //     if ((cIndex === 0 && i < 2) || (cIndex === 1 && i >= 2)) {
-      //       thickness = PARAMETERS.tableThickness
-      //       y = 0
-      //       material = this.clothMaterial
-      //     }
-      //     else {
-      //       thickness = PARAMETERS.bankTotalThickness + PARAMETERS.tableThickness
-      //       y = -PARAMETERS.tableThickness / 2 + thickness / 2
-      //       material = this.woodMaterial
-      //     }
-      //     points.forEach((p) => {
-      //       const height = PARAMETERS.middlePocketRadius - Math.abs(p.y)
-      //       const mesh = new THREE.Mesh(
-      //         new THREE.BoxGeometry(size, thickness, height),
-      //         material,
-      //       )
-      //       mesh.position.x = p.x
-      //       mesh.position.y = y
-      //       mesh.position.z = i < 2
-      //         ? 0 + PARAMETERS.middlePocketRadius - height / 2
-      //         : 0 - PARAMETERS.middlePocketRadius + height / 2
-      //       obj.add(mesh)
+      Array.from({ length: 2 }, (_, cIndex) => {
+        const obj = this.layout.makeSceneObject(`middlePocket-${cIndex}`, tableSceneObject)
+        obj.position.x = 0
+        obj.position.z = cIndex === 0
+          ? -PARAMETERS.withWoodHeight / 2 + PARAMETERS.middlePocketRadius
+          : PARAMETERS.withWoodHeight / 2 - PARAMETERS.middlePocketRadius
+        return obj
+      }).forEach((obj, cIndex) => {
+        const p = obj.getWorldPosition(new THREE.Vector3())
+        const compound = new Compound(0, p.x, p.y, p.z)
+        for (let i = 0; i < 4; i++) {
+          const points = getPoints(0, 0, PARAMETERS.middlePocketRadius, i * (Math.PI / 2), (i + 1) * (Math.PI / 2), false, quarterMiddlePocketPerimeter)
+          if ((cIndex === 0 && i < 2) || (cIndex === 1 && i >= 2)) {
+            thickness = PARAMETERS.tableThickness
+            y = 0
+            color = colorGreen
+          }
+          else {
+            thickness = PARAMETERS.bankTotalThickness + PARAMETERS.tableThickness
+            y = -PARAMETERS.tableThickness / 2 + thickness / 2
+            color = colorBrown
+          }
+          points.forEach((p) => {
+            const height = PARAMETERS.middlePocketRadius - Math.abs(p.y)
 
-      //       // 创建物理刚体
-      //       this.createTableBody(mesh, size, thickness, height)
-      //     })
-      //   }
-      // })
+            compound.add({
+              width: size,
+              height: thickness,
+              depth: height,
+              x: p.x,
+              y,
+              z: i < 2
+                ? 0 + PARAMETERS.middlePocketRadius - height / 2
+                : 0 - PARAMETERS.middlePocketRadius + height / 2,
+              color,
+            })
+
+            // const mesh = new THREE.Mesh(
+            //   new THREE.BoxGeometry(size, thickness, height),
+            //   material,
+            // )
+            // mesh.position.x = p.x
+            // mesh.position.y = y
+            // mesh.position.z = i < 2
+            //   ? 0 + PARAMETERS.middlePocketRadius - height / 2
+            //   : 0 - PARAMETERS.middlePocketRadius + height / 2
+            // obj.add(mesh)
+
+            // // 创建物理刚体
+            // this.createTableBody(mesh, size, thickness, height)
+          })
+        }
+
+        const { mesh, body } = compound.generate()
+        obj.add(mesh)
+        this.layout.world.addBody(body)
+      })
     }
-    // // 补齐板
-    // {
-    //   const tableSceneObject = this.layout.getSceneObject('table')!
+    // 补齐板
+    {
+      const tableSceneObject = this.layout.getSceneObject('table')!
 
-    //   const horizontalWidth = (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.middlePocketRadius
-    //   const horizontalHeight = PARAMETERS.cornerPocketRadius * 2
-    //   const horizontalZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.cornerPocketRadius
+      const horizontalWidth = (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.middlePocketRadius
+      const horizontalHeight = PARAMETERS.cornerPocketRadius * 2
+      const horizontalZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.cornerPocketRadius
 
-    //   for (let i = 0; i < 4; i++) {
-    //     const mesh = new THREE.Mesh(
-    //       new THREE.BoxGeometry(
-    //         horizontalWidth,
-    //         PARAMETERS.tableThickness,
-    //         horizontalHeight,
-    //       ),
-    //       this.clothMaterial,
-    //     )
-    //     mesh.position.x = i % 2 === 0
-    //       ? -horizontalWidth / 2 - PARAMETERS.middlePocketRadius
-    //       : horizontalWidth / 2 + PARAMETERS.middlePocketRadius
-    //     mesh.position.z = i < 2
-    //       ? -horizontalZ
-    //       : horizontalZ
-    //     tableSceneObject.add(mesh)
+      for (let i = 0; i < 4; i++) {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            horizontalWidth,
+            PARAMETERS.tableThickness,
+            horizontalHeight,
+          ),
+          this.clothMaterial,
+        )
+        mesh.position.x = i % 2 === 0
+          ? -horizontalWidth / 2 - PARAMETERS.middlePocketRadius
+          : horizontalWidth / 2 + PARAMETERS.middlePocketRadius
+        mesh.position.z = i < 2
+          ? -horizontalZ
+          : horizontalZ
+        tableSceneObject.add(mesh)
 
-    //     // 创建物理刚体
-    //     this.createTableBody(mesh, horizontalWidth, PARAMETERS.tableThickness, horizontalHeight)
-    //   }
+        // 创建物理刚体
+        this.createTableBody(mesh, horizontalWidth, PARAMETERS.tableThickness, horizontalHeight)
+      }
 
-    //   const verticalWidth = PARAMETERS.cornerPocketRadius * 2
-    //   const verticalHeight = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
-    //   const verticalX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius
+      const verticalWidth = PARAMETERS.cornerPocketRadius * 2
+      const verticalHeight = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
+      const verticalX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius
 
-    //   for (let j = 0; j < 2; j++) {
-    //     const mesh = new THREE.Mesh(
-    //       new THREE.BoxGeometry(
-    //         verticalWidth,
-    //         PARAMETERS.tableThickness,
-    //         verticalHeight,
-    //       ),
-    //       this.clothMaterial,
-    //     )
-    //     mesh.position.x = j === 0
-    //       ? -verticalX
-    //       : verticalX
-    //     tableSceneObject.add(mesh)
+      for (let j = 0; j < 2; j++) {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            verticalWidth,
+            PARAMETERS.tableThickness,
+            verticalHeight,
+          ),
+          this.clothMaterial,
+        )
+        mesh.position.x = j === 0
+          ? -verticalX
+          : verticalX
+        tableSceneObject.add(mesh)
 
-    //     // 创建物理刚体
-    //     this.createTableBody(mesh, verticalWidth, PARAMETERS.tableThickness, verticalHeight)
-    //   }
+        // 创建物理刚体
+        this.createTableBody(mesh, verticalWidth, PARAMETERS.tableThickness, verticalHeight)
+      }
 
-    //   const fixedBoardWidth = PARAMETERS.middlePocketRadius * 2
-    //   const fixedBoardHeight = PARAMETERS.cornerPocketRadius * 2 - PARAMETERS.middlePocketRadius * 2
-    //   const fixedBoardZ = horizontalZ - horizontalHeight / 2 + fixedBoardHeight / 2
+      const fixedBoardWidth = PARAMETERS.middlePocketRadius * 2
+      const fixedBoardHeight = PARAMETERS.cornerPocketRadius * 2 - PARAMETERS.middlePocketRadius * 2
+      const fixedBoardZ = horizontalZ - horizontalHeight / 2 + fixedBoardHeight / 2
 
-    //   for (let k = 0; k < 2; k++) {
-    //     const mesh = new THREE.Mesh(
-    //       new THREE.BoxGeometry(
-    //         fixedBoardWidth,
-    //         PARAMETERS.tableThickness,
-    //         fixedBoardHeight,
-    //       ),
-    //       this.clothMaterial,
-    //     )
-    //     mesh.position.z = k === 0
-    //       ? -fixedBoardZ
-    //       : fixedBoardZ
-    //     tableSceneObject.add(mesh)
+      for (let k = 0; k < 2; k++) {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            fixedBoardWidth,
+            PARAMETERS.tableThickness,
+            fixedBoardHeight,
+          ),
+          this.clothMaterial,
+        )
+        mesh.position.z = k === 0
+          ? -fixedBoardZ
+          : fixedBoardZ
+        tableSceneObject.add(mesh)
 
-    //     // 创建物理刚体
-    //     this.createTableBody(mesh, fixedBoardWidth, PARAMETERS.tableThickness, fixedBoardHeight)
-    //   }
-    // }
-    // // 木条外边框 side
-    // {
-    //   const tableSceneObject = this.layout.getSceneObject('table')!
-    //   for (let i = 0; i < 2; i++) {
-    //     const mesh = new THREE.Mesh(
-    //       new THREE.BoxGeometry(
-    //         PARAMETERS.outerWidth,
-    //         PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness,
-    //         PARAMETERS.sideWidth,
-    //       ),
-    //       this.woodMaterial,
-    //     )
-    //     mesh.position.y = PARAMETERS.bankTotalThickness / 2
-    //     mesh.position.z = (PARAMETERS.outerHeight / 2 - PARAMETERS.sideWidth / 2) * (i === 0 ? -1 : 1)
-    //     tableSceneObject.add(mesh)
-    //   }
+        // 创建物理刚体
+        this.createTableBody(mesh, fixedBoardWidth, PARAMETERS.tableThickness, fixedBoardHeight)
+      }
+    }
+    // 木条外边框 side
+    {
+      const tableSceneObject = this.layout.getSceneObject('table')!
+      for (let i = 0; i < 2; i++) {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            PARAMETERS.outerWidth,
+            PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness,
+            PARAMETERS.sideWidth,
+          ),
+          this.woodMaterial,
+        )
+        mesh.position.y = PARAMETERS.bankTotalThickness / 2
+        mesh.position.z = (PARAMETERS.outerHeight / 2 - PARAMETERS.sideWidth / 2) * (i === 0 ? -1 : 1)
+        tableSceneObject.add(mesh)
 
-    //   for (let j = 0; j < 2; j++) {
-    //     const mesh = new THREE.Mesh(
-    //       new THREE.BoxGeometry(
-    //         PARAMETERS.sideWidth,
-    //         PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness,
-    //         PARAMETERS.outerHeight,
-    //       ),
-    //       this.woodMaterial,
-    //     )
-    //     mesh.position.x = (PARAMETERS.outerWidth / 2 - PARAMETERS.sideWidth / 2) * (j === 0 ? -1 : 1)
-    //     mesh.position.y = PARAMETERS.bankTotalThickness / 2
-    //     tableSceneObject.add(mesh)
-    //   }
-    // }
-    // // 木质支撑层
-    // {
-    //   const tableSceneObject = this.layout.getSceneObject('table')!
+        this.createTableBody(mesh, PARAMETERS.outerWidth, PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness, PARAMETERS.sideWidth)
+      }
 
-    //   const y = PARAMETERS.tableThickness / 2 + PARAMETERS.bankTotalThickness / 2
+      for (let j = 0; j < 2; j++) {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            PARAMETERS.sideWidth,
+            PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness,
+            PARAMETERS.outerHeight,
+          ),
+          this.woodMaterial,
+        )
+        mesh.position.x = (PARAMETERS.outerWidth / 2 - PARAMETERS.sideWidth / 2) * (j === 0 ? -1 : 1)
+        mesh.position.y = PARAMETERS.bankTotalThickness / 2
+        tableSceneObject.add(mesh)
 
-    //   const horizontalWidth = (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.middlePocketRadius
-    //   const horizontalHeight = PARAMETERS.woodWidth
-    //   const horizontalZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.woodWidth / 2
+        this.createTableBody(mesh, PARAMETERS.sideWidth, PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness, PARAMETERS.outerHeight)
+      }
+    }
+    // 木质支撑层
+    {
+      const tableSceneObject = this.layout.getSceneObject('table')!
 
-    //   for (let i = 0; i < 4; i++) {
-    //     const mesh = new THREE.Mesh(
-    //       new THREE.BoxGeometry(
-    //         horizontalWidth,
-    //         PARAMETERS.bankTotalThickness,
-    //         horizontalHeight,
-    //       ),
-    //       this.woodMaterial,
-    //     )
-    //     mesh.position.x = i % 2 === 0
-    //       ? -horizontalWidth / 2 - PARAMETERS.middlePocketRadius
-    //       : horizontalWidth / 2 + PARAMETERS.middlePocketRadius
-    //     mesh.position.z = i < 2
-    //       ? -horizontalZ
-    //       : horizontalZ
-    //     mesh.position.y = y
-    //     tableSceneObject.add(mesh)
-    //   }
+      const y = PARAMETERS.tableThickness / 2 + PARAMETERS.bankTotalThickness / 2
 
-    //   const verticalWidth = PARAMETERS.woodWidth
-    //   const verticalHeight = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
-    //   const verticalX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.woodWidth / 2
+      const horizontalWidth = (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.middlePocketRadius
+      const horizontalHeight = PARAMETERS.woodWidth
+      const horizontalZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.woodWidth / 2
 
-    //   for (let j = 0; j < 2; j++) {
-    //     const mesh = new THREE.Mesh(
-    //       new THREE.BoxGeometry(
-    //         verticalWidth,
-    //         PARAMETERS.bankTotalThickness,
-    //         verticalHeight,
-    //       ),
-    //       this.woodMaterial,
-    //     )
-    //     mesh.position.x = j === 0
-    //       ? -verticalX
-    //       : verticalX
-    //     mesh.position.y = y
-    //     tableSceneObject.add(mesh)
-    //   }
-    // }
+      for (let i = 0; i < 4; i++) {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            horizontalWidth,
+            PARAMETERS.bankTotalThickness,
+            horizontalHeight,
+          ),
+          this.woodMaterial,
+        )
+        mesh.position.x = i % 2 === 0
+          ? -horizontalWidth / 2 - PARAMETERS.middlePocketRadius
+          : horizontalWidth / 2 + PARAMETERS.middlePocketRadius
+        mesh.position.z = i < 2
+          ? -horizontalZ
+          : horizontalZ
+        mesh.position.y = y
+        tableSceneObject.add(mesh)
+      }
 
-    // // 胶条
-    // {
-    //   const tableSceneObject = this.layout.getSceneObject('table')!
+      const verticalWidth = PARAMETERS.woodWidth
+      const verticalHeight = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
+      const verticalX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.woodWidth / 2
 
-    //   const scale = 20
-    //   const perimeter = Math.ceil(2 * PARAMETERS.rubberWidth * Math.PI * scale / 4)
-    //   const size = PARAMETERS.rubberWidth / perimeter
-    //   const thicknessList = Array.from({ length: perimeter }, (_, i) => {
-    //     return Math.min(PARAMETERS.bankContactHeight + Math.tan(Math.PI / 4) * size * i, PARAMETERS.bankTotalThickness)
-    //   })
+      for (let j = 0; j < 2; j++) {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            verticalWidth,
+            PARAMETERS.bankTotalThickness,
+            verticalHeight,
+          ),
+          this.woodMaterial,
+        )
+        mesh.position.x = j === 0
+          ? -verticalX
+          : verticalX
+        mesh.position.y = y
+        tableSceneObject.add(mesh)
+      }
+    }
 
-    //   const bankTop = PARAMETERS.tableThickness / 2 + PARAMETERS.bankTotalThickness
+    // 胶条
+    {
+      const tableSceneObject = this.layout.getSceneObject('table')!
 
-    //   const horizontalWidth = (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.middlePocketRadius - PARAMETERS.rubberWidth * 2
-    //   const horizontalX = (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 + PARAMETERS.middlePocketRadius / 2
-    //   const horizontalZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.woodWidth - PARAMETERS.rubberWidth / 2
+      const scale = 20
+      const perimeter = Math.ceil(2 * PARAMETERS.rubberWidth * Math.PI * scale / 4)
+      const size = PARAMETERS.rubberWidth / perimeter
+      const thicknessList = Array.from({ length: perimeter }, (_, i) => {
+        return Math.min(PARAMETERS.bankContactHeight + Math.tan(Math.PI / 4) * size * i, PARAMETERS.bankTotalThickness)
+      })
 
-    //   Array.from({ length: 4 }, (_, cIndex) => {
-    //     const cx = cIndex % 2 === 0
-    //       ? -horizontalX
-    //       : horizontalX
-    //     const cz = cIndex < 2
-    //       ? -horizontalZ
-    //       : horizontalZ
+      const bankTop = PARAMETERS.tableThickness / 2 + PARAMETERS.bankTotalThickness
 
-    //     const leftPoints = cIndex < 2
-    //       ? getPoints(0, 0, PARAMETERS.rubberWidth, Math.PI / 2, Math.PI, false, perimeter)
-    //       : getPoints(0, 0, PARAMETERS.rubberWidth, Math.PI * 1.5, Math.PI, true, perimeter)
+      const horizontalWidth = (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.middlePocketRadius - PARAMETERS.rubberWidth * 2
+      const horizontalX = (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 4 + PARAMETERS.middlePocketRadius / 2
+      const horizontalZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.woodWidth - PARAMETERS.rubberWidth / 2
 
-    //     thicknessList.forEach((thickness, i) => {
-    //       const { x } = leftPoints[i]
-    //       const mesh = new THREE.Mesh(
-    //         new THREE.BoxGeometry(
-    //           horizontalWidth + Math.abs(x) * 2,
-    //           thickness,
-    //           size,
-    //         ),
-    //         this.clothMaterial,
-    //       )
-    //       mesh.position.x = cx
-    //       mesh.position.y = bankTop - thickness / 2
-    //       mesh.position.z = cz + (PARAMETERS.rubberWidth / 2 - size * i) * (cIndex < 2 ? 1 : -1)
-    //       tableSceneObject.add(mesh)
+      Array.from({ length: 4 }, (_, cIndex) => {
+        const cx = cIndex % 2 === 0
+          ? -horizontalX
+          : horizontalX
+        const cz = cIndex < 2
+          ? -horizontalZ
+          : horizontalZ
 
-    //       // 创建物理刚体
-    //       this.createRubberBody(mesh, horizontalWidth + Math.abs(x) * 2, thickness, size)
-    //     })
+        const leftPoints = cIndex < 2
+          ? getPoints(0, 0, PARAMETERS.rubberWidth, Math.PI / 2, Math.PI, false, perimeter)
+          : getPoints(0, 0, PARAMETERS.rubberWidth, Math.PI * 1.5, Math.PI, true, perimeter)
 
-    //     return null
-    //   })
+        const compound = new Compound(0, 0, this.offGround.tableCenter, 0)
 
-    //   const verticalHeight = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4 - PARAMETERS.rubberWidth * 2
-    //   const verticalX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.woodWidth - PARAMETERS.rubberWidth / 2
+        thicknessList.forEach((thickness, i) => {
+          const { x } = leftPoints[i]
+          compound.add({
+            width: horizontalWidth + Math.abs(x) * 2,
+            height: thickness,
+            depth: size,
+            x: cx,
+            y: bankTop - thickness / 2,
+            z: cz + (PARAMETERS.rubberWidth / 2 - size * i) * (cIndex < 2 ? 1 : -1),
+            color: new THREE.Color('green'),
+          })
+        })
 
-    //   Array.from({ length: 4 }, (_, cIndex) => {
-    //     const cx = cIndex === 0
-    //       ? -verticalX
-    //       : verticalX
-    //     const points = cIndex === 0
-    //       ? getPoints(0, 0, PARAMETERS.rubberWidth, 0, Math.PI * 1.5, true, perimeter)
-    //       : getPoints(0, 0, PARAMETERS.rubberWidth, 0, Math.PI / 2, false, perimeter)
+        const { mesh, body } = compound.generate()
+        tableSceneObject.add(mesh)
+        this.layout.world.addBody(body)
 
-    //     thicknessList.forEach((thickness, i) => {
-    //       const { y } = points[i]
-    //       const mesh = new THREE.Mesh(
-    //         new THREE.BoxGeometry(
-    //           size,
-    //           thickness,
-    //           verticalHeight + Math.abs(y) * 2,
-    //         ),
-    //         this.clothMaterial,
-    //       )
-    //       mesh.position.x = cx + (PARAMETERS.rubberWidth / 2 - size * i) * (cIndex === 0 ? 1 : -1)
-    //       mesh.position.y = bankTop - thickness / 2
-    //       tableSceneObject.add(mesh)
+        // this.layout.boxes.push(mesh)
+        // this.layout.boxesBody.push(body)
 
-    //       // 创建物理刚体
-    //       this.createRubberBody(mesh, size, thickness, verticalHeight + Math.abs(y) * 2)
-    //     })
+        return null
+      })
 
-    //     return null
-    //   })
-    // }
+      const verticalHeight = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4 - PARAMETERS.rubberWidth * 2
+      const verticalX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.woodWidth - PARAMETERS.rubberWidth / 2
+
+      Array.from({ length: 2 }, (_, cIndex) => {
+        const cx = cIndex === 0
+          ? -verticalX
+          : verticalX
+        const points = cIndex === 0
+          ? getPoints(0, 0, PARAMETERS.rubberWidth, 0, Math.PI * 1.5, true, perimeter)
+          : getPoints(0, 0, PARAMETERS.rubberWidth, 0, Math.PI / 2, false, perimeter)
+
+        const compound = new Compound(0, 0, this.offGround.tableCenter, 0)
+
+        thicknessList.forEach((thickness, i) => {
+          const { y } = points[i]
+
+          compound.add({
+            width: size,
+            height: thickness,
+            depth: verticalHeight + Math.abs(y) * 2,
+            x: cx + (PARAMETERS.rubberWidth / 2 - size * i) * (cIndex === 0 ? 1 : -1),
+            y: bankTop - thickness / 2,
+            z: 0,
+            color: new THREE.Color('green'),
+          })
+        })
+
+        const { mesh, body } = compound.generate()
+        tableSceneObject.add(mesh)
+        this.layout.world.addBody(body)
+
+        body.material = this.layout.rubberMaterial
+
+        return null
+      })
+    }
   }
 
   makeTableLine() {
@@ -542,14 +499,42 @@ export default class Table {
 
   // 创建桌脚
   makeTableLegs() {
-    const geometry = new THREE.BoxGeometry(10, PARAMETERS.offGroundHeight, 10)
-    const material = new THREE.MeshPhongMaterial({ color: 0x8B4513 }) // 棕色木材材质
-    const mesh = new THREE.Mesh(geometry, material)
-    mesh.castShadow = true
-    mesh.receiveShadow = true
-    mesh.position.y = PARAMETERS.offGroundHeight / 2
+    const boardWidth = PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4
+    const boardHeight = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
 
-    this.layout.addObject('root', mesh)
+    const legWidth = PARAMETERS.legWidth
+    const legHeight = PARAMETERS.legHeight
+    const legDepth = PARAMETERS.legDepth
+
+    const positions = [
+      [boardWidth / 2 - legWidth / 2, boardHeight / 2 - legDepth / 2],
+      [boardWidth / 2 - legWidth / 2, -boardHeight / 2 + legDepth / 2],
+      [0 + legWidth / 2, boardHeight / 2 - legDepth / 2],
+      [0 + legWidth / 2, -boardHeight / 2 + legDepth / 2],
+      [-boardWidth / 2 + legWidth / 2, boardHeight / 2 - legDepth / 2],
+      [-boardWidth / 2 + legWidth / 2, -boardHeight / 2 + legDepth / 2],
+    ]
+
+    positions.forEach((position) => {
+      const geometry = new THREE.BoxGeometry(legWidth, legHeight, legDepth)
+      const material = new THREE.MeshPhongMaterial({ color: 'gold' }) // 金色材质
+      const mesh = new THREE.Mesh(geometry, material)
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      mesh.position.set(
+        position[0],
+        legHeight / 2,
+        position[1],
+      )
+
+      const body = new Cannon.Body({
+        mass: 1,
+      })
+      body.addShape(new Cannon.Box(new Cannon.Vec3(legWidth / 2, legHeight / 2, legDepth / 2)))
+      body.position.set(position[0], position[1], position[2])
+      this.layout.world.addBody(body)
+      this.layout.addObject('root', mesh)
+    })
   }
 
   // 创建台面底部的物理刚体
@@ -569,35 +554,15 @@ export default class Table {
       compoundBody.addShape(boxShape, new Cannon.Vec3(attrs[3], attrs[4], attrs[5]))
     })
     this.layout.world.addBody(compoundBody)
-    this.layout.boxsBody.push(compoundBody)
+    this.layout.boxesBody.push(compoundBody)
 
     compoundBody.position.set(x, y, z)
 
     compoundBody.material = this.layout.tableMaterial
   }
 
-  // // 创建台面底部的物理刚体
-  // createTableBody(mesh: THREE.Mesh, width: number, height: number, thickness: number) {
-  //   // 创建物理刚体
-  //   const position = mesh.getWorldPosition(new THREE.Vector3())
-
-  //   const body = new Cannon.Body({
-  //     mass: 0,
-  //     position: new Cannon.Vec3(position.x, position.y, position.z),
-  //     shape: new Cannon.Box(new Cannon.Vec3(
-  //       width / 2,
-  //       height / 2,
-  //       thickness / 2,
-  //     )),
-  //   })
-  //   this.layout.world.addBody(body)
-  //   this.layout.boxsBody.push(body)
-
-  //   body.material = this.layout.tableMaterial
-  // }
-
-  // 创建胶条的物理刚体
-  createRubberBody(mesh: THREE.Mesh, width: number, height: number, thickness: number) {
+  // 创建台面底部的物理刚体
+  createTableBody(mesh: THREE.Mesh, width: number, height: number, thickness: number) {
     // 创建物理刚体
     const position = mesh.getWorldPosition(new THREE.Vector3())
 
@@ -611,8 +576,8 @@ export default class Table {
       )),
     })
     this.layout.world.addBody(body)
-    this.layout.boxsBody.push(body)
+    // this.layout.boxesBody.push(body)
 
-    body.material = this.layout.rubberMaterial
+    body.material = this.layout.tableMaterial
   }
 }

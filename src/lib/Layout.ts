@@ -1,7 +1,7 @@
 import * as CANNON from 'cannon'
+import CannonDebugger from 'cannon-es-debugger'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { PARAMETERS } from '../config'
 import { getTexturePath } from '../utils'
 
 export default class Layout {
@@ -11,11 +11,12 @@ export default class Layout {
   controls!: OrbitControls
 
   world!: CANNON.World
+  cannonDebugger!: any
 
   showHelper = true
   helpers: (THREE.PointLightHelper | any)[] = []
 
-  renderRequested = false
+  isCameraMoving = false
 
   #sceneObjects = new Map<string, THREE.Object3D>()
 
@@ -23,11 +24,13 @@ export default class Layout {
   ballsBody: CANNON.Body[] = []
   ballMaterial = new CANNON.Material('ball')
 
-  boxs: THREE.Object3D[] = []
-  boxsBody: CANNON.Body[] = []
+  boxes: THREE.Object3D[] = []
+  boxesBody: CANNON.Body[] = []
 
   tableMaterial = new CANNON.Material('table')
   rubberMaterial = new CANNON.Material('rubber')
+
+  cue?: THREE.Object3D
 
   constructor(protected canvas: HTMLCanvasElement) {
     const rect = this.canvas.getBoundingClientRect()
@@ -46,7 +49,7 @@ export default class Layout {
 
     this.init()
 
-    this.requestRenderIfNotRequested()
+    this.render()
   }
 
   init() {
@@ -70,13 +73,13 @@ export default class Layout {
   initWorld() {
     const world = new CANNON.World()
     // 设置重力
-    world.gravity.set(0, -9.82, 0)
+    world.gravity.set(0, -9.82 * 10, 0)
     world.broadphase = new CANNON.NaiveBroadphase() // 使用默认碰撞检测
     world.solver.iterations = 10 // 提高碰撞精度
 
     // 设置摩擦系数和弹性系数
     const ballBallContact = new CANNON.ContactMaterial(this.ballMaterial, this.ballMaterial, {
-      friction: 0.05, // 摩擦系数（0=无摩擦，1=完全摩擦）
+      friction: 0.02, // 摩擦系数（0=无摩擦，1=完全摩擦）
       restitution: 0.9, // 弹性系数（0=完全非弹性，1=完全弹性）
     })
 
@@ -95,11 +98,16 @@ export default class Layout {
     world.addContactMaterial(ballRubberContact)
 
     this.world = world
+
+    this.cannonDebugger = CannonDebugger(this.scene, this.world as any)
   }
 
   initEvents() {
     this.controls.addEventListener('change', () => {
-      this.requestRenderIfNotRequested()
+      this.isCameraMoving = true
+      setTimeout(() => {
+        this.isCameraMoving = false
+      }, 200)
     })
   }
 
@@ -128,6 +136,9 @@ export default class Layout {
     this.scene.add(ambientLight)
   }
 
+  /**
+   * 地板最顶面所在位置就是 y = 0
+   */
   initGround() {
     const texture = new THREE.TextureLoader().load(getTexturePath('ground.jpg'))
     texture.wrapS = THREE.RepeatWrapping
@@ -136,14 +147,14 @@ export default class Layout {
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(400, 400),
-      // new THREE.MeshPhongMaterial({
-      //   map: texture,
-      // }),
-      new THREE.MeshBasicMaterial({
-        color: 'gray',
+      new THREE.MeshPhongMaterial({
+        map: texture,
       }),
+      // new THREE.MeshBasicMaterial({
+      //   color: 'gray',
+      // }),
     )
-    ground.position.y = -2
+    ground.position.y = 0
     ground.rotation.x = THREE.MathUtils.degToRad(-90)
 
     ground.receiveShadow = true
@@ -160,7 +171,7 @@ export default class Layout {
       new CANNON.Vec3(1, 0, 0), // 绕 x 轴旋转
       -Math.PI / 2, // 旋转 -90 度（让平面平铺）
     )
-    floorBody.position.set(0, -2, 0) // 设置位置
+    floorBody.position.set(0, 0, 0) // 设置位置
     this.world.addBody(floorBody)
   }
 
@@ -189,17 +200,7 @@ export default class Layout {
     object.castShadow = true
     object.receiveShadow = true
 
-    this.boxs.push(object)
-  }
-
-  contactMaterial(body: CANNON.Body) {
-    this.ballsBody.forEach((ballBody) => {
-      const contactMaterial = new CANNON.ContactMaterial(body.material, ballBody.material, {
-        friction: 0.15, // 摩擦系数（0=无摩擦，1=完全摩擦）
-        restitution: 0, // 弹性系数（0=完全非弹性，1=完全弹性）
-      })
-      this.world.addContactMaterial(contactMaterial)
-    })
+    // this.boxes.push(object)
   }
 
   initControls() {
@@ -221,26 +222,68 @@ export default class Layout {
       ball.quaternion.copy(ballBody.quaternion) // 同步旋转
     })
 
-    // this.boxs.forEach((box, index) => {
-    //   const body = this.boxsBody[index]
+    // this.boxes.forEach((box, index) => {
+    //   const body = this.boxesBody[index]
     //   box.position.copy(body.position) // 同步位置
     //   box.quaternion.copy(body.quaternion) // 同步旋转
     // })
   }
 
-  render() {
-    this.renderRequested = false
-    this.syncPhysicsToGraphics()
-    this.world.step(1 / 60) // 60fps
-    this.renderer.render(this.scene, this.camera)
-    requestAnimationFrame(this.render.bind(this))
+
+
+  updateCuePosition() {
+    const cue = this.cue
+    const camera = this.camera
+    const whiteBall = this.balls.find(ball => ball.name === 'ball-0')!
+
+    if (!cue || !whiteBall) return
+
+    const cueDistance = 1.2; // 球杆与白球的初始距离
+    const angle = Math.atan2(camera.position.x - whiteBall.position.x, camera.position.z - whiteBall.position.z);
+
+    cue.position.x = whiteBall.position.x - Math.sin(angle) * cueDistance;
+    cue.position.z = whiteBall.position.z - Math.cos(angle) * cueDistance;
+    cue.rotation.y = -angle; // 球杆朝向白球
+    // cue.lookAt(whiteBall.position);
   }
 
-  requestRenderIfNotRequested() {
-    if (!this.renderRequested) {
-      this.renderRequested = true
-      requestAnimationFrame(this.render.bind(this))
-    }
+  hitBall(power = 10) {
+    const cue = this.cue
+    const camera = this.camera
+    const whiteBallIndex = this.balls.findIndex(ball => ball.name === 'ball-0')
+    if (!cue || whiteBallIndex === -1) return
+
+    const whiteBall = this.balls[whiteBallIndex]
+    const whiteBallBody = this.ballsBody[whiteBallIndex]
+
+    // 1. 计算击球方向（从球杆指向白球）
+    const direction = new CANNON.Vec3(
+        whiteBall.position.x - cue.position.x,
+        0,
+        whiteBall.position.z - cue.position.z
+    );
+
+    console.log(direction)
+
+    // 2. 施加力
+    whiteBallBody.applyImpulse(
+        new CANNON.Vec3(direction.x * power, 0, direction.z * power),
+        new CANNON.Vec3(0, 0, 0) // 作用点（球心）
+    );
+
+    // 3. 球杆后坐动画（可选）
+    cue.position.x -= direction.x * 0.2;
+    cue.position.z -= direction.z * 0.2;
+}
+
+  render() {
+    this.world.step(this.isCameraMoving ? 1 / 120 : 1 / 60) // 60fps
+    this.syncPhysicsToGraphics()
+    // this.world.step(1 / 60)
+    // this.cannonDebugger.update()
+    this.updateCuePosition()
+    this.renderer.render(this.scene, this.camera)
+    requestAnimationFrame(this.render.bind(this))
   }
 
   handleResize(width: number, height: number) {

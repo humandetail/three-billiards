@@ -79,7 +79,7 @@ export default class Ball {
     this.layout.balls.push(ball)
 
     const ballBody = new Cannon.Body({
-      mass: 1,
+      mass: 0.2,
       position: new Cannon.Vec3(ball.position.x, ball.position.y, ball.position.z),
       shape: new Cannon.Sphere(ballRadius),
       linearDamping: 0.3, // 模拟空气阻力+桌面摩擦
@@ -93,10 +93,10 @@ export default class Ball {
     this.layout.world.addBody(ballBody)
     this.layout.ballsBody.push(ballBody)
 
-    if (name === 0) {
-      // 给白球一个初始速度
-      ballBody.velocity.set(500, 0, 0)
-    }
+    // if (name === 0) {
+    //   // 给白球一个初始速度
+    //   ballBody.velocity.set(800, 0, 0)
+    // }
 
     return ball
   }

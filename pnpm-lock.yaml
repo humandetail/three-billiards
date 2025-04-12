@@ -8,6 +8,9 @@ dependencies:
   cannon:
     specifier: ^0.6.2
     version: 0.6.2
+  cannon-es-debugger:
+    specifier: ^1.0.0
+    version: 1.0.0(cannon-es@0.20.0)(three@0.174.0)(typescript@5.7.2)
   three:
     specifier: ^0.174.0
     version: 0.174.0
@@ -1257,6 +1260,25 @@ packages:
   /caniuse-lite@1.0.30001706:
     resolution: {integrity: sha512-3ZczoTApMAZwPKYWmwVbQMFpXBDds3/0VciVoUwPUbldlYyVLmRVuRs/PcUZtHpbLRpzzDvrvnFuREsGt6lUug==}
     dev: true
+
+  /cannon-es-debugger@1.0.0(cannon-es@0.20.0)(three@0.174.0)(typescript@5.7.2):
+    resolution: {integrity: sha512-sE9lDOBAYFKlh+0w+cvWKwUhJef8HYnUSVPWPL0jD15MAuVRQKno4QYZSGxgOoJkMR3mQqxL4bxys2b3RSWH8g==}
+    peerDependencies:
+      cannon-es: 0.x
+      three: 0.x
+      typescript: '>=3.8'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+    dependencies:
+      cannon-es: 0.20.0
+      three: 0.174.0
+      typescript: 5.7.2
+    dev: false
+
+  /cannon-es@0.20.0:
+    resolution: {integrity: sha512-eZhWTZIkFOnMAJOgfXJa9+b3kVlvG+FX4mdkpePev/w/rP5V8NRquGyEozcjPfEoXUlb+p7d9SUcmDSn14prOA==}
+    dev: false
 
   /cannon@0.6.2:
     resolution: {integrity: sha512-n/7wWSXr8KOSvjad2x0fJHgpMepKjOKi+NdSnjfYyijoDBZnp4JQKgPcpv28jlXoWM+N9zVYU09J0A6Qxx+Y7w==}
@@ -3154,7 +3176,6 @@ packages:
     resolution: {integrity: sha512-i5t66RHxDvVN40HfDd1PsEThGNnlMCMT3jMUuoh9/0TaqWevNontacunWyN02LA9/fIbEWlcHZcgTKb9QoaLfg==}
     engines: {node: '>=14.17'}
     hasBin: true
-    dev: true
 
   /ufo@1.5.4:
     resolution: {integrity: sha512-UsUk3byDzKd04EyoZ7U4DOlxQaD14JUKQl6/P7wiX4FNvUfm3XL246n9W5AmqwW5RSFJ27NAuM0iLscAOYUiGQ==}

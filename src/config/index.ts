@@ -88,4 +88,9 @@ export const PARAMETERS = {
   bankTotalThickness: 3.8,
   /** 库边与球接触面高度 */
   bankContactHeight: 1.5,
+
+  // 桌脚
+  legWidth: 10,
+  legHeight: 75,
+  legDepth: 10,
 }
