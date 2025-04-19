@@ -19,7 +19,7 @@ export default class Cue {
     cue.position.set(0, 85, 0) // 初始位置
     cue.rotation.z = Math.PI / 2 // 横放
 
-    this.layout.addObject('cue', cue)
+    // this.layout.addObject('cue', cue)
     this.layout.cue = cue
   }
 }

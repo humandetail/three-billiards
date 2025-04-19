@@ -243,8 +243,8 @@ export default class Layout {
 
     cue.position.x = whiteBall.position.x - Math.sin(angle) * cueDistance;
     cue.position.z = whiteBall.position.z - Math.cos(angle) * cueDistance;
-    cue.rotation.y = -angle; // 球杆朝向白球
-    // cue.lookAt(whiteBall.position);
+    // cue.rotation.y = -angle; // 球杆朝向白球
+    cue.lookAt(whiteBall.position);
   }
 
   hitBall(power = 10) {
@@ -267,13 +267,14 @@ export default class Layout {
 
     // 2. 施加力
     whiteBallBody.applyImpulse(
-        new CANNON.Vec3(direction.x * power, 0, direction.z * power),
-        new CANNON.Vec3(0, 0, 0) // 作用点（球心）
+        // new CANNON.Vec3(direction.x * power, 0, direction.z * power),
+        new CANNON.Vec3(100, 0, 2),
+        new CANNON.Vec3(0, whiteBallBody.position.y, 0) // 作用点（球心）
     );
 
-    // 3. 球杆后坐动画（可选）
-    cue.position.x -= direction.x * 0.2;
-    cue.position.z -= direction.z * 0.2;
+    // // 3. 球杆后坐动画（可选）
+    // cue.position.x -= direction.x * 0.2;
+    // cue.position.z -= direction.z * 0.2;
 }
 
   render() {
