@@ -1,19 +1,5 @@
-function createCanvas(width = 400, height = 300, canvas?: HTMLCanvasElement) {
-  const c = canvas ?? document.createElement('canvas')
-
-  c.style.width = `${width}px`
-  c.style.height = `${height}px`
-
-  const dpr = window.devicePixelRatio ?? 1
-
-  c.width = Math.floor(dpr * width)
-  c.height = Math.floor(dpr * height)
-
-  c.getContext('2d')!.scale(dpr, dpr)
-
-  return c
-}
-
+import Hammer from 'hammerjs'
+import { createCanvas } from '../utils'
 export default class PointHelper {
   canvas: HTMLCanvasElement
   ctx: CanvasRenderingContext2D
@@ -21,15 +7,14 @@ export default class PointHelper {
   width: number
   height: number
 
-  point = {
+  targetPosition = {
     x: 0,
-    y: 0,
-    isInCircle: true
+    y: 0
   }
+  targetRadius = 4
 
   ballRadius = 24
-  safeRadius = 18
-  pointRadius = 4
+  safeRadius = 20
 
   isDragging = false
 
@@ -50,8 +35,12 @@ export default class PointHelper {
     this.canvas = createCanvas(width, height)
     this.ctx = this.canvas.getContext('2d')!
 
-    this.point.x = width / 2
-    this.point.y = height / 2
+    this.targetPosition.x = width / 2
+    this.targetPosition.y = height / 2
+
+    this.ballRadius = Math.floor(Math.min(width, height) * 0.9 / 2)
+    this.targetRadius = Math.floor(Math.max(this.ballRadius / 10, 4))
+    this.safeRadius = this.ballRadius - this.targetRadius
 
     oEl.appendChild(this.canvas)
 
@@ -60,86 +49,134 @@ export default class PointHelper {
     this.draw()
   }
 
+  get center() {
+    return {
+      x: this.width / 2,
+      y: this.height / 2
+    }
+  }
+
   initEvent() {
     const { canvas } = this
-    canvas.addEventListener('mousedown', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
 
-      if (this.isPointClicked(x, y)) {
+    const hm = new Hammer(canvas)
+    hm.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 0 })
+
+    hm.on('panstart', e => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.center.x - rect.left;
+      const y = e.center.y - rect.top;
+
+      if (this.isTargetClicked(x, y)) {
         this.isDragging = true;
+        console.log('?')
         document.body.style.cursor = 'grabbing';
       }
-    });
+    })
 
-    document.addEventListener('mousemove', (e) => {
+    hm.on('panmove', e => {
       if (this.isDragging) {
         const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const x = e.center.x - rect.left;
+        const y = e.center.y - rect.top;
 
-        this.updatePointPosition(x, y);
+        this.updateTargetPosition(x, y);
       }
+    })
 
-      document.body.style.cursor = this.isDragging ? 'grabbing' : 'default';
-    });
-
-    document.addEventListener('mouseup', () => {
+    hm.on('panend', () => {
       this.isDragging = false;
       document.body.style.cursor = 'default';
-    });
+    })
 
-    document.addEventListener('mouseleave', () => {
+    hm.on('panleave', () => {
       this.isDragging = false;
       document.body.style.cursor = 'default';
-    });
+    })
   }
-
-  
 
   draw() {
-    const { ctx, width, height, point } = this
+    const { ctx, width, height } = this
     ctx.clearRect(0, 0, width, height)
 
-    const cx = width / 2
-    const cy = height / 2
+    this.drawBall()
 
-    // 绘制大圆
-    ctx.beginPath()
-    ctx.arc(cx, cy, this.ballRadius, 0, Math.PI * 2)
-    ctx.strokeStyle = 'red'
-    ctx.stroke()
+    this.drawGuideLine()
+    this.drawTarget()
 
-    // 绘制中心点
-    ctx.beginPath()
-    ctx.arc(cx, cy, this.pointRadius, 0, Math.PI * 2)
-    ctx.fillStyle = 'red'
-    ctx.fill()
-
-    // 绘制允许的击球区域
-    ctx.beginPath()
-    ctx.arc(cx, cy, this.safeRadius, 0, Math.PI * 2)
-    ctx.strokeStyle = 'blue'
-    ctx.stroke()
-
-    // 绘制可拖动点
-    ctx.beginPath();
-    ctx.arc(point.x, point.y, this.pointRadius, 0, Math.PI * 2);
-    ctx.fillStyle = point.isInCircle ? 'green' : 'gray';
-    ctx.fill();
+    this.drawDiff()
   }
 
-  // 检查是否点击了小点
-  isPointClicked(x: number, y: number) {
-    const { point } = this
-    const distance = Math.sqrt((x - point.x) ** 2 + (y - point.y) ** 2);
-    return distance <= this.pointRadius;
+  drawBall() {
+    const { ctx, center, ballRadius } = this
+    ctx.save()
+
+    ctx.beginPath()
+
+    ctx.shadowBlur = 10
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+
+    ctx.arc(center.x, center.y, ballRadius, 0, Math.PI * 2)
+    ctx.strokeStyle = '#555'
+    ctx.fillStyle = '#fff'
+    ctx.fill()
+    ctx.stroke()
+
+    ctx.restore()
+  }
+
+  drawGuideLine() {
+    const { ctx, width, height, center, ballRadius } = this
+    ctx.save()
+    const diffX = Math.ceil(width / 2 - ballRadius)
+    const diffY = Math.ceil(height / 2 - ballRadius)
+    ctx.beginPath()
+    ctx.moveTo(center.x, diffY)
+    ctx.lineTo(center.x, height - diffY)
+    ctx.moveTo(diffX, center.y)
+    ctx.lineTo(width - diffX, center.y)
+    ctx.strokeStyle = '#ccc'
+    ctx.setLineDash([ballRadius / 10])
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  drawTarget() {
+    const { ctx, targetPosition, targetRadius } = this
+    ctx.save()
+    ctx.beginPath();
+    ctx.arc(targetPosition.x, targetPosition.y, targetRadius, 0, Math.PI * 2);
+    ctx.fillStyle = 'red'
+    ctx.fill();
+    ctx.restore();
+  }
+
+  drawDiff() {
+    const { ctx, targetPosition, center } = this
+    const text = `(${(targetPosition.x - center.x).toFixed(1)}, ${(center.y - targetPosition.y).toFixed(1)})`
+
+    ctx.save()
+    ctx.beginPath()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = 'Bold 12px Arial'
+    ctx.fillText(text, center.x, center.y)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  isTargetClicked(x: number, y: number) {
+    const { targetPosition, targetRadius } = this
+    const distance = Math.sqrt((x - targetPosition.x) ** 2 + (y - targetPosition.y) ** 2);
+
+    return distance <= targetRadius * 2;
   }
 
   // 更新点位置
-  updatePointPosition(x: number, y: number) {
-    const { point, width, height, safeRadius } = this
+  updateTargetPosition(x: number, y: number) {
+    const { targetPosition, width, height, safeRadius } = this
     const cx = width / 2
     const cy = height / 2
 
@@ -156,12 +193,17 @@ export default class PointHelper {
       // 计算缩放比例
       const scale = safeRadius / r;
       // 计算新的坐标
-      point.x = cx + dx * scale;
-      point.y = cy + dy * scale;
+      targetPosition.x = cx + dx * scale;
+      targetPosition.y = cy + dy * scale;
     } else {
-      point.x = x
-      point.y = y
+      targetPosition.x = x
+      targetPosition.y = y
     }
+    console.log(targetPosition)
     this.draw();
+  }
+
+  resetTarget() {
+    this.updateTargetPosition(this.center.x, this.center.y)
   }
 }

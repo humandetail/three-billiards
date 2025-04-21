@@ -11,6 +11,9 @@ dependencies:
   cannon-es-debugger:
     specifier: ^1.0.0
     version: 1.0.0(cannon-es@0.20.0)(three@0.174.0)(typescript@5.7.2)
+  hammerjs:
+    specifier: ^2.0.8
+    version: 2.0.8
   three:
     specifier: ^0.174.0
     version: 0.174.0
@@ -28,6 +31,9 @@ devDependencies:
   '@types/cannon':
     specifier: ^0.1.13
     version: 0.1.13
+  '@types/hammerjs':
+    specifier: ^2.0.46
+    version: 2.0.46
   '@types/three':
     specifier: ^0.174.0
     version: 0.174.0
@@ -850,6 +856,10 @@ packages:
 
   /@types/estree@1.0.6:
     resolution: {integrity: sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw==}
+    dev: true
+
+  /@types/hammerjs@2.0.46:
+    resolution: {integrity: sha512-ynRvcq6wvqexJ9brDMS4BnBLzmr0e14d6ZJTEShTBWKymQiHwlAyGu0ZPEFI2Fh1U53F7tN9ufClWM5KvqkKOw==}
     dev: true
 
   /@types/json-schema@7.0.15:
@@ -2065,6 +2075,11 @@ packages:
   /graphemer@1.4.0:
     resolution: {integrity: sha512-EtKwoO6kxCL9WO5xipiHTZlSzBm7WLT627TqC/uVRd0HKmq8NXyebnNYxDoBi7wt8eTWrUrKXCOVaFq9x1kgag==}
     dev: true
+
+  /hammerjs@2.0.8:
+    resolution: {integrity: sha512-tSQXBXS/MWQOn/RKckawJ61vvsDpCom87JgxiYdGwHdOa0ht0vzUWDlfioofFCRU0L+6NGDt6XzbgoJvZkMeRQ==}
+    engines: {node: '>=0.8.0'}
+    dev: false
 
   /has-flag@4.0.0:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}

@@ -68,3 +68,19 @@ export function getConnerPocketRadius(width: number, rubberWidth: number) {
   const side = Math.sqrt(c ** 2 / 2)
   return side - rubberWidth
 }
+
+export function createCanvas(width = 400, height = 300, canvas?: HTMLCanvasElement) {
+  const c = canvas ?? document.createElement('canvas')
+
+  c.style.width = `${width}px`
+  c.style.height = `${height}px`
+
+  const dpr = window.devicePixelRatio ?? 1
+
+  c.width = Math.floor(dpr * width)
+  c.height = Math.floor(dpr * height)
+
+  c.getContext('2d')!.scale(dpr, dpr)
+
+  return c
+}

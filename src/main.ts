@@ -9,6 +9,7 @@ import './style.css'
 import { CueSystem } from './lib/CueSystem'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import PointHelper from './lib/PointHelper'
+import ForceHelper from './lib/ForceHelper'
 
 function main() {
   const layout = new Layout(document.querySelector('#main-canvas') as HTMLCanvasElement)
@@ -357,9 +358,10 @@ ball.add(new THREE.AxesHelper(5))
     renderer.setSize(window.innerWidth, window.innerHeight)
   })
 
-  animate()
+  // animate()
 
   new PointHelper('#point-helper')
+  new ForceHelper('#force-helper')
 }
 
 test()
