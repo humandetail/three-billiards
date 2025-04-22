@@ -56,6 +56,14 @@ export default class PointHelper {
     }
   }
 
+  getPosition(radius = this.ballRadius) {
+    const { targetPosition, center, ballRadius } = this
+    return {
+      x: radius * (targetPosition.x - center.x) / ballRadius,
+      y: radius * (targetPosition.y - center.y) / ballRadius,
+    }
+  }
+
   initEvent() {
     const { canvas } = this
 

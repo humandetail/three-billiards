@@ -1,4 +1,5 @@
-import Cannon from 'cannon'
+// import Cannon from 'cannon'
+import * as Cannon from 'cannon-es'
 import CannonDebugger from 'cannon-es-debugger'
 import * as THREE from 'three'
 import Ball from './lib/Ball'
@@ -10,6 +11,7 @@ import { CueSystem } from './lib/CueSystem'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import PointHelper from './lib/PointHelper'
 import ForceHelper from './lib/ForceHelper'
+import { getIntersectionPoints } from './utils'
 
 function main() {
   const layout = new Layout(document.querySelector('#main-canvas') as HTMLCanvasElement)
@@ -180,141 +182,155 @@ function test() {
   let phi = Math.PI / 2; // 垂直角度 (0到π)
   let theta = 0; // 水平角度 (0到2π)
   const rotationSpeed = 0.05;
-  // const minPhi = Math.PI / 4;  // 45度俯角(最低视角)
-  // const maxPhi = 3 * Math.PI / 4;  // 45度仰角(最高视角)
-  // // 新增：存储上次有效phi值
-  // let lastValidPhi = phi;
 
-const minHeight = ball.position.y + 2; // 相机最低高度(比球高2单位)
+  const minHeight = ball.position.y + ballRadius; // 相机最低高度(比球高2单位)
 
-const cue = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.6, 1, 48, 128),
-  new THREE.MeshBasicMaterial({ color: 'brown' }),
-)
-cue.rotateX(-Math.PI / 2)
-cue.position.set(0, -2, -2)
-camera.add(cue)
+  const cue = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.6, 1, 48, 128),
+    new THREE.MeshBasicMaterial({ color: 'brown' }),
+  )
+  cue.rotateX(-Math.PI / 2)
+  const cueBasePosition = {
+    x: 0,
+    y: -2,
+    z: -2,
+  }
+  cue.position.set(cueBasePosition.x, cueBasePosition.y, cueBasePosition.z)
+  camera.add(cue)
 
-const cueAxisHelper = new THREE.AxesHelper(5)
-cue.add(cueAxisHelper)
-ball.add(new THREE.AxesHelper(5))
+  const cueAxisHelper = new THREE.AxesHelper(5)
+  cue.add(cueAxisHelper)
+  ball.add(new THREE.AxesHelper(5))
 
-  // // 更新相机位置函数
-  // function updateCameraPosition() {
-  //     // 从球坐标系转换为笛卡尔坐标系
-  //     const x = ball.position.x + cameraDistance * Math.sin(phi) * Math.cos(theta);
-      
-  //   // // 锁定相机高度不低于球的Y值
-  //   // const minHeight = ball.position.y; // 球的最低高度
-  //   // const y = Math.max(minHeight, ball.position.y + cameraDistance * Math.cos(phi));
+  const forceArrow = new THREE.ArrowHelper(
+    cue.getWorldDirection(new THREE.Vector3()).normalize(), // 归一化方向
+    ball.position,
+    30,
+    '#ff0000', // 箭头颜色
+  )
+  scene.add(forceArrow)
 
-  //   // const y = ball.position.y; // 强制相机高度等于球的高度
-
-  //   // // 确保相机高度不低于球的Y值
-  //   // const minHeight = ball.position.y + 2; // 比球高2个单位，确保视角合理
-  //   // const y = Math.max(minHeight, ball.position.y + cameraDistance * Math.cos(phi));
-  //     // 计算理论Y值
-  //     const targetY = ball.position.y + cameraDistance * Math.cos(phi);
-    
-  //     // 确保相机高度不低于球的Y值+2
-  //     const minHeight = ball.position.y + 2;
-  //     const y = Math.max(minHeight, targetY);
-      
-  //     // 如果高度被限制，则保持phi不变
-  //     if (y > targetY) {
-  //         phi = lastValidPhi;
-  //     } else {
-  //         lastValidPhi = phi;
-  //     }
-  //     const z = ball.position.z + cameraDistance * Math.sin(phi) * Math.sin(theta);
-  //     // console.log(phi)
-  //     camera.position.set(x, y, z);
-  //     camera.lookAt(ball.position);
-  // }
   function updateCameraPosition() {
     // 计算原始相机位置
     const rawX = ball.position.x + cameraDistance * Math.sin(phi) * Math.cos(theta);
     const rawY = ball.position.y + cameraDistance * Math.cos(phi);
     const rawZ = ball.position.z + cameraDistance * Math.sin(phi) * Math.sin(theta);
-    
+
     // 调整Y坐标确保不低于最小高度
     const adjustedY = Math.max(minHeight, rawY);
-    
+
     // 如果Y坐标被调整，则需要重新计算XZ位置以保持距离
     if (adjustedY > rawY) {
-        // 计算新的phi角度来保持30单位距离
-        const newPhi = Math.acos((adjustedY - ball.position.y) / cameraDistance);
-        
-        // 重新计算XZ位置
-        const newX = ball.position.x + cameraDistance * Math.sin(newPhi) * Math.cos(theta);
-        const newZ = ball.position.z + cameraDistance * Math.sin(newPhi) * Math.sin(theta);
-        
-        camera.position.set(newX, adjustedY, newZ);
+      // 计算新的phi角度来保持30单位距离
+      const newPhi = Math.acos((adjustedY - ball.position.y) / cameraDistance);
+
+      // 重新计算XZ位置
+      const newX = ball.position.x + cameraDistance * Math.sin(newPhi) * Math.cos(theta);
+      const newZ = ball.position.z + cameraDistance * Math.sin(newPhi) * Math.sin(theta);
+
+      camera.position.set(newX, adjustedY, newZ);
     } else {
-        camera.position.set(rawX, rawY, rawZ);
+      camera.position.set(rawX, rawY, rawZ);
     }
-    
+
     const p = ball.position.clone()
     p.y += 2
     camera.lookAt(p);
     // updateClubPosition();
-}
+
+    // 画出力方向
+    forceArrow.setDirection(camera.getWorldDirection(new THREE.Vector3()).normalize())
+  }
   // 初始相机位置
   updateCameraPosition();
 
-        // 键盘控制
-        const keys = {
-          ArrowUp: false,
-          ArrowDown: false,
-          ArrowLeft: false,
-          ArrowRight: false
-      };
-      
-      document.addEventListener('keydown', (event) => {
-          if (keys.hasOwnProperty(event.key)) {
-              keys[event.key] = true;
-          }
 
-          if (event.code === 'Space') {
-              // cueSystem.startCharging()
-              console.log('cueSystem.startCharging()')
-              // const direction = new THREE.Vector3(0, 0, 1); // 局部Z轴正方向
-              const direction = new THREE.Vector3(0, 1, 0); // 局部Y轴正方向
-              direction.applyQuaternion(cue.quaternion); // 转换为世界坐标
-              cue.position.add(direction.multiplyScalar(-0.1));
-          }
-      });
-      
-      document.addEventListener('keyup', (event) => {
-          if (keys.hasOwnProperty(event.key)) {
-              keys[event.key] = false;
-          }
-          if (event.code === 'Space') {
-            // 1. 获取相机看向的方向
-            const direction = new THREE.Vector3();
-            camera.getWorldDirection(direction);
-            
-            // 2. 转换为Cannon.js向量并标准化
-            const forceDirection = new Cannon.Vec3(
-                direction.x,
-                direction.y,
-                direction.z
-            );
-            
-            // 3. 乘以力的大小（牛顿）
-            const forceMagnitude = 200; // 20牛顿
-            forceDirection.scale(forceMagnitude, forceDirection);
-            
-            // 4. 在球体质心施加力
-            const applyPoint = new Cannon.Vec3(0, ballRadius, 0); // 质心
-            ballBody.applyForce(forceDirection, applyPoint);
-            
-            // const direction = new THREE.Vector3(0, 1, 0); // 局部Y轴正方向
-            // direction.applyQuaternion(cue.quaternion); // 转换为世界坐标
-            // console.log(d)
-            // ballBody.applyForce(direction.clone().normalize().multiplyScalar(1000), ballBody.position); // 在球体上施加力
-          }
-      });
+  const pointHelper = new PointHelper('#point-helper')
+  const forceHelper = new ForceHelper('#force-helper')
+
+  const rayArrow = new THREE.ArrowHelper(
+    cue.getWorldDirection(new THREE.Vector3()).normalize(), // 归一化方向
+    cue.getWorldPosition(new THREE.Vector3()),
+    30,
+    '#0000ff', // 箭头颜色
+  )
+  rayArrow.applyQuaternion(cue.getWorldQuaternion(new THREE.Quaternion()))
+  scene.add(rayArrow)
+
+  // 键盘控制
+  const keys = {
+    ArrowUp: false,
+    ArrowDown: false,
+    ArrowLeft: false,
+    ArrowRight: false
+  };
+
+  document.addEventListener('keydown', (event) => {
+    if (keys.hasOwnProperty(event.key)) {
+      keys[event.key] = true;
+    }
+
+    if (event.code === 'KeyQ') {
+      const point = pointHelper.getPosition(ballRadius)
+      console.log(cue.position, point)
+      cue.position.x = cueBasePosition.x + pointHelper.getPosition(ballRadius).x
+      cue.position.y = cueBasePosition.y - pointHelper.getPosition(ballRadius).y
+      cue.position.z -= 4
+
+      // 示例：检测从相机方向与球体的交点
+      const intersectionPoint = getIntersectionPoints(cue, ball);
+      console.log("交点坐标:", intersectionPoint);
+    }
+
+    if (event.code === 'Space') {
+      console.log('cueSystem.startCharging()')
+      const direction = new THREE.Vector3(0, 1, 0); // 局部Y轴正方向
+      direction.applyQuaternion(cue.quaternion); // 转换为世界坐标
+      cue.position.add(direction.multiplyScalar(-0.1));
+    }
+  });
+
+  document.addEventListener('keyup', (event) => {
+    if (keys.hasOwnProperty(event.key)) {
+      keys[event.key] = false;
+    }
+    if (event.code === 'Space') {
+      // 1. 获取相机看向的方向
+      const direction = new THREE.Vector3();
+      camera.getWorldDirection(direction);
+
+      // 2. 转换为Cannon.js向量并标准化
+      const forceDirection = new Cannon.Vec3(
+        direction.x,
+        direction.y,
+        direction.z
+      );
+
+      // 3. 乘以力的大小（牛顿）
+      // const forceMagnitude = 200; // 20牛顿
+      forceDirection.scale(1000, forceDirection);
+      // forceDirection.scale(forceHelper.currentForce, forceDirection);
+      console.log(forceDirection)
+
+
+      console.log(pointHelper.getPosition(ballRadius))
+      // 4. 在球体质心施加力
+      const targetPosition = pointHelper.getPosition(ballRadius)
+      // camera.lookAt(new THREE.Vector3(targetPosition.x, ballRadius, targetPosition.y))
+      // const applyPoint = new Cannon.Vec3(targetPosition.x, ballRadius, targetPosition.y); // 质心
+      // const applyPoint = new Cannon.Vec3(0, 0, 10); // 质心
+      const applyPoint = getIntersectionPoints(cue, ball);
+      if (!applyPoint) {
+        return
+      }
+      ballBody.applyForce(forceDirection, applyPoint as any);
+
+      // const direction = new THREE.Vector3(0, 1, 0); // 局部Y轴正方向
+      // direction.applyQuaternion(cue.quaternion); // 转换为世界坐标
+      // console.log(d)
+      // ballBody.applyForce(direction.clone().normalize().multiplyScalar(1000), ballBody.position); // 在球体上施加力
+    }
+  });
 
   const syncPhysics = () => {
     ball.position.copy(ballBody.position)
@@ -329,20 +345,20 @@ ball.add(new THREE.AxesHelper(5))
     // cueSystem.update()
     controls.update()
 
-            
-            // 处理键盘输入
-            if (keys.ArrowLeft) theta -= rotationSpeed;
-            if (keys.ArrowRight) theta += rotationSpeed;
-            if (keys.ArrowUp) phi = Math.max(0.1, phi - rotationSpeed);
-            if (keys.ArrowDown) phi = Math.min(Math.PI - 0.1, phi + rotationSpeed);
-            // if (keys.ArrowUp) phi = Math.max(minPhi, phi - rotationSpeed);
-            // if (keys.ArrowDown) phi = Math.min(maxPhi, phi + rotationSpeed);
-            
-            // 更新相机位置
-            updateCameraPosition();
+
+    // 处理键盘输入
+    if (keys.ArrowLeft) theta += rotationSpeed;
+    if (keys.ArrowRight) theta -= rotationSpeed;
+    if (keys.ArrowUp) phi = Math.max(0.1, phi - rotationSpeed);
+    if (keys.ArrowDown) phi = Math.min(Math.PI - 0.1, phi + rotationSpeed);
+    // if (keys.ArrowUp) phi = Math.max(minPhi, phi - rotationSpeed);
+    // if (keys.ArrowDown) phi = Math.min(maxPhi, phi + rotationSpeed);
+
+    // 更新相机位置
+    updateCameraPosition();
 
     syncPhysics()
-    cannonDebugger.update()
+    // cannonDebugger.update()
 
     // renderer.render(scene, cueSystem.camera)
     // renderer.render(scene, camera)
@@ -358,10 +374,7 @@ ball.add(new THREE.AxesHelper(5))
     renderer.setSize(window.innerWidth, window.innerHeight)
   })
 
-  // animate()
-
-  new PointHelper('#point-helper')
-  new ForceHelper('#force-helper')
+  animate()
 }
 
 test()

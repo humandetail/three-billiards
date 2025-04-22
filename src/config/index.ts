@@ -6,8 +6,6 @@
 //   /** 球台厚度(高度) */
 //   tableThickness: 0.6,
 
-// import { getConnerPocketRadius } from '../utils'
-
 //   /** 离地高度 */
 //   offGroundHeight: 7.5,
 

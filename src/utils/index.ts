@@ -57,18 +57,6 @@ export function getPoints(x: number, y: number, r: number, startAngle: number, e
   return points
 }
 
-/**
- * 获取角袋的半径
- * @param width 角袋最小开口宽度
- * @param rubberWidth 橡胶条宽度
- */
-export function getConnerPocketRadius(width: number, rubberWidth: number) {
-  // 斜边
-  const c = width + rubberWidth * 2
-  const side = Math.sqrt(c ** 2 / 2)
-  return side - rubberWidth
-}
-
 export function createCanvas(width = 400, height = 300, canvas?: HTMLCanvasElement) {
   const c = canvas ?? document.createElement('canvas')
 
@@ -83,4 +71,22 @@ export function createCanvas(width = 400, height = 300, canvas?: HTMLCanvasEleme
   c.getContext('2d')!.scale(dpr, dpr)
 
   return c
+}
+
+export function getIntersectionPoints(mesh: THREE.Mesh, sphere: THREE.Mesh) {
+  const direction = mesh.getWorldDirection(new THREE.Vector3()).normalize()
+  direction.applyQuaternion(mesh.getWorldQuaternion(new THREE.Quaternion()))
+  const ray = new THREE.Ray(mesh.getWorldPosition(new THREE.Vector3()), direction);
+  // 3. 计算相交点
+  const intersectionPoint = new THREE.Vector3();
+  const result = ray.intersectSphere(
+    new THREE.Sphere(sphere.getWorldPosition(new THREE.Vector3()), (sphere.geometry as any).parameters.radius),
+    intersectionPoint
+  );
+
+  if (result) {
+    return intersectionPoint
+  } else {
+    return null
+  }
 }
