@@ -9,8 +9,8 @@ import Table from './lib/Table'
 import './style.css'
 import { CueSystem } from './lib/CueSystem'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import PointHelper from './lib/PointHelper'
-import ForceHelper from './lib/ForceHelper'
+import PointHelper from './lib/helper/PointHelper'
+import ForceHelper from './lib/helper/ForceHelper'
 import { getIntersectionPoints } from './utils'
 
 function main() {
@@ -258,7 +258,7 @@ function test() {
   scene.add(rayArrow)
 
   // 键盘控制
-  const keys = {
+  const keys: Record<string, boolean> = {
     ArrowUp: false,
     ArrowDown: false,
     ArrowLeft: false,
@@ -374,7 +374,7 @@ function test() {
     renderer.setSize(window.innerWidth, window.innerHeight)
   })
 
-  animate()
+  // animate()
 }
 
 test()

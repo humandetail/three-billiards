@@ -1,6 +1,6 @@
-import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js'
-import * as THREE from 'three'
 import * as Cannon from 'cannon'
+import * as THREE from 'three'
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js'
 
 interface DashConfig {
   maxChargeTime: number
@@ -13,7 +13,6 @@ interface DashConfig {
 
 type DashState = 'idle' | 'charging' | 'dashing' | 'cooldown'
 
-
 export class DashSystem {
   config: DashConfig = {
     maxChargeTime: 2000,
@@ -21,7 +20,7 @@ export class DashSystem {
     maxDashSpeed: 100,
     dashDuration: 500,
     cooldown: 800,
-    moveSpeedBase: 0.1
+    moveSpeedBase: 0.1,
   }
 
   state: DashState = 'idle'
@@ -49,8 +48,8 @@ export class DashSystem {
 
     const chargeTime = Date.now() - this.chargeStartTime
     const chargeRatio = Math.min(chargeTime / this.config.maxChargeTime, 1.0)
-    console.log('蓄力中', chargeRatio * 100 + '%')
-    
+    console.log('蓄力中', `${chargeRatio * 100}%`)
+
     this.controls.moveForward(-0.05)
 
     // // 更新蓄力特效
@@ -120,7 +119,7 @@ export class CueSystem extends DashSystem {
     public renderer: THREE.WebGLRenderer,
     public scene: THREE.Scene,
     public world: Cannon.World,
-    opts: Partial<DashConfig> = {}
+    opts: Partial<DashConfig> = {},
   ) {
     const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000)
     camera.position.set(0, 26, 50)
@@ -254,17 +253,17 @@ export class CueSystem extends DashSystem {
 
     body.addEventListener('collide', (event: any) => {
       // const { body, target } = event; // body是当前物体，target是碰撞的另一个物体
-      
+
       // console.log(`${body} 碰撞了 ${target}`);
-      
+
       // 获取碰撞冲击力
-      const impactStrength = event.contact.getImpactVelocityAlongNormal();
-      console.log('碰撞强度:', impactStrength);
+      const impactStrength = event.contact.getImpactVelocityAlongNormal()
+      console.log('碰撞强度:', impactStrength)
       setTimeout(() => {
         world.remove(body)
         this.state = 'idle'
       })
-    });
+    })
   }
 
   sync() {
@@ -274,7 +273,7 @@ export class CueSystem extends DashSystem {
   }
 
   update() {
-    const {controls, moveDirection, moveSpeed } = this
+    const { controls, moveDirection, moveSpeed } = this
 
     this.sync()
     if (this.state === 'charging') {

@@ -20,16 +20,17 @@ body,
   right: 0;
   top: 0;
   width: 100px;
+  background: linear-gradient(to bottom, #333, #111);
 }
 
 .point-helper {
+  position: relative;
   width: 100px;
   height: 100px;
-  background-color: bisque;
 }
 
 .force-helper {
+  position: relative;
   width: 100px;
   height: 300px;
-  background-color: lightblue;
 }
