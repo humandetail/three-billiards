@@ -7,11 +7,32 @@
   </head>
   <body>
     <div id="app">
-      <canvas class="main-canvas" id="main-canvas"></canvas>
+      <!-- <canvas id="test-canvas" style="position: fixed; left: 0; top: 0; z-index:  10000; width: 100vw; height: 100vh;;"></canvas> -->
+      <div class="container">
+        <header class="header"></header>
 
-      <div class="helper" id="helper">
-        <div class="point-helper" id="point-helper"></div>
-        <div class="force-helper" id="force-helper"></div>
+        <aside class="aside left-side">
+          <div class="helper">
+            <div class="regulator vertical-regulator" id="vertical-regulator-helper"></div>
+          </div>
+        </aside>
+        
+        <main class="main">
+          <canvas class="main-canvas" id="main-canvas"></canvas>
+        </main>
+
+        <aside class="aside right-side">
+          <div class="helper">
+            <div class="point-helper" id="point-helper"></div>
+            <div class="force-helper" id="force-helper"></div>
+          </div>
+        </aside>
+
+        <footer class="footer">
+          <div class="helper">
+            <div class="regulator horizontal-regulator" id="horizontal-regulator-helper"></div>
+          </div>
+        </footer>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

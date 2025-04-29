@@ -12,6 +12,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import PointHelper from './lib/helper/PointHelper'
 import ForceHelper from './lib/helper/ForceHelper'
 import { getIntersectionPoints } from './utils'
+import RegulatorHelper from './lib/helper/RegulatorHelper'
 
 function main() {
   const layout = new Layout(document.querySelector('#main-canvas') as HTMLCanvasElement)
@@ -35,22 +36,23 @@ function main() {
 
 function test() {
   const canvas = document.querySelector('#main-canvas') as HTMLCanvasElement
-  const { innerWidth, innerHeight } = window
+  // const { innerWidth, innerHeight } = window
+  const { width, height } = canvas.parentElement!.getBoundingClientRect()
 
   const scene = new THREE.Scene()
 
-  const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000)
+  const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
   // camera.position.set(0, 26, 50)
   scene.add(camera)
 
-  const globalCamera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000)
+  const globalCamera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
   scene.add(globalCamera)
   globalCamera.position.set(0, 26, 50)
 
   const renderer = new THREE.WebGLRenderer({ canvas })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setClearColor(0xFFFFFF)
-  renderer.setSize(innerWidth, innerHeight)
+  renderer.setSize(width, height)
   renderer.render(scene, camera)
 
   const world = new Cannon.World()
@@ -247,6 +249,8 @@ function test() {
 
   const pointHelper = new PointHelper('#point-helper')
   const forceHelper = new ForceHelper('#force-helper')
+  const horizontalRegulatorHelper = new RegulatorHelper('#horizontal-regulator-helper', 'horizontal')
+  const verticalRegulatorHelper = new RegulatorHelper('#vertical-regulator-helper', 'vertical')
 
   const rayArrow = new THREE.ArrowHelper(
     cue.getWorldDirection(new THREE.Vector3()).normalize(), // 归一化方向
@@ -369,12 +373,13 @@ function test() {
   window.addEventListener('resize', () => {
     // cueSystem.camera.aspect = window.innerWidth / window.innerHeight
     // cueSystem.camera.updateProjectionMatrix()
-    camera.aspect = window.innerWidth / window.innerHeight
+    const { width, height } = canvas.parentElement!.getBoundingClientRect()
+    camera.aspect = width / height
     camera.updateProjectionMatrix()
-    renderer.setSize(window.innerWidth, window.innerHeight)
+    renderer.setSize(width, height)
   })
 
-  // animate()
+  animate()
 }
 
 test()
