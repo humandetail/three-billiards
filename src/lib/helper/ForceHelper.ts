@@ -211,20 +211,13 @@ export default class ForceHelper {
     const size = (btnRadius + componentGap) * 2 / devicePixelRatio
     for (let i = 0; i < 2; i++) {
       const particleSystem = new FireButton(i === 0 ? 'ice' : 'fire', size, size, btnRadius / devicePixelRatio)
-      console.log(particleSystem)
+
       this.canvas.parentElement!.appendChild(particleSystem.canvas)
       particleSystem.canvas.style.cssText = `
         position: absolute;
         left: ${width / 2 - btnRadius - componentGap}px;
         top: ${(i === 0 ? barSize.start - (componentGap + btnRadius) * 2 : barSize.end)}px;
       `
-      // ctx.save()
-      // ctx.translate(width / 2, i === 0 ? barSize.start - componentGap - btnRadius : barSize.end + btnRadius + componentGap)
-      // ctx.fillStyle = gradient
-      // ctx.beginPath()
-      // ctx.arc(0, 0, btnRadius, 0, Math.PI * 2)
-      // ctx.fill()
-      // ctx.restore()
     }
   }
 

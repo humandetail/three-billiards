@@ -1,0 +1,94 @@
+body {
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+canvas {
+  display: block;
+}
+
+.billiards {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, #333, #111);
+
+  .header {
+    height: min(64px, 10vh);
+  }
+
+  .container {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+
+    .main {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+
+      .main-canvas {
+        width: 100%;
+        height: 100%; 
+      }
+    }
+
+    .aside {
+      position: relative;
+      width: min(64px, 10vw);
+
+      &.right-side {
+        .point-helper {
+          position: relative;
+          width: 100%;
+          height: 100px;
+
+          canvas {
+            height: 100%;
+          }
+        }
+        
+        .force-helper {
+          position: relative;
+          width: 100%;
+          height: 300px;
+        }
+      }
+    }
+  }
+
+  .footer {
+    position: relative;
+    height: min(64px, 10vh);
+  }
+
+  .helper {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+
+    .regulator {
+      position: relative;
+      width: 100%;
+      height: 100%;
+  
+      canvas {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+      }
+    }
+  }
+}
