@@ -1,5 +1,6 @@
 import Hammer from 'hammerjs'
 import { createCanvas } from '../../utils'
+import emitter, { EventTypes } from '../../utils/Emitter'
 
 export interface PointHelperOptions {
   ballRadius: number
@@ -337,6 +338,11 @@ export default class PointHelper {
       targetPosition.y = y
     }
     console.log(targetPosition)
+    const p = this.getPosition()
+    emitter.emit(EventTypes.point, {
+      x: p.x / this.safeRadius,
+      y: p.y / this.safeRadius
+    })
     this.draw()
   }
 

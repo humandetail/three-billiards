@@ -1,6 +1,7 @@
 import Hammer from 'hammerjs'
 import { createCanvas } from '../../utils'
 import FireButton from './FireButton'
+import emitter, { EventTypes } from '../../utils/Emitter'
 
 export default class ForceHelper {
   canvas: HTMLCanvasElement
@@ -110,6 +111,7 @@ export default class ForceHelper {
 
   set progress(value: number) {
     this.#progress = Math.min(Math.max(0, value), 1)
+    emitter.emit(EventTypes.force, Math.round(this.#progress * this.maxForce))
     this.draw()
   }
 

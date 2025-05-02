@@ -11,8 +11,10 @@ import { CueSystem } from './lib/CueSystem'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import PointHelper from './lib/helper/PointHelper'
 import ForceHelper from './lib/helper/ForceHelper'
-import { getIntersectionPoints } from './utils'
+import { Point, getIntersectionPoints } from './utils'
 import RegulatorHelper from './lib/helper/RegulatorHelper'
+
+import emitter, { EventTypes } from './utils/Emitter'
 
 function main() {
   const layout = new Layout(document.querySelector('#main-canvas') as HTMLCanvasElement)
@@ -142,29 +144,29 @@ function test() {
   ballBody.material = ballMaterial
   world.addBody(ballBody)
 
-  // const ball2 = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 32, 32), new THREE.MeshBasicMaterial({ color: 'red' }))
-  // ball2.position.set(30, ballRadius, 2)
-  // scene.add(ball2)
+  const ball2 = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 32, 32), new THREE.MeshBasicMaterial({ color: 'red' }))
+  ball2.position.set(30, ballRadius, 2)
+  scene.add(ball2)
 
-  // const ball2Body = new Cannon.Body({
-  //   mass: 0.2,
-  // })
-  // ball2Body.addShape(ballShape)
-  // ball2Body.position.set(30, ballRadius, 2)
-  // ball2Body.material = ballMaterial
-  // world.addBody(ball2Body)
+  const ball2Body = new Cannon.Body({
+    mass: 0.2,
+  })
+  ball2Body.addShape(ballShape)
+  ball2Body.position.set(30, ballRadius, 2)
+  ball2Body.material = ballMaterial
+  world.addBody(ball2Body)
 
-  // const ball3 = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 32, 32), new THREE.MeshBasicMaterial({ color: 'red' }))
-  // ball3.position.set(40, ballRadius, 1)
-  // scene.add(ball3)
+  const ball3 = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 32, 32), new THREE.MeshBasicMaterial({ color: 'red' }))
+  ball3.position.set(40, ballRadius, 1)
+  scene.add(ball3)
 
-  // const ball3Body = new Cannon.Body({
-  //   mass: 0.2,
-  // })
-  // ball3Body.addShape(ballShape)
-  // ball3Body.position.set(40, ballRadius, 1)
-  // ball3Body.material = ballMaterial
-  // world.addBody(ball3Body)
+  const ball3Body = new Cannon.Body({
+    mass: 0.2,
+  })
+  ball3Body.addShape(ballShape)
+  ball3Body.position.set(40, ballRadius, 1)
+  ball3Body.material = ballMaterial
+  world.addBody(ball3Body)
 
   // const arrowHelper = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 5, 'blue', 50, 2)
   // scene.add(arrowHelper)
@@ -194,7 +196,7 @@ function test() {
   cue.rotateX(-Math.PI / 2)
   const cueBasePosition = {
     x: 0,
-    y: -2,
+    y: -ballRadius,
     z: -2,
   }
   cue.position.set(cueBasePosition.x, cueBasePosition.y, cueBasePosition.z)
@@ -236,9 +238,8 @@ function test() {
     }
 
     const p = ball.position.clone()
-    p.y += 2
+    p.y += ballRadius
     camera.lookAt(p);
-    // updateClubPosition();
 
     // 画出力方向
     forceArrow.setDirection(camera.getWorldDirection(new THREE.Vector3()).normalize())
@@ -287,7 +288,7 @@ function test() {
     }
 
     if (event.code === 'Space') {
-      console.log('cueSystem.startCharging()')
+      // console.log('cueSystem.startCharging()')
       const direction = new THREE.Vector3(0, 1, 0); // 局部Y轴正方向
       direction.applyQuaternion(cue.quaternion); // 转换为世界坐标
       cue.position.add(direction.multiplyScalar(-0.1));
@@ -324,6 +325,7 @@ function test() {
       // const applyPoint = new Cannon.Vec3(targetPosition.x, ballRadius, targetPosition.y); // 质心
       // const applyPoint = new Cannon.Vec3(0, 0, 10); // 质心
       const applyPoint = getIntersectionPoints(cue, ball);
+      console.log({applyPoint})
       if (!applyPoint) {
         return
       }
@@ -336,10 +338,45 @@ function test() {
     }
   });
 
+  emitter.on(EventTypes.point, point => {
+    console.log('point change', point)
+    cue.position.x = ballRadius * point.x
+    cue.position.y = ballRadius * point.y * -1 - ballRadius * (point.y < 0 ? 1.2 : 0.8) // 需要减掉默认的位置2
+  })
+
+  let lastForce = 0
+  const maxForce = 500
+  emitter.on(EventTypes.force, force => {
+    console.log('force change', force)
+    
+    const direction = new THREE.Vector3(0, 1, 0); // 局部Y轴正方向
+    direction.applyQuaternion(cue.quaternion); // 转换为世界坐标
+    // cue.position.add(direction.multiplyScalar(-0.1));
+    cue.position.add(direction.multiplyScalar(10 * (lastForce - force) / maxForce));
+    lastForce = force
+  })
+  emitter.on(EventTypes.direction, direction => {
+    console.log('direction', direction)
+    switch(direction) {
+      case 'up':
+        keys.ArrowUp = true
+        break
+      case 'down':
+        keys.ArrowDown = true
+        break
+      case 'right':
+        keys.ArrowRight = true
+        break
+      case 'left':
+        keys.ArrowLeft = true
+        break
+    }
+  })
+
   const syncPhysics = () => {
     ball.position.copy(ballBody.position)
-    // ball2.position.copy(ball2Body.position)
-    // ball3.position.copy(ball3Body.position)
+    ball2.position.copy(ball2Body.position)
+    ball3.position.copy(ball3Body.position)
   }
 
   function animate() {
@@ -355,8 +392,7 @@ function test() {
     if (keys.ArrowRight) theta -= rotationSpeed;
     if (keys.ArrowUp) phi = Math.max(0.1, phi - rotationSpeed);
     if (keys.ArrowDown) phi = Math.min(Math.PI - 0.1, phi + rotationSpeed);
-    // if (keys.ArrowUp) phi = Math.max(minPhi, phi - rotationSpeed);
-    // if (keys.ArrowDown) phi = Math.min(maxPhi, phi + rotationSpeed);
+    Object.keys(keys).forEach(k => keys[k] = false)
 
     // 更新相机位置
     updateCameraPosition();

@@ -17,6 +17,9 @@ dependencies:
   hammerjs:
     specifier: ^2.0.8
     version: 2.0.8
+  mitt:
+    specifier: ^3.0.1
+    version: 3.0.1
   simplex-noise:
     specifier: ^4.0.3
     version: 4.0.3
@@ -2851,6 +2854,10 @@ packages:
     dependencies:
       brace-expansion: 2.0.1
     dev: true
+
+  /mitt@3.0.1:
+    resolution: {integrity: sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==}
+    dev: false
 
   /mlly@1.7.4:
     resolution: {integrity: sha512-qmdSIPC4bDJXgZTCR7XosJiNKySV7O215tsPtDN9iEO/7q/76b/ijtgRu/+epFXSJhijtTCCGp3DWS549P3xKw==}

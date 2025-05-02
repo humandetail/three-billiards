@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
 import { resizeRendererToDisplaySize } from '../../utils'
 import { createHollowRoundedBoxGeometry } from '../../utils/HollowRounedBox'
+import emitter, { EventTypes } from '../../utils/Emitter'
 
 export type RegulatorDirection = 'horizontal' | 'vertical'
 
@@ -100,6 +101,9 @@ export default class RegulatorHelper {
 
   setupEvents() {
     const { controls, directionalLight, camera, previousRotateAngle } = this
+
+    let initialPosition = camera.position.clone()
+
     const handleChange = () => {
       this.requestRenderIfNotRequested()
 
@@ -108,7 +112,6 @@ export default class RegulatorHelper {
       const currentRotateAngle = this.dir === 'horizontal'
         ? controls.getAzimuthalAngle()
         : controls.getPolarAngle()
-      const delta = currentRotateAngle - previousRotateAngle;
 
       if (this.dir === 'vertical') {
         if (currentRotateAngle >= Math.PI - 0.01 || currentRotateAngle <= 0.01) {
@@ -119,13 +122,34 @@ export default class RegulatorHelper {
         }
       }
   
+      let delta = currentRotateAngle - this.previousRotateAngle
+      if (delta > Math.PI) delta -= 2 * Math.PI;
+    else if (delta < -Math.PI) delta += 2 * Math.PI;
+  //   if (delta > 0) {
+  //     console.log("向左旋转");
+  // } else {
+  //     console.log("向右旋转");
+  // }
       if (delta > 0) {
-        // console.log("向右旋转");
+        emitter.emit(EventTypes.direction, this.dir === 'horizontal' ? 'left' : 'up')
       } else if (delta < 0) {
-        // console.log("向左旋转");
+        emitter.emit(EventTypes.direction, this.dir === 'horizontal' ? 'right' : 'down')
       }
 
       this.previousRotateAngle = currentRotateAngle;
+
+      // // 判断位置变化
+      // const posDelta = camera.position.clone().sub(initialPosition);
+      // if (posDelta.length() > 0.1) { // 过滤微小变化
+      //   if (this.dir === 'horizontal') {
+      //     emitter.emit(EventTypes.direction, posDelta.x > 0 ? 'left' : 'right')
+      //   } else {
+      //     emitter.emit(EventTypes.direction, posDelta.y > 0 ? 'down' : 'up')
+      //   }
+      //   initialPosition.copy(camera.position);
+      //   console.log(posDelta.x)
+      // }
+
     }
     controls.addEventListener('change', handleChange)
   }
