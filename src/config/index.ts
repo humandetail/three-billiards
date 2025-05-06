@@ -91,4 +91,22 @@ export const PARAMETERS = {
   legWidth: 10,
   legHeight: 75,
   legDepth: 10,
+
+  cue: {
+    // 皮头（Tip） 中式八球常用10–12毫米直径，与球杆尖端匹配
+    tip: {
+      radius: 0.5,
+      length: 1.2,
+    },
+    // 铜箍（Ferrule）：也叫先角，连接前节与皮头的白色环状部件，多为尼龙或ABS材质，防止木质前节开裂。
+    ferruleLength: 2,
+    // 杆子（Pole） = 前节（Shaft）105CM包含先角（2 cm）和皮头（1.2 cm）、接牙（Joint）和后节（Butt）45CM含橡胶防滑垫（1–2 cm）
+    get shaftLength () {
+      return 105 - this.ferruleLength - this.tip.length
+    },
+    joinLength: 2,
+    buttLength: 45,
+    // 球杆末端半径
+    endRadius: 1.4,
+  }
 }

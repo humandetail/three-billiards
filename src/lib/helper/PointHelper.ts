@@ -57,7 +57,7 @@ export default class PointHelper {
     this.targetPosition.y = height / 2
 
     this.setting.ballRadius = this.setting.ballRadius || Math.floor(Math.min(width, height) * 0.9 / 2)
-    this.targetRadius = Math.floor(Math.max(this.setting.ballRadius / 10, 2))
+    this.targetRadius = Math.floor(Math.max(this.setting.ballRadius / 10, 4))
     this.safeRadius = this.setting.ballRadius - this.targetRadius
 
     oEl.appendChild(this.canvas)
@@ -341,7 +341,7 @@ export default class PointHelper {
     const p = this.getPosition()
     emitter.emit(EventTypes.point, {
       x: p.x / this.safeRadius,
-      y: p.y / this.safeRadius
+      y: -1 * p.y / this.safeRadius
     })
     this.draw()
   }
