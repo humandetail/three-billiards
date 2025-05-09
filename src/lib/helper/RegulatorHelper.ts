@@ -72,7 +72,7 @@ export default class RegulatorHelper {
     controls.rotateSpeed = 0.1
     controls.enableZoom = false
     controls.enablePan = true
-    controls.enableDamping = true
+    controls.enableDamping = false
 
     if (this.dir === 'horizontal') {
       // 限制垂直旋转
@@ -125,11 +125,6 @@ export default class RegulatorHelper {
       let delta = currentRotateAngle - this.previousRotateAngle
       if (delta > Math.PI) delta -= 2 * Math.PI;
     else if (delta < -Math.PI) delta += 2 * Math.PI;
-  //   if (delta > 0) {
-  //     console.log("向左旋转");
-  // } else {
-  //     console.log("向右旋转");
-  // }
       if (delta > 0) {
         emitter.emit(EventTypes.direction, this.dir === 'horizontal' ? 'left' : 'up')
       } else if (delta < 0) {
@@ -137,19 +132,6 @@ export default class RegulatorHelper {
       }
 
       this.previousRotateAngle = currentRotateAngle;
-
-      // // 判断位置变化
-      // const posDelta = camera.position.clone().sub(initialPosition);
-      // if (posDelta.length() > 0.1) { // 过滤微小变化
-      //   if (this.dir === 'horizontal') {
-      //     emitter.emit(EventTypes.direction, posDelta.x > 0 ? 'left' : 'right')
-      //   } else {
-      //     emitter.emit(EventTypes.direction, posDelta.y > 0 ? 'down' : 'up')
-      //   }
-      //   initialPosition.copy(camera.position);
-      //   console.log(posDelta.x)
-      // }
-
     }
     controls.addEventListener('change', handleChange)
   }

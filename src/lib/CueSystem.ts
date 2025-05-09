@@ -1,13 +1,13 @@
-import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
-import { PARAMETERS } from '../config';
+import * as CANNON from 'cannon-es'
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getIntersectionPoints } from '../utils';
-import emitter, { EventTypes } from '../utils/Emitter';
+import { PARAMETERS } from '../config'
+import { getIntersectionPoints } from '../utils'
+import emitter, { EventTypes } from '../utils/Emitter'
 
-const setGeometryColor = (geometry: THREE.BufferGeometry, color: THREE.Color) => {
+function setGeometryColor(geometry: THREE.BufferGeometry, color: THREE.Color) {
   const colors: Float32Array = new Float32Array(geometry.attributes.position.count * 3)
   for (let i = 0; i < colors.length; i += 3) {
     colors[i] = color.r
@@ -28,7 +28,7 @@ class Cue {
         shaftLength: b,
         buttLength: e,
         endRadius: d,
-      }
+      },
     } = this
     const x = e * (d - a) / (b + e)
     return d - x
@@ -67,13 +67,13 @@ class Cue {
 
     const cue = new THREE.Mesh(
       BufferGeometryUtils.mergeGeometries(
-        [tipHead, tipBody, ferrule, shaft, butt,],
-        false
+        [tipHead, tipBody, ferrule, shaft, butt],
+        false,
       ),
       new THREE.MeshPhongMaterial({
         vertexColors: true,
         side: THREE.DoubleSide,
-      })
+      }),
     )
 
     return cue
@@ -144,7 +144,6 @@ class Cue {
       segments,
     } = this
 
-    
     const buttGeo = new THREE.CylinderGeometry(jointRadius, endRadius, buttLength, segments)
     buttGeo.name = 'butt'
     setGeometryColor(buttGeo, new THREE.Color(0x282C38))
@@ -184,6 +183,7 @@ export default class CueSystem {
     30,
     '#ff0000', // 箭头颜色
   )
+
   /** 球杆的指向 */
   private rayArrow = new THREE.ArrowHelper(
     new THREE.Vector3(), // 方向
@@ -218,13 +218,13 @@ export default class CueSystem {
     private scene: THREE.Scene,
     private ball: THREE.Mesh,
     private ballBody: CANNON.Body,
-    cameraOptions?: Partial<CameraOptions>
+    cameraOptions?: Partial<CameraOptions>,
   ) {
     this.camera = new THREE.PerspectiveCamera(
       cameraOptions?.fov ?? 75,
       cameraOptions?.aspect ?? 2,
       cameraOptions?.near ?? 0.1,
-      cameraOptions?.far ?? 1000
+      cameraOptions?.far ?? 1000,
     )
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
 
@@ -261,6 +261,7 @@ export default class CueSystem {
   get rotationSpeed() {
     return this.#rotationSpeed
   }
+
   set rotationSpeed(speed) {
     this.#rotationSpeed = speed
   }
@@ -268,6 +269,7 @@ export default class CueSystem {
   get currentForce() {
     return this.#currentForce
   }
+
   set currentForce(force) {
     const diff = force - this.#currentForce
     this.#currentForce = force
@@ -304,7 +306,7 @@ export default class CueSystem {
     const direction = new THREE.Vector3(0, 0, 1) // 局部Z轴正方向
     direction.applyQuaternion(this.cue.quaternion) // 转换为世界坐标
     this.cue.position[diff > 0 ? 'add' : 'sub'](
-      direction.multiplyScalar(-10 * Math.abs(diff) / this.maxForce)
+      direction.multiplyScalar(-10 * Math.abs(diff) / this.maxForce),
     )
     return this
   }
@@ -324,8 +326,8 @@ export default class CueSystem {
   }
 
   hit() {
-    console.log(this.currentForce)
-    if (this.currentForce === 0) return
+    if (this.currentForce === 0)
+      return
 
     emitter.emit(EventTypes.cueStatus, 'shooting')
 
@@ -338,7 +340,6 @@ export default class CueSystem {
   }
 
   private takingTheShot() {
-    console.log(this.#reduceStep)
     this.#reqId = requestAnimationFrame(this.takingTheShot.bind(this))
     if (this.currentForce <= 0) {
       cancelAnimationFrame(this.#reqId)
@@ -412,7 +413,6 @@ export default class CueSystem {
       phi,
       theta,
       ballPosition,
-      ballRadius,
       cameraDistance,
       cameraMinY,
       camera,
