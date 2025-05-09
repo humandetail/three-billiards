@@ -4,14 +4,12 @@ import CannonDebugger from 'cannon-es-debugger'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import Ball from './lib/Ball'
-import Cue from './lib/Cue'
-import { CueSystem } from './lib/CueSystem'
+import CueSystem from './lib/CueSystem'
 import ForceHelper from './lib/helper/ForceHelper'
 import PointHelper from './lib/helper/PointHelper'
 import RegulatorHelper from './lib/helper/RegulatorHelper'
 import Layout from './lib/Layout'
 import Table from './lib/Table'
-import { getIntersectionPoints, Point } from './utils'
 import emitter, { EventTypes } from './utils/Emitter'
 
 import './style.scss'
@@ -25,8 +23,6 @@ function main() {
   new Ball(layout)
   table.makeTable()
 
-  new Cue(layout)
-
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
       layout.hitBall()
@@ -38,14 +34,9 @@ function main() {
 
 function test() {
   const canvas = document.querySelector('#main-canvas') as HTMLCanvasElement
-  // const { innerWidth, innerHeight } = window
   const { width, height } = canvas.parentElement!.getBoundingClientRect()
 
   const scene = new THREE.Scene()
-
-  const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
-  // camera.position.set(0, 26, 50)
-  scene.add(camera)
 
   const globalCamera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
   scene.add(globalCamera)
@@ -55,23 +46,18 @@ function test() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setClearColor(0xFFFFFF)
   renderer.setSize(width, height)
-  renderer.render(scene, camera)
 
   const world = new Cannon.World()
   world.gravity.set(0, -98.2, 0)
 
-  const controls = new OrbitControls(camera, renderer.domElement)
   const globalControls = new OrbitControls(globalCamera, renderer.domElement)
-
-  // const cueSystem = new CueSystem(renderer, scene, world)
-  // renderer.render(scene, cueSystem.camera)
 
   // 添加灯光
   const ambientLight = new THREE.AmbientLight(0x404040)
   scene.add(ambientLight)
 
-  const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.8)
-  directionalLight.position.set(1, 2, 1)
+  const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 5)
+  directionalLight.position.set(100, 100, 80)
   directionalLight.castShadow = true
   directionalLight.shadow.mapSize.width = 1024
   directionalLight.shadow.mapSize.height = 1024
@@ -168,196 +154,40 @@ function test() {
   ball3Body.material = ballMaterial
   world.addBody(ball3Body)
 
-  // 控制参数
-  const cueLength = 145 // 球杆长度
-  const ballOffset = 1.2 * ballRadius // 球杆末端离球心的距离
-  const cameraDistance = cueLength / 2 + ballOffset // 相机距离主球的位置
-  let phi = Math.PI / 2 // 垂直角度 (0到π)
-  let theta = 0 // 水平角度 (0到2π)
-  const rotationSpeed = 0.005
-
-  const cameraMinY = ball.position.y + ballRadius // 相机最低高度(比球高一个半径单位)
-
-  const cue = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.5, 1.25, cueLength, 128),
-    new THREE.MeshBasicMaterial({ color: 'brown' }),
-  )
-  cue.rotateX(-Math.PI / 2)
-  const cueBasePosition = {
-    x: 0,
-    y: -ballRadius, // 球杆放置在相机下方，比相机半一个球的半径单位
-    z: 0,
-  }
-  cue.position.set(cueBasePosition.x, cueBasePosition.y, cueBasePosition.z)
-  camera.add(cue)
-
-  // 画出球杆方向
-  const forceArrow = new THREE.ArrowHelper(
-    cue.getWorldDirection(new THREE.Vector3()).normalize(), // 归一化方向
-    ball.position,
-    30,
-    '#ff0000', // 箭头颜色
-  )
-  scene.add(forceArrow)
-
-  function updateCameraPosition() {
-    // 计算原始相机位置
-    const rawX = ball.position.x + cameraDistance * Math.sin(phi) * Math.cos(theta)
-    const rawY = ball.position.y + cameraDistance * Math.cos(phi)
-    const rawZ = ball.position.z + cameraDistance * Math.sin(phi) * Math.sin(theta)
-
-    // 调整Y坐标确保不低于最小高度
-    const adjustedY = Math.max(cameraMinY, rawY)
-
-    // 如果Y坐标被调整，则需要重新计算XZ位置以保持距离
-    if (adjustedY > rawY) {
-      // 计算新的phi角度来保持30单位距离
-      const newPhi = Math.acos((adjustedY - ball.position.y) / cameraDistance)
-
-      // 重新计算XZ位置
-      const newX = ball.position.x + cameraDistance * Math.sin(newPhi) * Math.cos(theta)
-      const newZ = ball.position.z + cameraDistance * Math.sin(newPhi) * Math.sin(theta)
-
-      camera.position.set(newX, adjustedY, newZ)
-    }
-    else {
-      camera.position.set(rawX, rawY, rawZ)
-    }
-
-    const p = ball.position.clone()
-    p.y += ballRadius
-    camera.lookAt(p)
-
-    // 画出力方向
-    forceArrow.setDirection(camera.getWorldDirection(new THREE.Vector3()).normalize())
-  }
-  // 初始相机位置
-  updateCameraPosition()
+  const cueSystem =new CueSystem(renderer, scene, ball, ballBody)
 
   const pointHelper = new PointHelper('#point-helper')
   const forceHelper = new ForceHelper('#force-helper')
   const horizontalRegulatorHelper = new RegulatorHelper('#horizontal-regulator-helper', 'horizontal')
   const verticalRegulatorHelper = new RegulatorHelper('#vertical-regulator-helper', 'vertical')
 
-  // const rayArrow = new THREE.ArrowHelper(
-  //   cue.getWorldDirection(new THREE.Vector3()).normalize(), // 归一化方向
-  //   cue.getWorldPosition(new THREE.Vector3()),
-  //   30,
-  //   '#0000ff', // 箭头颜色
-  // )
-  // rayArrow.applyQuaternion(cue.getWorldQuaternion(new THREE.Quaternion()))
-  // scene.add(rayArrow)
-
-  // 键盘控制
-  const keys: Record<string, boolean> = {
-    ArrowUp: false,
-    ArrowDown: false,
-    ArrowLeft: false,
-    ArrowRight: false,
-  }
-
-  document.addEventListener('keydown', (event) => {
-    if (keys.hasOwnProperty(event.key)) {
-      keys[event.key] = true
-    }
-
-    // if (event.code === 'KeyQ') {
-    //   const point = pointHelper.getPosition(ballRadius)
-    //   console.log(cue.position, point)
-    //   cue.position.x = cueBasePosition.x + pointHelper.getPosition(ballRadius).x
-    //   cue.position.y = cueBasePosition.y - pointHelper.getPosition(ballRadius).y
-    //   cue.position.z -= 4
-
-    //   // 示例：检测从相机方向与球体的交点
-    //   const intersectionPoint = getIntersectionPoints(cue, ball)
-    //   console.log('交点坐标:', intersectionPoint)
-    // }
-
-    if (event.code === 'Space') {
-      // console.log('cueSystem.startCharging()')
-      const direction = new THREE.Vector3(0, 1, 0) // 局部Y轴正方向
-      direction.applyQuaternion(cue.quaternion) // 转换为世界坐标
-      cue.position.add(direction.multiplyScalar(-0.1))
-    }
-  })
-
-  document.addEventListener('keyup', (event) => {
-    if (keys.hasOwnProperty(event.key)) {
-      keys[event.key] = false
-    }
-    if (event.code === 'Space') {
-      // 1. 获取相机看向的方向
-      const direction = new THREE.Vector3()
-      camera.getWorldDirection(direction)
-
-      // 2. 转换为Cannon.js向量并标准化
-      const forceDirection = new Cannon.Vec3(
-        direction.x,
-        direction.y,
-        direction.z,
-      )
-
-      // 3. 乘以力的大小（牛顿）
-      forceDirection.scale(1000, forceDirection)
-      // forceDirection.scale(forceHelper.currentForce, forceDirection);
-      console.log(forceDirection)
-
-      console.log(pointHelper.getPosition(ballRadius))
-      // 4. 在球体质心施加力
-      const targetPosition = pointHelper.getPosition(ballRadius)
-      // camera.lookAt(new THREE.Vector3(targetPosition.x, ballRadius, targetPosition.y))
-      // const applyPoint = new Cannon.Vec3(targetPosition.x, ballRadius, targetPosition.y); // 质心
-      // const applyPoint = new Cannon.Vec3(0, 0, 10); // 质心
-      const applyPoint = getIntersectionPoints(cue, ball)
-      console.log({ applyPoint })
-
-      if (!applyPoint) {
-        return
-      }
-      // ballBody.applyForce(forceDirection, applyPoint as any)
-
-      // 画出受力点
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.2, 128, 128),
-        new THREE.MeshPhongMaterial({ color: 'purple' }),
-      )
-      mesh.position.copy(applyPoint)
-      scene.add(mesh)
-    }
-  })
-
   emitter.on(EventTypes.point, (point) => {
     console.log('point change', point)
     // 击球安全区是 2/3
-    cue.position.x = (2 / 3) * ballRadius * point.x
-    cue.position.y = (2 / 3) * ballRadius * point.y - ballRadius // 需要减掉默认的位置
+    cueSystem.setCuePosition(
+      (2 / 3) * ballRadius * point.x,
+      (2 / 3) * ballRadius * point.y,
+      0,
+    )
   })
 
-  let lastForce = 0
-  const maxForce = 500
   emitter.on(EventTypes.force, (force) => {
-    console.log('force change', force)
-
-    const direction = new THREE.Vector3(0, 1, 0) // 局部Y轴正方向
-    direction.applyQuaternion(cue.quaternion) // 转换为世界坐标
-    // cue.position.add(direction.multiplyScalar(-0.1));
-    cue.position.add(direction.multiplyScalar(10 * (lastForce - force) / maxForce))
-    lastForce = force
+    cueSystem.currentForce = force
   })
   emitter.on(EventTypes.direction, (direction) => {
     console.log('direction', direction)
     switch (direction) {
       case 'up':
-        keys.ArrowUp = true
+        cueSystem.setControlKey('ArrowUp', true)
         break
       case 'down':
-        keys.ArrowDown = true
+        cueSystem.setControlKey('ArrowDown', true)
         break
       case 'right':
-        keys.ArrowRight = true
+        cueSystem.setControlKey('ArrowRight', true)
         break
       case 'left':
-        keys.ArrowLeft = true
+        cueSystem.setControlKey('ArrowLeft', true)
         break
     }
   })
@@ -368,44 +198,38 @@ function test() {
     ball3.position.copy(ball3Body.position)
   }
 
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space') {
+      cueSystem.currentForce += 30
+    }
+  })
+  document.addEventListener('keyup', e => {
+    if (e.code === 'Space') {
+      cueSystem.hit()
+    }
+  })
+
   function animate() {
     requestAnimationFrame(animate)
     world.step(1 / 60)
 
-    // cueSystem.update()
-    controls.update()
-
-    // 处理键盘输入
-    if (keys.ArrowLeft)
-      theta += rotationSpeed
-    if (keys.ArrowRight)
-      theta -= rotationSpeed
-    if (keys.ArrowUp)
-      phi = Math.max(0.1, phi - rotationSpeed)
-    if (keys.ArrowDown)
-      phi = Math.min(Math.PI - 0.1, phi + rotationSpeed)
-    Object.keys(keys).forEach(k => keys[k] = false)
-
-    // 更新相机位置
-    updateCameraPosition()
+    cueSystem.update()
 
     syncPhysics()
-    // cannonDebugger.update()
+    cannonDebugger.update()
 
-    // renderer.render(scene, cueSystem.camera)
-    // renderer.render(scene, camera)
+    globalControls.update()
+
     renderer.render(scene, globalCamera)
   }
 
-  // 窗口大小调整
-  window.addEventListener('resize', () => {
-    // cueSystem.camera.aspect = window.innerWidth / window.innerHeight
-    // cueSystem.camera.updateProjectionMatrix()
-    const { width, height } = canvas.parentElement!.getBoundingClientRect()
-    camera.aspect = width / height
-    camera.updateProjectionMatrix()
-    renderer.setSize(width, height)
-  })
+  // // 窗口大小调整
+  // window.addEventListener('resize', () => {
+  //   const { width, height } = canvas.parentElement!.getBoundingClientRect()
+  //   camera.aspect = width / height
+  //   camera.updateProjectionMatrix()
+  //   renderer.setSize(width, height)
+  // })
 
   animate()
 }

@@ -1,305 +1,478 @@
-import * as Cannon from 'cannon'
-import * as THREE from 'three'
-import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js'
+import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
+import { PARAMETERS } from '../config';
 
-interface DashConfig {
-  maxChargeTime: number
-  minDashSpeed: number
-  maxDashSpeed: number
-  dashDuration: number
-  cooldown: number
-  moveSpeedBase: number
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { getIntersectionPoints } from '../utils';
+import emitter, { EventTypes } from '../utils/Emitter';
+
+const setGeometryColor = (geometry: THREE.BufferGeometry, color: THREE.Color) => {
+  const colors: Float32Array = new Float32Array(geometry.attributes.position.count * 3)
+  for (let i = 0; i < colors.length; i += 3) {
+    colors[i] = color.r
+    colors[i + 1] = color.g
+    colors[i + 2] = color.b
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
 }
 
-type DashState = 'idle' | 'charging' | 'dashing' | 'cooldown'
+class Cue {
+  private config = PARAMETERS.cue
+  private segments = 128
 
-export class DashSystem {
-  config: DashConfig = {
-    maxChargeTime: 2000,
-    minDashSpeed: 10,
-    maxDashSpeed: 100,
-    dashDuration: 500,
-    cooldown: 800,
-    moveSpeedBase: 0.1,
-  }
-
-  state: DashState = 'idle'
-  chargeStartTime = 0
-  dashStartTime = 0
-  currentSpeed = 0
-  dashDirection = new THREE.Vector3()
-
-  constructor(public controls: PointerLockControls, options: Partial<DashConfig> = {}) {
-    this.config = Object.assign({}, this.config, options)
-  }
-
-  startCharging() {
-    if (this.state !== 'idle')
-      return
-
-    this.state = 'charging'
-    this.chargeStartTime = Date.now()
-  }
-
-  updateCharging() {
-    if (this.state !== 'charging') {
-      return
-    }
-
-    const chargeTime = Date.now() - this.chargeStartTime
-    const chargeRatio = Math.min(chargeTime / this.config.maxChargeTime, 1.0)
-    console.log('蓄力中', `${chargeRatio * 100}%`)
-
-    this.controls.moveForward(-0.05)
-
-    // // 更新蓄力特效
-    // this.chargeRing.scale.set(1 + chargeRatio * 0.5, 1 + chargeRatio * 0.5, 1)
-    // this.chargeRing.material.opacity = 0.7 * (1 - chargeRatio * 0.5)
-    // this.chargeRing.material.color.setHSL(0.5 + chargeRatio * 0.3, 1, 0.5)
-  }
-
-  executeDash() {
-    if (this.state !== 'charging')
-      return
-
-    const chargeTime = Date.now() - this.chargeStartTime
-    const chargeRatio = Math.min(chargeTime / this.config.maxChargeTime, 1.0)
-
-    this.currentSpeed = this.config.minDashSpeed
-      + (this.config.maxDashSpeed - this.config.minDashSpeed) * chargeRatio
-
-    // 获取相机前方方向
-    this.dashDirection.set(0, 0, -1).applyQuaternion(this.controls.object.quaternion)
-    this.state = 'dashing'
-    this.dashStartTime = Date.now()
-    // this.chargeRing.visible = false
-
-    console.log(`冲刺! 力度: ${Math.round(chargeRatio * 100)}%`)
-  }
-
-  updateDashing() {
-    if (this.state !== 'dashing') {
-      return
-    }
-    const dashTime = Date.now() - this.dashStartTime
-    const dashProgress = Math.min(dashTime / this.config.dashDuration, 1.0)
-
-    // 二次缓出函数
-    const speed = this.currentSpeed * (1 - dashProgress * dashProgress)
-    this.controls.moveForward(speed * this.config.moveSpeedBase)
-    if (dashProgress >= 1.0) {
-      this.state = 'cooldown'
-      setTimeout(() => {
-        this.state = 'idle'
-      }, this.config.cooldown)
-    }
-  }
-}
-
-export class CueSystem extends DashSystem {
-  camera: THREE.PerspectiveCamera
-  controls: PointerLockControls
-
-  mesh!: THREE.Mesh
-  body!: Cannon.Body
-
-  moveSpeed = 0.1
-  moveDirection = {
-    up: false,
-    right: false,
-    down: false,
-    left: false,
-    forward: false,
-    backward: false,
-  }
-
-  // dashSystem: DashSystem
-
-  constructor(
-    public renderer: THREE.WebGLRenderer,
-    public scene: THREE.Scene,
-    public world: Cannon.World,
-    opts: Partial<DashConfig> = {},
-  ) {
-    const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000)
-    camera.position.set(0, 26, 50)
-
-    scene.add(camera)
-
-    const controls = new PointerLockControls(camera, renderer.domElement)
-
-    super(controls, opts)
-
-    this.camera = camera
-    this.controls = controls
-
-    this.init()
-    this.initEvents()
-  }
-
-  init() {
-    // 画个杆
-    const cueRadius = 0.3
-    const cueLength = 30
-    const cueGeometry = new THREE.CylinderGeometry(cueRadius, cueRadius, cueLength, 32)
-    const cueMaterial = new THREE.MeshBasicMaterial({ color: 'brown' })
-    const cue = new THREE.Mesh(cueGeometry, cueMaterial)
-    cue.castShadow = true
-
-    cue.position.set(2, -10, -10)
-    cue.rotateX(Math.PI / 2)
-    this.scene.add(cue)
-    this.camera.add(cue)
-
-    const cueBody = new Cannon.Body({
-      mass: 0,
-    })
-    const boxShape = new Cannon.Box(new Cannon.Vec3(cueRadius, cueLength / 2 - cueRadius, cueRadius))
-    const sphereShape = new Cannon.Sphere(cueRadius)
-    cueBody.addShape(boxShape, new Cannon.Vec3(0, cueRadius, 0))
-    cueBody.addShape(sphereShape, new Cannon.Vec3(0, -cueLength / 2 + cueRadius, 0))
-    cueBody.position.set(2, -10, -10)
-    cueBody.quaternion.setFromAxisAngle(new Cannon.Vec3(1, 0, 0), Math.PI / 2)
-    this.world.addBody(cueBody)
-
-    this.mesh = cue
-    this.body = cueBody
-  }
-
-  initEvents() {
-    // 点击锁定指针
-    document.addEventListener('click', () => {
-      this.controls.lock()
-    })
-
+  get jointRadius() {
     const {
-      controls,
-      moveDirection,
-      world,
-      body,
+      config: {
+        tipRadius: a,
+        shaftLength: b,
+        buttLength: e,
+        endRadius: d,
+      }
+    } = this
+    const x = e * (d - a) / (b + e)
+    return d - x
+  }
+
+  createCue() {
+    const {
+      config: {
+        tipHeadLength,
+        tipBodyLength,
+        ferruleLength,
+        shaftLength,
+        buttLength,
+        poleLength,
+      },
     } = this
 
-    document.addEventListener('keydown', (e) => {
-      if (!controls.isLocked) {
-        return
-      }
-      switch (e.code) {
-        case 'KeyW':
-        case 'ArrowUp':
-          if (!e.shiftKey) {
-            moveDirection.forward = true
-          }
-          else {
-            moveDirection.up = true
-          }
-          break
-        case 'KeyS':
-        case 'ArrowDown':
-          if (!e.shiftKey) {
-            moveDirection.backward = true
-          }
-          else {
-            moveDirection.down = true
-          }
-          break
-        case 'KeyA':
-        case 'ArrowLeft':
-          moveDirection.left = true
-          break
-        case 'KeyD':
-        case 'ArrowRight':
-          moveDirection.right = true
-          break
-        case 'Space':
-          this.startCharging()
-          break
-        default:
-          break
-      }
-    })
+    const halfPoleLength = poleLength / 2
 
-    document.addEventListener('keyup', (e) => {
-      if (!controls.isLocked) {
-        return
-      }
-      switch (e.code) {
-        case 'KeyW':
-        case 'ArrowUp':
-          moveDirection.forward = false
-          moveDirection.up = false
-          break
-        case 'KeyS':
-        case 'ArrowDown':
-          moveDirection.backward = false
-          moveDirection.down = false
-          break
-        case 'KeyA':
-        case 'ArrowLeft':
-          moveDirection.left = false
-          break
-        case 'KeyD':
-        case 'ArrowRight':
-          moveDirection.right = false
-          break
-        case 'Space':
-          if (this.state === 'charging') {
-            this.executeDash()
-          }
-          break
-        default:
-          break
-      }
-    })
+    const [tipHead, tipBody] = this.createTip()
+    const ferrule = this.createFerrule()
+    const shaft = this.createShaft()
+    const butt = this.createButt()
 
-    body.addEventListener('collide', (event: any) => {
-      // const { body, target } = event; // body是当前物体，target是碰撞的另一个物体
+    tipHead.applyMatrix4(new THREE.Matrix4().makeTranslation(0, halfPoleLength - tipHeadLength / 2, 0))
+    tipBody.applyMatrix4(new THREE.Matrix4().makeTranslation(0, halfPoleLength - tipHeadLength - tipBodyLength / 2, 0))
+    ferrule.applyMatrix4(new THREE.Matrix4().makeTranslation(0, halfPoleLength - tipHeadLength - tipBodyLength - ferruleLength / 2, 0))
+    shaft.applyMatrix4(new THREE.Matrix4().makeTranslation(0, halfPoleLength - tipHeadLength - tipBodyLength - ferruleLength - shaftLength / 2, 0))
+    butt.applyMatrix4(new THREE.Matrix4().makeTranslation(0, halfPoleLength - tipHeadLength - tipBodyLength - ferruleLength - shaftLength - buttLength / 2, 0))
 
-      // console.log(`${body} 碰撞了 ${target}`);
+    tipHead.rotateX(Math.PI / 2)
+    tipBody.rotateX(Math.PI / 2)
+    ferrule.rotateX(Math.PI / 2)
+    shaft.rotateX(Math.PI / 2)
+    butt.rotateX(Math.PI / 2)
 
-      // 获取碰撞冲击力
-      const impactStrength = event.contact.getImpactVelocityAlongNormal()
-      console.log('碰撞强度:', impactStrength)
-      setTimeout(() => {
-        world.remove(body)
-        this.state = 'idle'
+    const cue = new THREE.Mesh(
+      BufferGeometryUtils.mergeGeometries(
+        [tipHead, tipBody, ferrule, shaft, butt,],
+        false
+      ),
+      new THREE.MeshPhongMaterial({
+        vertexColors: true,
+        side: THREE.DoubleSide,
       })
-    })
+    )
+
+    return cue
   }
 
-  sync() {
-    const { body, mesh } = this
-    body.position.copy(mesh.getWorldPosition(new THREE.Vector3()) as any)
-    body.quaternion.copy(mesh.getWorldQuaternion(new THREE.Quaternion()) as any)
+  private createTip() {
+    const {
+      config: {
+        tipRadius,
+        tipHeadLength,
+        tipBodyLength,
+      },
+      segments,
+    } = this
+
+    const headGeo = new THREE.CylinderGeometry(tipRadius * 0.8, tipRadius, tipHeadLength, segments)
+    const bodyGeo = new THREE.CylinderGeometry(tipRadius, tipRadius, tipBodyLength, segments)
+
+    const color = new THREE.Color(0x0088FF)
+    setGeometryColor(headGeo, color)
+    setGeometryColor(bodyGeo, color)
+    headGeo.name = 'tip-head'
+    bodyGeo.name = 'tip-body'
+
+    return [headGeo, bodyGeo]
+  }
+
+  private createFerrule() {
+    const {
+      config: {
+        ferruleLength,
+        tipRadius,
+      },
+      segments,
+    } = this
+
+    const ferruleGeo = new THREE.CylinderGeometry(tipRadius, tipRadius, ferruleLength, segments)
+    setGeometryColor(ferruleGeo, new THREE.Color(0xFFFEFA))
+    ferruleGeo.name = 'ferrule'
+
+    return ferruleGeo
+  }
+
+  private createShaft() {
+    const {
+      config: {
+        tipRadius: startRadius,
+        shaftLength,
+        jointRadius,
+      },
+      segments,
+    } = this
+
+    const shaftGeo = new THREE.CylinderGeometry(startRadius, jointRadius, shaftLength, segments)
+    shaftGeo.name = 'shaft'
+    setGeometryColor(shaftGeo, new THREE.Color(0xFBCB79))
+
+    return shaftGeo
+  }
+
+  private createButt() {
+    const {
+      config: {
+        buttLength,
+        jointRadius,
+        endRadius,
+      },
+      segments,
+    } = this
+
+    
+    const buttGeo = new THREE.CylinderGeometry(jointRadius, endRadius, buttLength, segments)
+    buttGeo.name = 'butt'
+    setGeometryColor(buttGeo, new THREE.Color(0x282C38))
+    return buttGeo
+  }
+}
+
+export interface CameraOptions {
+  fov: number
+  aspect: number
+  near: number
+  far: number
+}
+
+export type ControlKey =
+  | 'ArrowUp'
+  | 'ArrowRight'
+  | 'ArrowDown'
+  | 'ArrowLeft'
+
+export default class CueSystem {
+  camera: THREE.PerspectiveCamera
+  controls: OrbitControls
+
+  private cue = new Cue().createCue()
+
+  /** 垂直角度 (0到π) */
+  private phi = Math.PI / 2
+  /** 水平角度 (0到2π) */
+  private theta = 0
+  private ballRadius = PARAMETERS.ballRadius
+
+  /** 力的方向 */
+  private forceArrow = new THREE.ArrowHelper(
+    new THREE.Vector3(), // 方向
+    new THREE.Vector3(), // 位置
+    30,
+    '#ff0000', // 箭头颜色
+  )
+  /** 球杆的指向 */
+  private rayArrow = new THREE.ArrowHelper(
+    new THREE.Vector3(), // 方向
+    new THREE.Vector3(), // 位置
+    (PARAMETERS.cue.poleLength) / 2,
+    '#0000ff', // 箭头颜色
+  )
+
+  // #rotationSpeed = 0.005
+  #rotationSpeed = 0.1
+
+  keys = new Map<ControlKey, boolean>([
+    ['ArrowUp', false],
+    ['ArrowRight', false],
+    ['ArrowDown', false],
+    ['ArrowLeft', false],
+  ])
+
+  /** 最大击球力度 */
+  private maxForce = 500
+  /** 当前拉杆对应的力度 */
+  #currentForce = 0
+  /** 当前击球的力度 */
+  #hitForce = 0
+
+  #reqId = 0
+  #shotDuration = 300 / 16
+  #reduceStep = 0
+
+  constructor(
+    private renderer: THREE.WebGLRenderer,
+    private scene: THREE.Scene,
+    private ball: THREE.Mesh,
+    private ballBody: CANNON.Body,
+    cameraOptions?: Partial<CameraOptions>
+  ) {
+    this.camera = new THREE.PerspectiveCamera(
+      cameraOptions?.fov ?? 75,
+      cameraOptions?.aspect ?? 2,
+      cameraOptions?.near ?? 0.1,
+      cameraOptions?.far ?? 1000
+    )
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement)
+
+    this.setup()
+  }
+
+  get cueBasePosition() {
+    return {
+      x: 0,
+      y: 0,
+      z: 0,
+    }
+  }
+
+  get ballPosition() {
+    return this.ball.position
+  }
+
+  /** 球杆末端到主球球心的距离 */
+  get ballOffset() {
+    return 1.2 * this.ballRadius
+  }
+
+  /** 相机到主球球心的距离 */
+  get cameraDistance() {
+    return PARAMETERS.cue.poleLength / 2 + this.ballOffset
+  }
+
+  get cameraMinY() {
+    return this.ballPosition.y + this.ballRadius
+  }
+
+  /** 相机旋转（移动）速度 */
+  get rotationSpeed() {
+    return this.#rotationSpeed
+  }
+  set rotationSpeed(speed) {
+    this.#rotationSpeed = speed
+  }
+
+  get currentForce() {
+    return this.#currentForce
+  }
+  set currentForce(force) {
+    const diff = force - this.#currentForce
+    this.#currentForce = force
+    this.setCuePositionByForce(diff)
+  }
+
+  private setup() {
+    this.cue.rotation.x = -Math.PI
+    this.camera.add(this.cue)
+    this.scene.add(this.camera)
+    this.renderer.render(this.scene, this.camera)
+
+    this.scene.add(this.forceArrow)
+    this.scene.add(this.rayArrow)
+
+    this.cue.visible = false
+    // this.rayArrow.visible = false
+
+    this.cue.position.copy(this.cueBasePosition)
+    this.updateCameraPosition()
+
+    this.setupEvents()
+  }
+
+  private setupEvents() {
+    document.addEventListener('keydown', this.onKeydown)
+  }
+
+  setCuePosition(x = 0, y = 0, z = 0) {
+    this.cue.position.set(x, y, z)
+  }
+
+  setCuePositionByForce(diff: number) {
+    const direction = new THREE.Vector3(0, 0, 1) // 局部Z轴正方向
+    direction.applyQuaternion(this.cue.quaternion) // 转换为世界坐标
+    this.cue.position[diff > 0 ? 'add' : 'sub'](
+      direction.multiplyScalar(-10 * Math.abs(diff) / this.maxForce)
+    )
+    return this
+  }
+
+  resetCuePosition() {
+    this.cue.position.copy(this.ballPosition)
+  }
+
+  setControlKey(key: ControlKey, val = false) {
+    this.keys.set(key, val)
+    return this
+  }
+
+  setMaxForce(force: number) {
+    this.maxForce = force
+    return this
+  }
+
+  hit() {
+    console.log(this.currentForce)
+    if (this.currentForce === 0) return
+
+    emitter.emit(EventTypes.cueStatus, 'shooting')
+
+    this.#hitForce = this.currentForce
+    this.#reduceStep = this.currentForce / this.#shotDuration
+
+    // 执行击球动作
+    this.takingTheShot()
+    return this
+  }
+
+  private takingTheShot() {
+    console.log(this.#reduceStep)
+    this.#reqId = requestAnimationFrame(this.takingTheShot.bind(this))
+    if (this.currentForce <= 0) {
+      cancelAnimationFrame(this.#reqId)
+      this.#reduceStep = 0
+      // 给球施加方向力
+      this.hitBall()
+      return
+    }
+
+    this.#reduceStep += this.#shotDuration
+    this.currentForce -= this.#reduceStep
+  }
+
+  private hitBall() {
+    //  1. 获取球杆看向的方向
+    const direction = new THREE.Vector3()
+    this.cue.getWorldDirection(direction)
+
+    // 2. 转换为Cannon.js向量并标准化
+    const forceDirection = new CANNON.Vec3(
+      direction.x,
+      direction.y,
+      direction.z,
+    )
+
+    // 3. 乘以力的大小（牛顿）
+    forceDirection.scale(1000, forceDirection)
+
+    const applyPoint = getIntersectionPoints(this.cue, this.ball)
+    if (!applyPoint) {
+      return
+    }
+    const { x, y, z } = applyPoint
+    this.ballBody.applyForce(forceDirection, new CANNON.Vec3(x, y, z))
+
+    // 画出受力点
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.2, 128, 128),
+      new THREE.MeshPhongMaterial({ color: 'purple' }),
+    )
+    // mesh.position.copy(applyPoint)
+    mesh.position.set(x, y, z)
+    this.scene.add(mesh)
+
+    this.#hitForce = 0
+    emitter.emit(EventTypes.cueStatus, 'finished')
+  }
+
+  private onKeydown = (e: KeyboardEvent) => {
+    this.resetKeys()
+    switch (e.code) {
+      case 'ArrowUp':
+      case 'ArrowRight':
+      case 'ArrowDown':
+      case 'ArrowLeft':
+        this.keys.set(e.code, true)
+        break
+      case 'Space':
+        break
+    }
+  }
+
+  resetKeys() {
+    for (const key of this.keys.keys()) {
+      this.keys.set(key, false)
+    }
+  }
+
+  private updateCameraPosition() {
+    const {
+      phi,
+      theta,
+      ballPosition,
+      ballRadius,
+      cameraDistance,
+      cameraMinY,
+      camera,
+    } = this
+
+    // 计算原始相机位置
+    const rawX = ballPosition.x + cameraDistance * Math.sin(phi) * Math.cos(theta)
+    const rawY = ballPosition.y + cameraDistance * Math.cos(phi)
+    const rawZ = ballPosition.z + cameraDistance * Math.sin(phi) * Math.sin(theta)
+
+    // 调整Y坐标确保不低于最小高度
+    const adjustedY = Math.max(cameraMinY, rawY)
+
+    // 如果Y坐标被调整，则需要重新计算XZ位置以保持距离
+    if (adjustedY > rawY) {
+      // 计算新的phi角度来保持 cameraDistance 单位距离
+      const newPhi = Math.acos((adjustedY - ballPosition.y) / cameraDistance)
+      this.phi = newPhi
+
+      // 重新计算XZ位置
+      const newX = ballPosition.x + cameraDistance * Math.sin(newPhi) * Math.cos(theta)
+      const newZ = ballPosition.z + cameraDistance * Math.sin(newPhi) * Math.sin(theta)
+
+      camera.position.set(newX, adjustedY, newZ)
+    }
+    else {
+      camera.position.set(rawX, rawY, rawZ)
+    }
+
+    camera.lookAt(ballPosition)
   }
 
   update() {
-    const { controls, moveDirection, moveSpeed } = this
+    this.controls.update()
 
-    this.sync()
-    if (this.state === 'charging') {
-      this.updateCharging()
+    // 处理键盘输入
+    if (this.keys.get('ArrowUp')) {
+      // this.phi = Math.max(0.1, this.phi - this.rotationSpeed)
+      this.phi = 0
     }
-    else if (this.state === 'dashing') {
-      this.updateDashing()
+    if (this.keys.get('ArrowDown')) {
+      // this.phi = Math.min(Math.PI - 0.1, this.phi + this.rotationSpeed)
+      this.phi = Math.PI
     }
+    if (this.keys.get('ArrowRight')) {
+      this.theta -= this.rotationSpeed
+    }
+    if (this.keys.get('ArrowLeft')) {
+      this.theta += this.rotationSpeed
+    }
+    this.resetKeys()
 
-    // 键盘移动控制
-    if (controls.isLocked) {
-      if (this.state === 'idle') {
-        if (moveDirection.forward)
-          controls.moveForward(moveSpeed)
-        if (moveDirection.backward)
-          controls.moveForward(-moveSpeed)
-      }
+    this.updateCameraPosition()
 
-      if (moveDirection.left)
-        controls.moveRight(-moveSpeed)
-      if (moveDirection.right)
-        controls.moveRight(moveSpeed)
-      if (moveDirection.up)
-        controls.object.position.y += moveSpeed
-      if (moveDirection.down)
-        controls.object.position.y -= moveSpeed
-    }
+    // 更新力的方向
+    this.forceArrow.setDirection(this.camera.getWorldDirection(new THREE.Vector3()).normalize())
+    this.forceArrow.position.copy(this.ballPosition)
+
+    // // 更新球杆指向
+    this.rayArrow.setDirection(this.cue.getWorldDirection(new THREE.Vector3()).normalize())
+    this.rayArrow.position.copy(this.cue.getWorldPosition(new THREE.Vector3()))
   }
 }

@@ -75,7 +75,7 @@ export function createCanvas(width = 400, height = 300, canvas?: HTMLCanvasEleme
 
 export function getIntersectionPoints(mesh: THREE.Mesh, sphere: THREE.Mesh) {
   const direction = mesh.getWorldDirection(new THREE.Vector3()).normalize()
-  direction.applyQuaternion(mesh.getWorldQuaternion(new THREE.Quaternion()))
+  // direction.applyQuaternion(mesh.getWorldQuaternion(new THREE.Quaternion()))
   const ray = new THREE.Ray(mesh.getWorldPosition(new THREE.Vector3()), direction);
   // 3. 计算相交点
   const intersectionPoint = new THREE.Vector3();
