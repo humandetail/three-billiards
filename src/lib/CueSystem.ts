@@ -3,19 +3,9 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
+import { BilliardsStatus, emitter, EventTypes } from '../central-control'
 import { PARAMETERS } from '../config'
-import { getIntersectionPoints } from '../utils'
-import emitter, { EventTypes } from '../utils/Emitter'
-
-function setGeometryColor(geometry: THREE.BufferGeometry, color: THREE.Color) {
-  const colors: Float32Array = new Float32Array(geometry.attributes.position.count * 3)
-  for (let i = 0; i < colors.length; i += 3) {
-    colors[i] = color.r
-    colors[i + 1] = color.g
-    colors[i + 2] = color.b
-  }
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-}
+import { getIntersectionPoints, setGeometryColor } from '../utils'
 
 class Cue {
   private config = PARAMETERS.cue
@@ -173,7 +163,7 @@ export default class CueSystem {
   /** 垂直角度 (0到π) */
   private phi = Math.PI / 2
   /** 水平角度 (0到2π) */
-  private theta = 0
+  private theta = Math.PI
   private ballRadius = PARAMETERS.ballRadius
 
   /** 力的方向 */
@@ -285,8 +275,8 @@ export default class CueSystem {
     this.scene.add(this.forceArrow)
     this.scene.add(this.rayArrow)
 
-    this.cue.visible = false
-    // this.rayArrow.visible = false
+    // this.cue.visible = false
+    this.rayArrow.visible = false
 
     this.cue.position.copy(this.cueBasePosition)
     this.updateCameraPosition()
@@ -315,8 +305,14 @@ export default class CueSystem {
     this.cue.position.copy(this.ballPosition)
   }
 
-  setControlKey(key: ControlKey, val = false) {
+  setControlKey(key: ControlKey, val = false, isMicro = false) {
     this.keys.set(key, val)
+    if (isMicro) {
+      this.rotationSpeed = 0.001
+    }
+    else {
+      this.rotationSpeed = 0.1
+    }
     return this
   }
 
@@ -329,7 +325,8 @@ export default class CueSystem {
     if (this.currentForce === 0)
       return
 
-    emitter.emit(EventTypes.cueStatus, 'shooting')
+    // emitter.emit(EventTypes.cueStatus, 'shooting')
+    emitter.emit(EventTypes.status, BilliardsStatus.Shooting)
 
     this.#hitForce = this.currentForce
     this.#reduceStep = this.currentForce / this.#shotDuration
@@ -366,14 +363,15 @@ export default class CueSystem {
     )
 
     // 3. 乘以力的大小（牛顿）
-    forceDirection.scale(1000, forceDirection)
+    forceDirection.scale(this.#hitForce / 20, forceDirection)
 
     const applyPoint = getIntersectionPoints(this.cue, this.ball)
     if (!applyPoint) {
       return
     }
     const { x, y, z } = applyPoint
-    this.ballBody.applyForce(forceDirection, new CANNON.Vec3(x, y, z))
+    // this.ballBody.applyForce(forceDirection, new CANNON.Vec3(x, y, z))
+    this.ballBody.applyImpulse(forceDirection, new CANNON.Vec3(x, y, z))
 
     // 画出受力点
     const mesh = new THREE.Mesh(
@@ -385,7 +383,8 @@ export default class CueSystem {
     this.scene.add(mesh)
 
     this.#hitForce = 0
-    emitter.emit(EventTypes.cueStatus, 'finished')
+    // emitter.emit(EventTypes.cueStatus, 'finished')
+    emitter.emit(EventTypes.status, BilliardsStatus.ShotCompleted)
   }
 
   private onKeydown = (e: KeyboardEvent) => {
@@ -395,7 +394,7 @@ export default class CueSystem {
       case 'ArrowRight':
       case 'ArrowDown':
       case 'ArrowLeft':
-        this.keys.set(e.code, true)
+        this.setControlKey(e.code, true, false)
         break
       case 'Space':
         break
@@ -406,6 +405,18 @@ export default class CueSystem {
     for (const key of this.keys.keys()) {
       this.keys.set(key, false)
     }
+  }
+
+  hide() {
+    this.cue.visible = false
+    this.forceArrow.visible = false
+    this.rayArrow.visible = false
+  }
+
+  show() {
+    this.update()
+    this.cue.visible = true
+    this.forceArrow.visible = true
   }
 
   private updateCameraPosition() {
@@ -450,12 +461,12 @@ export default class CueSystem {
 
     // 处理键盘输入
     if (this.keys.get('ArrowUp')) {
-      // this.phi = Math.max(0.1, this.phi - this.rotationSpeed)
-      this.phi = 0
+      this.phi = Math.max(0, this.phi - this.rotationSpeed)
+      // this.phi = 0
     }
     if (this.keys.get('ArrowDown')) {
-      // this.phi = Math.min(Math.PI - 0.1, this.phi + this.rotationSpeed)
-      this.phi = Math.PI
+      this.phi = Math.min(Math.PI, this.phi + this.rotationSpeed)
+      // this.phi = Math.PI
     }
     if (this.keys.get('ArrowRight')) {
       this.theta -= this.rotationSpeed

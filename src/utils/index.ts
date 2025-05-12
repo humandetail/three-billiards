@@ -102,3 +102,13 @@ export function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
 
   return needResize;
 }
+
+export function setGeometryColor(geometry: THREE.BufferGeometry, color: THREE.Color) {
+  const colors: Float32Array = new Float32Array(geometry.attributes.position.count * 3)
+  for (let i = 0; i < colors.length; i += 3) {
+    colors[i] = color.r
+    colors[i + 1] = color.g
+    colors[i + 2] = color.b
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+}

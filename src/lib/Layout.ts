@@ -1,7 +1,9 @@
-import * as CANNON from 'cannon'
+import type CueSystem from './CueSystem'
+import * as CANNON from 'cannon-es'
 import CannonDebugger from 'cannon-es-debugger'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { BilliardsStatus, context, emitter, EventTypes, setContext } from '../central-control'
 import { getTexturePath } from '../utils'
 
 export default class Layout {
@@ -21,7 +23,7 @@ export default class Layout {
   #sceneObjects = new Map<string, THREE.Object3D>()
 
   balls: THREE.Object3D[] = []
-  ballsBody: CANNON.Body[] = []
+  ballBodies: CANNON.Body[] = []
   ballMaterial = new CANNON.Material('ball')
 
   boxes: THREE.Object3D[] = []
@@ -30,7 +32,13 @@ export default class Layout {
   tableMaterial = new CANNON.Material('table')
   rubberMaterial = new CANNON.Material('rubber')
 
-  cue?: THREE.Object3D
+  cueSystem: CueSystem | null = null
+
+  // renderRequested = false
+  // canCheckBody = false
+  // bodyMoving = false
+
+  velocityThreshold = 0.2 // 速度阈值（判断是否静止）
 
   constructor(protected canvas: HTMLCanvasElement) {
     const rect = this.canvas.getBoundingClientRect()
@@ -73,9 +81,8 @@ export default class Layout {
   initWorld() {
     const world = new CANNON.World()
     // 设置重力
-    world.gravity.set(0, -9.82 * 10, 0)
+    world.gravity.set(0, -9.82 * 100, 0)
     world.broadphase = new CANNON.NaiveBroadphase() // 使用默认碰撞检测
-    world.solver.iterations = 10 // 提高碰撞精度
 
     // 设置摩擦系数和弹性系数
     const ballBallContact = new CANNON.ContactMaterial(this.ballMaterial, this.ballMaterial, {
@@ -103,12 +110,42 @@ export default class Layout {
   }
 
   initEvents() {
+    // this.controls.addEventListener('start', () => {
+    //   this.isCameraMoving = true
+    // })
     this.controls.addEventListener('change', () => {
-      this.isCameraMoving = true
-      setTimeout(() => {
-        this.isCameraMoving = false
-      }, 200)
+      // this.isCameraMoving = true
+      // this.renderRequested = true
+      setContext('renderRequested', true)
+      // this.requestRenderIfNotRequested()
+      // setTimeout(() => {
+
+      //   this.isCameraMoving = false
+      // })
     })
+    // this.controls.addEventListener('end', () => {
+    //   setTimeout(() => {
+
+    //     this.isCameraMoving = false
+    //   })
+    //   console.log('change-end')
+    // })
+    // this.world.addEventListener('postStep', () => {
+    //   console.log('postStep')
+    //   if (!this.canCheckBody || this.renderRequested) {
+    //     return
+    //   }
+    //   this.requestRenderIfNotRequested()
+    // })
+
+    // emitter.on(EventTypes.cueStatus, status => {
+    //   if (status === 'finished') {
+    //     setTimeout(() => {
+    //       this.canCheckBody = true
+    //     })
+    //     // this.requestRenderIfNotRequested()
+    //   }
+    // })
   }
 
   initObserver() {
@@ -150,9 +187,6 @@ export default class Layout {
       new THREE.MeshPhongMaterial({
         map: texture,
       }),
-      // new THREE.MeshBasicMaterial({
-      //   color: 'gray',
-      // }),
     )
     ground.position.y = 0
     ground.rotation.x = THREE.MathUtils.degToRad(-90)
@@ -203,6 +237,10 @@ export default class Layout {
     // this.boxes.push(object)
   }
 
+  addCueSystem(cueSystem: CueSystem) {
+    this.cueSystem = cueSystem
+  }
+
   initControls() {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.enableDamping = true
@@ -212,79 +250,56 @@ export default class Layout {
 
   syncPhysicsToGraphics() {
     this.balls.forEach((ball, index) => {
-      const ballBody = this.ballsBody[index]
-      ball.position.set(
-        Number.parseFloat(ballBody.position.x.toFixed(4)),
-        Number.parseFloat(ballBody.position.y.toFixed(4)),
-        Number.parseFloat(ballBody.position.z.toFixed(4)),
-      ) // 同步位置
+      const ballBody = this.ballBodies[index]
+      // ball.position.set(
+      //   Number.parseFloat(ballBody.position.x.toFixed(4)),
+      //   Number.parseFloat(ballBody.position.y.toFixed(4)),
+      //   Number.parseFloat(ballBody.position.z.toFixed(4)),
+      // ) // 同步位置
+      ball.position.copy(ballBody.position)
 
       ball.quaternion.copy(ballBody.quaternion) // 同步旋转
     })
-
-    // this.boxes.forEach((box, index) => {
-    //   const body = this.boxesBody[index]
-    //   box.position.copy(body.position) // 同步位置
-    //   box.quaternion.copy(body.quaternion) // 同步旋转
-    // })
   }
-
-
-
-  updateCuePosition() {
-    const cue = this.cue
-    const camera = this.camera
-    const whiteBall = this.balls.find(ball => ball.name === 'ball-0')!
-
-    if (!cue || !whiteBall) return
-
-    const cueDistance = 1.2; // 球杆与白球的初始距离
-    const angle = Math.atan2(camera.position.x - whiteBall.position.x, camera.position.z - whiteBall.position.z);
-
-    cue.position.x = whiteBall.position.x - Math.sin(angle) * cueDistance;
-    cue.position.z = whiteBall.position.z - Math.cos(angle) * cueDistance;
-    // cue.rotation.y = -angle; // 球杆朝向白球
-    cue.lookAt(whiteBall.position);
-  }
-
-  hitBall(power = 10) {
-    const cue = this.cue
-    const camera = this.camera
-    const whiteBallIndex = this.balls.findIndex(ball => ball.name === 'ball-0')
-    if (!cue || whiteBallIndex === -1) return
-
-    const whiteBall = this.balls[whiteBallIndex]
-    const whiteBallBody = this.ballsBody[whiteBallIndex]
-
-    // 1. 计算击球方向（从球杆指向白球）
-    const direction = new CANNON.Vec3(
-        whiteBall.position.x - cue.position.x,
-        0,
-        whiteBall.position.z - cue.position.z
-    );
-
-    console.log(direction)
-
-    // 2. 施加力
-    whiteBallBody.applyImpulse(
-        // new CANNON.Vec3(direction.x * power, 0, direction.z * power),
-        new CANNON.Vec3(100, 0, 2),
-        new CANNON.Vec3(0, whiteBallBody.position.y, 0) // 作用点（球心）
-    );
-
-    // // 3. 球杆后坐动画（可选）
-    // cue.position.x -= direction.x * 0.2;
-    // cue.position.z -= direction.z * 0.2;
-}
 
   render() {
-    this.world.step(this.isCameraMoving ? 1 / 120 : 1 / 60) // 60fps
+    requestAnimationFrame(() => this.render())
+    if (context.canCheckBody) {
+      const isBodyMoving = this.isBodyMoving()
+      if (!isBodyMoving) {
+        // this.canCheckBody = false
+        setContext('canCheckBody', false)
+        setContext('status', BilliardsStatus.Idle)
+        console.log('球运动完成')
+        if (!this.isCameraMoving) {
+          return
+        }
+      }
+    }
+    else if (!context.renderRequested) {
+      return
+    }
+
+    // this.isCameraMoving = false
+    setContext('renderRequested', false)
+    // this.world.step(this.isCameraMoving ? 1 / 120 : 1 / 60) // 60fps
+    this.world.step(1 / 60, 3)
     this.syncPhysicsToGraphics()
-    // this.world.step(1 / 60)
     // this.cannonDebugger.update()
-    this.updateCuePosition()
+    if (this.cueSystem) {
+      this.cueSystem.update()
+    }
     this.renderer.render(this.scene, this.camera)
-    requestAnimationFrame(this.render.bind(this))
+  }
+
+  isBodyMoving() {
+    return this.world.bodies.some((body) => {
+      // 仅检测动态物体
+      return body.mass > 0 && (
+        body.velocity.lengthSquared() > this.velocityThreshold ** 2
+        || body.angularVelocity.lengthSquared() > this.velocityThreshold ** 2
+      )
+    })
   }
 
   handleResize(width: number, height: number) {

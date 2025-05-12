@@ -1,9 +1,9 @@
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { BilliardsStatus, context, emitter, EventTypes } from '../../central-control'
 import { resizeRendererToDisplaySize } from '../../utils'
 import { createHollowRoundedBoxGeometry } from '../../utils/HollowRounedBox'
-import emitter, { EventTypes } from '../../utils/Emitter'
 
 export type RegulatorDirection = 'horizontal' | 'vertical'
 
@@ -26,12 +26,11 @@ export default class RegulatorHelper {
 
   hollowRoundedBox = new THREE.Group()
 
-
   constructor(el: string | HTMLElement, public dir: RegulatorDirection = 'horizontal') {
     const oEl = typeof el === 'string'
       ? document.querySelector<HTMLElement>(el)
       : el
-    
+
     if (!oEl || !('innerHTML' in oEl)) {
       throw new Error('Invalid element provided')
     }
@@ -78,7 +77,8 @@ export default class RegulatorHelper {
       // 限制垂直旋转
       controls.minPolarAngle = Math.PI / 2
       controls.maxPolarAngle = Math.PI / 2
-    } else {
+    }
+    else {
       // 限制水平旋转
       controls.minAzimuthAngle = Math.PI / 2
       controls.maxAzimuthAngle = Math.PI / 2
@@ -102,12 +102,10 @@ export default class RegulatorHelper {
   setupEvents() {
     const { controls, directionalLight, camera, previousRotateAngle } = this
 
-    let initialPosition = camera.position.clone()
-
     const handleChange = () => {
       this.requestRenderIfNotRequested()
 
-      directionalLight.position.copy(camera.position);
+      directionalLight.position.copy(camera.position)
 
       const currentRotateAngle = this.dir === 'horizontal'
         ? controls.getAzimuthalAngle()
@@ -117,21 +115,27 @@ export default class RegulatorHelper {
         if (currentRotateAngle >= Math.PI - 0.01 || currentRotateAngle <= 0.01) {
           controls.removeEventListener('change', handleChange)
           controls.reset()
-          directionalLight.position.copy(camera.position);
+          directionalLight.position.copy(camera.position)
           controls.addEventListener('change', handleChange)
         }
       }
-  
-      let delta = currentRotateAngle - this.previousRotateAngle
-      if (delta > Math.PI) delta -= 2 * Math.PI;
-    else if (delta < -Math.PI) delta += 2 * Math.PI;
-      if (delta > 0) {
-        emitter.emit(EventTypes.direction, this.dir === 'horizontal' ? 'left' : 'up')
-      } else if (delta < 0) {
-        emitter.emit(EventTypes.direction, this.dir === 'horizontal' ? 'right' : 'down')
+
+      let delta = currentRotateAngle - previousRotateAngle
+      if (delta > Math.PI)
+        delta -= 2 * Math.PI
+      else if (delta < -Math.PI)
+        delta += 2 * Math.PI
+
+      if (context.status === BilliardsStatus.Idle) {
+        if (delta > 0) {
+          emitter.emit(EventTypes.direction, this.dir === 'horizontal' ? 'left' : 'up')
+        }
+        else if (delta < 0) {
+          emitter.emit(EventTypes.direction, this.dir === 'horizontal' ? 'right' : 'down')
+        }
       }
 
-      this.previousRotateAngle = currentRotateAngle;
+      this.previousRotateAngle = currentRotateAngle
     }
     controls.addEventListener('change', handleChange)
   }
@@ -140,7 +144,7 @@ export default class RegulatorHelper {
     const { scene } = this
 
     const material = new THREE.MeshPhysicalMaterial({
-      color: 0x6b7b8b,
+      color: 0x6B7B8B,
       clearcoat: 0.92,
       clearcoatRoughness: 0.35,
     })
@@ -149,63 +153,66 @@ export default class RegulatorHelper {
     const radius = 4
     const thickness = 1
 
-    const gearGroup = new THREE.Group();
+    const gearGroup = new THREE.Group()
 
     // 轴
-    const axisGeometry = new THREE.CylinderGeometry(radius * 0.4, radius * 0.4, thickness * 2, 32);
-    const axisMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
-    const axisMesh = new THREE.Mesh(axisGeometry, axisMaterial);
-    axisMesh.rotation.x = Math.PI / 2; // 水平放置
-    gearGroup.add(axisMesh);
+    const axisGeometry = new THREE.CylinderGeometry(radius * 0.4, radius * 0.4, thickness * 2, 32)
+    const axisMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 })
+    const axisMesh = new THREE.Mesh(axisGeometry, axisMaterial)
+    axisMesh.rotation.x = Math.PI / 2 // 水平放置
+    gearGroup.add(axisMesh)
 
     // 轮盘
     const gearBodyGeometry = new THREE.CylinderGeometry(
-      radius, radius, thickness, 32
-    );
-    const gearBody = new THREE.Mesh(gearBodyGeometry, material);
-    gearBody.rotation.x = Math.PI / 2; // 水平放置
-    gearGroup.add(gearBody);
+      radius,
+      radius,
+      thickness,
+      32,
+    )
+    const gearBody = new THREE.Mesh(gearBodyGeometry, material)
+    gearBody.rotation.x = Math.PI / 2 // 水平放置
+    gearGroup.add(gearBody)
 
     // 齿
-    const toothShape = new THREE.Shape();
+    const toothShape = new THREE.Shape()
     const toothThickness = 0.8
 
     // 定义梯形路径（从齿根到齿顶）
-    toothShape.moveTo(-0.08, 0);
-    toothShape.lineTo(-0.25, toothThickness);
-    toothShape.lineTo(0.25, toothThickness);
-    toothShape.lineTo(0.08, 0);
-    toothShape.lineTo(-0.08, 0);
+    toothShape.moveTo(-0.08, 0)
+    toothShape.lineTo(-0.25, toothThickness)
+    toothShape.lineTo(0.25, toothThickness)
+    toothShape.lineTo(0.08, 0)
+    toothShape.lineTo(-0.08, 0)
 
     const extrudeSettings = {
       depth: thickness,
-      bevelEnabled: false
-    };
-    const toothGeometry = new THREE.ExtrudeGeometry(toothShape, extrudeSettings);
+      bevelEnabled: false,
+    }
+    const toothGeometry = new THREE.ExtrudeGeometry(toothShape, extrudeSettings)
 
     // 环形排列齿轮齿
-  const teethGeometries = [];
-    const angleStep = (Math.PI * 2) / teeth;
+    const teethGeometries = []
+    const angleStep = (Math.PI * 2) / teeth
     for (let i = 0; i < teeth; i++) {
-      const clonedGeo = toothGeometry.clone();
-      const angle = i * angleStep;
-    const matrix = new THREE.Matrix4()
-    .makeRotationZ(angle + Math.PI / 2) // 先旋转
-    .setPosition(
-      Math.cos(angle) * (radius + 0.75),
-      Math.sin(angle) * (radius + 0.75),
-      -0.5
-    );
-      
-    clonedGeo.applyMatrix4(matrix);
-    teethGeometries.push(clonedGeo);
+      const clonedGeo = toothGeometry.clone()
+      const angle = i * angleStep
+      const matrix = new THREE.Matrix4()
+        .makeRotationZ(angle + Math.PI / 2) // 先旋转
+        .setPosition(
+          Math.cos(angle) * (radius + 0.75),
+          Math.sin(angle) * (radius + 0.75),
+          -0.5,
+        )
+
+      clonedGeo.applyMatrix4(matrix)
+      teethGeometries.push(clonedGeo)
     }
-    const mergedTeethGeometry = BufferGeometryUtils.mergeGeometries(teethGeometries);
-    const teethMesh = new THREE.Mesh(mergedTeethGeometry, material);
-    gearGroup.add(teethMesh);
+    const mergedTeethGeometry = BufferGeometryUtils.mergeGeometries(teethGeometries)
+    const teethMesh = new THREE.Mesh(mergedTeethGeometry, material)
+    gearGroup.add(teethMesh)
     scene.add(gearGroup)
     if (this.dir === 'horizontal') {
-      gearGroup.rotation.x = Math.PI / 2; // 水平放置
+      gearGroup.rotation.x = Math.PI / 2 // 水平放置
     }
 
     // 绘制方通
@@ -251,8 +258,8 @@ export default class RegulatorHelper {
 
   requestRenderIfNotRequested() {
     if (!this.renderRequested) {
-      this.renderRequested = true;
-      requestAnimationFrame(() => this.render());
+      this.renderRequested = true
+      requestAnimationFrame(() => this.render())
     }
   }
 }

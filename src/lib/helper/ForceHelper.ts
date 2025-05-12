@@ -1,7 +1,7 @@
 import Hammer from 'hammerjs'
+import { BilliardsStatus, context, emitter, EventTypes, setContext } from '../../central-control'
 import { createCanvas } from '../../utils'
 import FireButton from './FireButton'
-import emitter, { EventTypes } from '../../utils/Emitter'
 
 export default class ForceHelper {
   canvas: HTMLCanvasElement
@@ -111,7 +111,9 @@ export default class ForceHelper {
 
   set progress(value: number) {
     this.#progress = Math.min(Math.max(0, value), 1)
-    emitter.emit(EventTypes.force, Math.round(this.#progress * this.maxForce))
+    if (context.status === BilliardsStatus.Idle) {
+      emitter.emit(EventTypes.force, Math.round(this.#progress * this.maxForce))
+    }
     this.draw()
   }
 
@@ -141,22 +143,42 @@ export default class ForceHelper {
 
   initEvent() {
     const hm = new Hammer(this.canvas)
-    hm.get('pan').set({ threshold: 10, direction: Hammer.DIRECTION_ALL })
-    hm.get('press').set({ time: 0 })
+    hm.get('pan').set({ threshold: 0, direction: Hammer.DIRECTION_ALL })
+    // hm.get('press').set({ time: 200 }).requireFailure(hm.get('pan'))
 
     const { height, barSize: { height: barHeight } } = this
     const rect = this.canvas.getBoundingClientRect()
     const setProgress = (e: HammerInput) => {
-      this.progress = (e.center.y - rect.top - (height - barHeight) / 2) / barHeight
+      if ([BilliardsStatus.Idle, BilliardsStatus.Staging].includes(context.status)) {
+        this.progress = (e.center.y - rect.top - (height - barHeight) / 2) / barHeight
+        setContext('status', BilliardsStatus.Staging)
+      }
     }
+    // hm.on('press', (e) => {
+    //   setProgress(e)
+    //   console.log(this.currentForce)
+    //   if (this.currentForce < 100) {
+    //     // @todo - 进入高级控制模式
+    //     // return
+    //   }
+    //   setContext('status', BilliardsStatus.Release)
+    // })
 
-    hm.on('press', setProgress)
-
-    hm.on('panstart', () => {
+    hm.on('panstart', e => {
       this.draw()
     })
     hm.on('panmove', setProgress)
-    hm.on('panend', setProgress)
+    hm.on('panend', (e) => {
+      setProgress(e)
+      console.log(this.currentForce)
+      if (this.currentForce < 100) {
+        // @todo - 进入高级控制模式
+        // return
+      }
+      if (context.status === BilliardsStatus.Staging) {
+        setContext('status', BilliardsStatus.Release)
+      }
+    })
   }
 
   setFont(fontSize = this.fontSize) {
@@ -178,7 +200,7 @@ export default class ForceHelper {
   }
 
   clear() {
-    const { width, height, ctx, bgGradient } = this
+    const { width, height, ctx } = this
     // ctx.fillStyle = bgGradient
     // ctx.fillRect(0, 0, width, height)
     ctx.clearRect(0, 0, width, height)

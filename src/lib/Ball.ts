@@ -1,12 +1,13 @@
 import type Layout from './Layout'
-import Cannon from 'cannon'
+import * as CANNON from 'cannon-es'
 import * as THREE from 'three'
 import { PARAMETERS } from '../config'
 
 export default class Ball {
   public tableTop = PARAMETERS.offGroundHeight + PARAMETERS.tableThickness
 
-  ballSceneObject!: THREE.Object3D
+  mainBall!: THREE.Mesh
+  mainBallBody!: CANNON.Body
 
   initialPositions = [
     { x: 0, z: 0 },
@@ -31,21 +32,18 @@ export default class Ball {
     { x: PARAMETERS.ballRadius * Math.sqrt(3), z: PARAMETERS.ballRadius }, // 3
   ]
 
-  ballMaterial = new Cannon.Material('ball')
+  ballMaterial = new CANNON.Material('ball')
 
   constructor(public layout: Layout) {
-    this.ballSceneObject = this.layout.makeSceneObject('ball')
     this.init()
   }
 
   init() {
-    const ballSceneObject = this.ballSceneObject
+    this.makeBall(-PARAMETERS.withWoodWidth / 4, 0, 0)
     this.initialPositions.forEach((pos, index) => {
-      const ball = this.makeBall(pos.x + PARAMETERS.tableWidth / 4, pos.z, index + 1)
-      ballSceneObject.add(ball)
+      this.makeBall(pos.x + PARAMETERS.tableWidth / 4, pos.z, index + 1)
     })
 
-    ballSceneObject.add(this.makeBall(-PARAMETERS.withWoodWidth / 4, 0, 0))
   }
 
   makeBall(x: number, z: number, name = 0) {
@@ -76,12 +74,13 @@ export default class Ball {
     ball.castShadow = true
     ball.receiveShadow = true
 
+    this.layout.scene.add(ball)
     this.layout.balls.push(ball)
 
-    const ballBody = new Cannon.Body({
-      mass: 0.2,
-      position: new Cannon.Vec3(ball.position.x, ball.position.y, ball.position.z),
-      shape: new Cannon.Sphere(ballRadius),
+    const ballBody = new CANNON.Body({
+      mass: 1.65, // kg，0.165kg，因为整体放大了十倍，所以这里的质量也放大
+      position: new CANNON.Vec3(ball.position.x, ball.position.y, ball.position.z),
+      shape: new CANNON.Sphere(ballRadius),
       linearDamping: 0.3, // 模拟空气阻力+桌面摩擦
       angularDamping: 0.5, // 模拟旋转衰减
     })
@@ -91,12 +90,12 @@ export default class Ball {
     ballBody.material = this.layout.ballMaterial
 
     this.layout.world.addBody(ballBody)
-    this.layout.ballsBody.push(ballBody)
+    this.layout.ballBodies.push(ballBody)
 
-    // if (name === 0) {
-    //   // 给白球一个初始速度
-    //   ballBody.velocity.set(800, 0, 0)
-    // }
+    if (name === 0) {
+      this.mainBall = ball
+      this.mainBallBody = ballBody
+    }
 
     return ball
   }

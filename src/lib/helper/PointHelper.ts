@@ -1,6 +1,6 @@
 import Hammer from 'hammerjs'
+import { BilliardsStatus, context, emitter, EventTypes } from '../../central-control'
 import { createCanvas } from '../../utils'
-import emitter, { EventTypes } from '../../utils/Emitter'
 
 export interface PointHelperOptions {
   ballRadius: number
@@ -337,13 +337,15 @@ export default class PointHelper {
       targetPosition.x = x
       targetPosition.y = y
     }
-    console.log(targetPosition)
+
     const p = this.getPosition()
-    emitter.emit(EventTypes.point, {
-      x: p.x / this.safeRadius,
-      y: -1 * p.y / this.safeRadius
-    })
-    this.draw()
+    if (context.status === BilliardsStatus.Idle) {
+      emitter.emit(EventTypes.point, {
+        x: p.x / this.safeRadius,
+        y: -1 * p.y / this.safeRadius,
+      })
+      this.draw()
+    }
   }
 
   resetTarget() {
