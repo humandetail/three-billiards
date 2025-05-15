@@ -7,8 +7,9 @@ import { LineGeometry } from 'three/addons/lines/LineGeometry.js'
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 
 import { PARAMETERS } from '../config'
-import { getPoints } from '../utils'
+import { getPoints, setGeometryColor } from '../utils'
 import Compound from './Compound'
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
 
 interface BoxAttr {
   width: number
@@ -55,8 +56,9 @@ export default class Table {
     sceneObject.position.y = this.offGround.tableCenter
 
     this.makeTableLegs()
+    this.makeTableBody()
     this.makeTableBoard()
-    // this.makeTableLine()
+    this.makeTableLine()
 
     const cornerX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius
     const cornerZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.cornerPocketRadius
@@ -512,6 +514,61 @@ export default class Table {
     tableSceneObject.add(cueBallMesh)
   }
 
+  makeTableBody() {
+    const boardWidth = PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4
+    const boardHeight = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
+
+    const bodyDepth = PARAMETERS.bodyDepth
+    const legWidth = PARAMETERS.legWidth
+
+    const geometries: THREE.BufferGeometry[] = []
+
+    const width = boardWidth - legWidth * 2
+    const height = boardHeight - legWidth * 2
+
+    const bodyGeo = new THREE.BoxGeometry(width, bodyDepth, height)
+    setGeometryColor(bodyGeo, this.woodColor)
+    geometries.push(bodyGeo)
+
+    for (let i = 0; i < 4; i++) {
+      const w = (width - legWidth) / 2
+      const h = legWidth
+      const geo = new THREE.BoxGeometry(w, bodyDepth, h)
+      setGeometryColor(geo, this.woodColor)
+      const matrix = new THREE.Matrix4()
+      matrix.makeTranslation(new THREE.Vector3(
+          (i < 2 ? -1 : 1) * (w / 2 + legWidth / 2),
+          0,
+          (i % 2 === 0 ? -1 : 1) * (height + legWidth) / 2,
+      ))
+      geo.applyMatrix4(matrix)
+      geometries.push(geo)
+    }
+
+    for (let i = 0; i < 2; i++) {
+      const w = legWidth
+      const h = height
+      const geo = new THREE.BoxGeometry(w, bodyDepth, h)
+      setGeometryColor(geo, this.woodColor)
+      const matrix = new THREE.Matrix4()
+      matrix.makeTranslation(new THREE.Vector3(
+          (i === 0 ? -1 : 1) * (width / 2 + legWidth / 2),
+          0,
+          0,
+      ))
+      geo.applyMatrix4(matrix)
+      geometries.push(geo)
+    }
+
+    const mesh = new THREE.Mesh(
+      BufferGeometryUtils.mergeGeometries(geometries, false),
+      new THREE.MeshPhongMaterial({ vertexColors: true, }),
+    )
+
+    mesh.position.set(0, this.offGround.tableBottom - bodyDepth / 2, 0)
+    this.layout.scene.add(mesh)
+  }
+
   // 创建桌脚
   makeTableLegs() {
     const boardWidth = PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4
@@ -524,32 +581,31 @@ export default class Table {
     const positions = [
       [boardWidth / 2 - legWidth / 2, boardHeight / 2 - legDepth / 2],
       [boardWidth / 2 - legWidth / 2, -boardHeight / 2 + legDepth / 2],
-      [0 + legWidth / 2, boardHeight / 2 - legDepth / 2],
-      [0 + legWidth / 2, -boardHeight / 2 + legDepth / 2],
+      [0, boardHeight / 2 - legDepth / 2],
+      [0, -boardHeight / 2 + legDepth / 2],
       [-boardWidth / 2 + legWidth / 2, boardHeight / 2 - legDepth / 2],
       [-boardWidth / 2 + legWidth / 2, -boardHeight / 2 + legDepth / 2],
     ]
 
-    positions.forEach((position) => {
+    const geometries = positions.map((position) => {
       const geometry = new THREE.BoxGeometry(legWidth, legHeight, legDepth)
-      const material = new THREE.MeshPhongMaterial({ color: 'gold' }) // 金色材质
-      const mesh = new THREE.Mesh(geometry, material)
-      mesh.castShadow = true
-      mesh.receiveShadow = true
-      mesh.position.set(
+      setGeometryColor(geometry, this.woodColor)
+      const matrix = new THREE.Matrix4()
+      matrix.makeTranslation(new THREE.Vector3(
         position[0],
         legHeight / 2,
         position[1],
-      )
+      ))
+      geometry.applyMatrix4(matrix)
 
-      const body = new CANNON.Body({
-        mass: 0,
-      })
-      body.addShape(new CANNON.Box(new CANNON.Vec3(legWidth / 2, legHeight / 2, legDepth / 2)))
-      body.position.set(position[0], position[1], position[2])
-      this.layout.world.addBody(body)
-      this.layout.addObject('root', mesh)
+      return geometry
     })
+
+    const mesh = new THREE.Mesh(
+      BufferGeometryUtils.mergeGeometries(geometries, false),
+      new THREE.MeshPhongMaterial({ vertexColors: true, }),
+    )
+    this.layout.scene.add(mesh)
   }
 
   makePocket(options: PocketAttr) {
@@ -892,39 +948,4 @@ export default class Table {
 
     return line
   }
-
-  // // 创建漏斗实例（线宽设为5像素）
-  // const funnel = createLineFunnel(
-  //   5,   // 顶部半径
-  //   1,   // 底部半径
-  //   10,  // 高度
-  //   8,   // 分段数（控制网格密度）
-  //   0.3, // 壁厚
-  //   5    // 线宽（像素）
-  // );
-  // scene.add(funnel);
-
-  // // 相机位置
-  // camera.position.z = 25;
-
-  // // 窗口大小变化响应
-  // window.addEventListener('resize', () => {
-  //   camera.aspect = window.innerWidth / window.innerHeight;
-  //   camera.updateProjectionMatrix();
-  //   renderer.setSize(window.innerWidth, window.innerHeight);
-  //   // 更新所有LineMaterial的分辨率
-  //   scene.traverse(obj => {
-  //     if (obj.isLine2 && obj.material.isLineMaterial) {
-  //       obj.material.resolution.set(window.innerWidth, window.innerHeight);
-  //     }
-  //   });
-  // });
-
-// // 动画循环
-// function animate() {
-//   requestAnimationFrame(animate);
-//   funnel.rotation.y += 0.01; // 旋转演示
-//   renderer.render(scene, camera);
-// }
-// animate();
 }

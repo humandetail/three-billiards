@@ -177,21 +177,23 @@ export default class Layout {
    * 地板最顶面所在位置就是 y = 0
    */
   initGround() {
-    const texture = new THREE.TextureLoader().load(getTexturePath('ground.jpg'))
-    texture.wrapS = THREE.RepeatWrapping
-    texture.wrapT = THREE.RepeatWrapping
-    texture.repeat.set(4, 2)
+    // const texture = new THREE.TextureLoader().load(getTexturePath('ground.jpg'))
+    // texture.wrapS = THREE.RepeatWrapping
+    // texture.wrapT = THREE.RepeatWrapping
+    // texture.repeat.set(4, 2)
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(400, 400),
-      new THREE.MeshPhongMaterial({
-        map: texture,
+      new THREE.MeshBasicMaterial({
+        // map: texture,
+        color: 'gray',
       }),
     )
     ground.position.y = 0
     ground.rotation.x = THREE.MathUtils.degToRad(-90)
 
     ground.receiveShadow = true
+    ground.castShadow = true
 
     this.scene.add(ground)
 

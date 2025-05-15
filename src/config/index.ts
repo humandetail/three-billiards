@@ -41,6 +41,8 @@ export const PARAMETERS = {
   /** 库边与球接触面高度 */
   bankContactHeight: 1.5,
 
+  bodyDepth: 15,
+
   // 桌脚
   legWidth: 10,
   legHeight: 75,
