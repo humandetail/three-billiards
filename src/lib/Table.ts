@@ -2,9 +2,12 @@ import type Layout from './Layout'
 
 import * as CANNON from 'cannon-es'
 import * as THREE from 'three'
-import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
+import { Line2 } from 'three/addons/lines/Line2.js'
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js'
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
+
 import { PARAMETERS } from '../config'
-import { getPoints, setGeometryColor } from '../utils'
+import { getPoints } from '../utils'
 import Compound from './Compound'
 
 interface BoxAttr {
@@ -16,6 +19,16 @@ interface BoxAttr {
   y: number
   z: number
 }
+
+interface PocketAttr {
+  position: {
+    x: number
+    y: number
+    z: number
+  }
+  isRotate: boolean
+}
+
 export default class Table {
   offGround = {
     tableBottom: PARAMETERS.offGroundHeight,
@@ -43,7 +56,29 @@ export default class Table {
 
     this.makeTableLegs()
     this.makeTableBoard()
-    this.makeTableLine()
+    // this.makeTableLine()
+
+    const cornerX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius
+    const cornerZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.cornerPocketRadius
+    const middleX = 0
+    const middleZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.middlePocketRadius
+    const pocketOptions = [
+      { x: -cornerX, z: -cornerZ }, // 左上
+      { x: middleX, z: -middleZ }, // 中上
+      { x: cornerX, z: -cornerZ }, // 右上
+      { x: cornerX, z: cornerZ }, // 右下
+      { x: middleX, z: middleZ }, // 中下
+      { x: -cornerX, z: cornerZ }, // 左下
+    ]
+    pocketOptions.forEach((position, index) => {
+      this.makePocket({
+        position: {
+          ...position,
+          y: this.offGround.tableBottom ,
+        },
+        isRotate: index === 0 || index === pocketOptions.length - 1,
+      })
+    })
   }
 
   makeTableBoard() {
@@ -345,20 +380,6 @@ export default class Table {
                 : 0 - PARAMETERS.middlePocketRadius + height / 2,
               color,
             })
-
-            // const mesh = new THREE.Mesh(
-            //   new THREE.BoxGeometry(size, thickness, height),
-            //   material,
-            // )
-            // mesh.position.x = p.x
-            // mesh.position.y = y
-            // mesh.position.z = i < 2
-            //   ? 0 + PARAMETERS.middlePocketRadius - height / 2
-            //   : 0 - PARAMETERS.middlePocketRadius + height / 2
-            // obj.add(mesh)
-
-            // // 创建物理刚体
-            // this.createTableBody(mesh, size, thickness, height)
           })
         }
 
@@ -531,43 +552,379 @@ export default class Table {
     })
   }
 
-  // 创建台面底部的物理刚体
-  createTableBody(mesh: THREE.Mesh, width: number, height: number, thickness: number) {
-    // 创建物理刚体
-    const position = mesh.getWorldPosition(new THREE.Vector3())
+  makePocket(options: PocketAttr) {
+    // 漏斗参数
+    const topWidth = PARAMETERS.cornerPocketRadius * 2 // 顶部宽度
+    const bottomWidth = PARAMETERS.ballRadius * 2 * 1.1 // 底部宽度
+    const height = PARAMETERS.ballRadius * 2 * 1.5 // 高度
+    const bottomHeight = PARAMETERS.ballRadius * 2 * 1.2 // 底部高度
+    const wallThickness = 0.2 // 壁厚
+
+    // 计算几何参数
+    const delta = (topWidth / 2 - bottomWidth / 2)
+    const theta = Math.atan(delta / height) // 倾斜角度
+    const L = Math.sqrt(delta * delta + height * height) // 斜面长度
+
+    const poleMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x3170A6,
+      clearcoat: 0.92,
+      clearcoatRoughness: 0.35,
+    })
+
+    // 四个方向：+x, -x, +z, -z
+    const directions = [
+      { axis: 'x', sign: 1, rotAxis: new CANNON.Vec3(0, 0, 1) }, // +X方向绕Z轴旋转
+      { axis: 'x', sign: -1, rotAxis: new CANNON.Vec3(0, 0, 1) }, // -X方向绕Z轴旋转
+      { axis: 'z', sign: 1, rotAxis: new CANNON.Vec3(1, 0, 0) }, // +Z方向绕X轴旋转
+      { axis: 'z', sign: -1, rotAxis: new CANNON.Vec3(1, 0, 0) }, // -Z方向绕X轴旋转
+    ]
 
     const body = new CANNON.Body({
       mass: 0,
-      position: new CANNON.Vec3(position.x, position.y, position.z),
-      shape: new CANNON.Box(new CANNON.Vec3(
-        width / 2,
-        height / 2,
-        thickness / 2,
-      )),
-    })
-    this.layout.world.addBody(body)
-    body.material = this.layout.tableMaterial
-  }
-
-  mergeBox(boxes: BoxAttr[]) {
-    const geometries: THREE.BoxGeometry[] = []
-
-    boxes.forEach(({ width, height, depth, color, x, y, z }) => {
-      const geo = new THREE.BoxGeometry(width, height, depth)
-      setGeometryColor(geo, color)
-      geo.applyMatrix4(new THREE.Matrix4().makeTranslation(x, y, z))
-      geometries.push(geo)
     })
 
-    const mesh = new THREE.Mesh(
-      BufferGeometryUtils.mergeGeometries(geometries, false),
-      new THREE.MeshPhongMaterial({
-        vertexColors: true,
-        side: THREE.DoubleSide,
-      }),
+    directions.forEach((dir) => {
+      // 根据方向设置尺寸
+      let halfExtents
+      if (dir.axis === 'x') {
+        halfExtents = new CANNON.Vec3(
+          wallThickness / 2,
+          L / 2,
+          topWidth / 2,
+        )
+      }
+      else { // z方向
+        halfExtents = new CANNON.Vec3(
+          topWidth / 2,
+          L / 2,
+          wallThickness / 2,
+        )
+      }
+
+      // 计算旋转角度（正负号处理）
+      const angle = dir.sign * theta
+      const quaternion = new CANNON.Quaternion().setFromAxisAngle(dir.rotAxis, angle)
+
+      // 设置位置
+      const pos = new CANNON.Vec3()
+      if (dir.axis === 'x') {
+        pos.x = -1 * dir.sign * (topWidth / 2 + bottomWidth / 2) / 2 // X方向中心
+        pos.y = height / 2 // 高度居中
+      }
+      else {
+        pos.z = dir.sign * (topWidth / 2 + bottomWidth / 2) / 2 // Z方向中心
+        pos.y = height / 2
+      }
+
+      body.addShape(
+        new CANNON.Box(halfExtents),
+        pos,
+        quaternion,
+      )
+
+      if (dir.axis === 'z' && dir.sign === 1) {
+        return
+      }
+      // 底部接球区
+      const bottomShape = new CANNON.Box(new CANNON.Vec3(
+        bottomWidth / 2,
+        bottomHeight / 2,
+        wallThickness / 2,
+      ))
+      const bottomPos = new CANNON.Vec3()
+      bottomPos.y = -bottomHeight / 2 // 高度居中
+      if (dir.axis === 'x') {
+        bottomPos.z = dir.sign * bottomWidth / 2 // Z方向中心
+      }
+      else {
+        bottomPos.x = -1 * dir.sign * bottomWidth / 2 // X方向中心
+      }
+      body.addShape(
+        bottomShape,
+        bottomPos,
+        new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0, 1, 0), dir.sign * Math.PI / 2 * (dir.axis === 'x' ? 0 : 1)),
+      )
+    })
+
+    // 底板
+    const baseWidth = PARAMETERS.ballRadius * 12
+    const baseShape = new CANNON.Box(new CANNON.Vec3(
+      baseWidth / 2,
+      bottomHeight / 2,
+      wallThickness / 2,
+    ))
+    // 后
+    body.addShape(
+      baseShape,
+      new CANNON.Vec3(bottomWidth / 2 - baseWidth / 2, -bottomHeight / 2, -bottomWidth / 2),
+    )
+    // 前
+    body.addShape(
+      baseShape,
+      new CANNON.Vec3(bottomWidth / 2 - baseWidth / 2, -bottomHeight / 2, bottomWidth / 2),
+    )
+    // 底
+    const floor = new CANNON.Box(new CANNON.Vec3(
+      baseWidth / 2,
+      wallThickness / 2,
+      bottomWidth / 2,
+    ))
+    const q = new CANNON.Quaternion()
+    const tiltAngle = 2 * (Math.PI / 180) // 绕 Z 轴旋转 10 度（右下倾斜）
+    q.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), tiltAngle)
+
+    const h = baseWidth / 2 * Math.sin(tiltAngle)
+    body.addShape(
+      floor,
+      new CANNON.Vec3(
+        bottomWidth / 2 - baseWidth / 2,
+        -bottomHeight + h,
+        0,
+      ),
+      q,
+    )
+    // 上
+    const ceiling = new CANNON.Box(new CANNON.Vec3(
+      (baseWidth - bottomWidth) / 2,
+      wallThickness / 2,
+      bottomWidth / 2,
+    ))
+
+    body.addShape(
+      ceiling,
+      new CANNON.Vec3(
+        -(baseWidth - bottomWidth) / 2 - bottomWidth / 2,
+        0,
+        0,
+      ),
+      q,
     )
 
-    this.layout.scene.add(mesh)
-    mesh.position.y = this.offGround.tableCenter
+    // 封
+    const capShape = new CANNON.Box(new CANNON.Vec3(
+      wallThickness / 2,
+      bottomHeight / 2,
+      bottomWidth / 2,
+    ))
+    const capPos = new CANNON.Vec3(-baseWidth + bottomWidth / 2, -bottomHeight / 2, 0)
+    body.addShape(
+      capShape,
+      capPos,
+    )
+
+    // THREE ---------
+    const group = new THREE.Group()
+
+    const cylinderMesh = this.createLineFunnel(
+      bottomWidth / 2,
+      topWidth / 2,
+      height,
+      8,
+      0.1,
+      3,
+      0xE9ECF1,
+    )
+    cylinderMesh.position.set(0, height / 2, 0)
+    group.add(cylinderMesh)
+
+    let sWidth = baseWidth
+    const sHeight = bottomHeight
+    const sSize = 0.5
+    const tiltAngleDiff = h
+    const m1Points = [
+      [0, sHeight],
+      [sWidth, sHeight + tiltAngleDiff],
+      [sWidth, -height - tiltAngleDiff], // 注意 -height 延长到入口处
+      [sWidth - sSize, -height - tiltAngleDiff],
+      [sWidth - sSize, sHeight + tiltAngleDiff - sSize],
+      [sSize, sHeight - sSize],
+      [sSize, 0],
+    ]
+    sWidth -= bottomWidth / 2
+    const m2Points = [
+      [0, sHeight],
+      [sWidth, sHeight + tiltAngleDiff],
+      [sWidth, -height + tiltAngleDiff],
+      [sWidth - sSize, -height + tiltAngleDiff],
+      [sWidth - sSize, sHeight + tiltAngleDiff - sSize],
+      [sSize, sHeight - sSize],
+      [sSize, 0],
+    ]
+    const attrs = [
+      { points: m1Points, position: new THREE.Vector3(bottomWidth / 2, 0, 0) },
+      { points: m2Points, position: new THREE.Vector3(0, PARAMETERS.ballRadius / 2, bottomWidth / 2) },
+      { points: m2Points, position: new THREE.Vector3(0, PARAMETERS.ballRadius / 2, -bottomWidth / 2) },
+    ]
+
+    attrs.forEach(({ points, position }) => {
+      const shape = new THREE.Shape()
+      shape.moveTo(0, 0)
+      points.forEach(([x, y]) => {
+        shape.lineTo(x, y)
+      })
+      shape.lineTo(0, 0)
+      const extrudeSettings = {
+        depth: sSize * 2, // 挤出厚度
+        bevelEnabled: false, // 禁用倒角
+      }
+      const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings)
+      const m = new THREE.Mesh(geo, poleMaterial)
+      m.position.set(position.x, position.y, position.z)
+      m.rotation.set(Math.PI, Math.PI, 0)
+      group.add(m)
+    })
+
+    // 加几个环
+    ;[
+      { position: new THREE.Vector3(0, 0, 0), rotation: new THREE.Vector3(Math.PI / 2, 0, 0) },
+      { position: new THREE.Vector3(-sWidth / 3, -bottomHeight / 2 - sSize, sSize), rotation: new THREE.Vector3(0, Math.PI / 2, 0) },
+      { position: new THREE.Vector3(-sWidth * 2 / 3, -bottomHeight / 2 - sSize, sSize), rotation: new THREE.Vector3(0, Math.PI / 2, 0) },
+    ].forEach(({ position, rotation }) => {
+      const tours = new THREE.TorusGeometry(
+        bottomWidth / 2,
+        sSize,
+        128,
+        128,
+      )
+      const tourMesh = new THREE.Mesh(tours, poleMaterial)
+      tourMesh.position.copy(position)
+      tourMesh.rotation.set(rotation.x, rotation.y, rotation.z)
+      group.add(tourMesh)
+    })
+    group.position.set(options.position.x, options.position.y - height, options.position.z)
+    group.rotation.set(0, options.isRotate ? Math.PI : 0, 0)
+    this.layout.scene.add(group)
+
+    body.position.set(options.position.x, options.position.y - height, options.position.z)
+    body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), options.isRotate ? Math.PI : 0)
+    this.layout.world.addBody(body)
   }
+
+  // 创建抗锯齿宽线漏斗
+  createLineFunnel(topR: number, bottomR: number, height: number, segments: number, thickness: number, lineWidth: number, color: number) {
+    const vertices = []
+    const indices = []
+
+    // === 1. 生成顶点数据（保持原方案结构） ===
+    for (let side = 0; side < 2; side++) { // 0=外壁, 1=内壁
+      const radiusOffset = side === 0 ? thickness : 0
+      for (let y = 0; y <= segments; y++) {
+        const progress = y / segments
+        const radius = topR + (bottomR - topR) * progress - radiusOffset
+        const angleStep = (Math.PI * 2) / segments
+        for (let i = 0; i <= segments; i++) {
+          const angle = i * angleStep
+          vertices.push(
+            radius * Math.cos(angle),
+            -height / 2 + progress * height,
+            radius * Math.sin(angle),
+          )
+        }
+      }
+    }
+
+    // === 2. 生成线段索引 ===
+    // 内外壁纵向线
+    for (let side = 0; side < 2; side++) {
+      const offset = side * (segments + 1) * (segments + 1)
+      for (let y = 0; y < segments; y++) {
+        for (let i = 0; i <= segments; i++) {
+          const a = offset + y * (segments + 1) + i
+          const b = a + (segments + 1)
+          indices.push(a, b)
+        }
+      }
+    }
+
+    // 内外壁横向线
+    for (let side = 0; side < 2; side++) {
+      const offset = side * (segments + 1) * (segments + 1)
+      for (let y = 0; y <= segments; y++) {
+        for (let i = 0; i < segments; i++) {
+          const a = offset + y * (segments + 1) + i
+          const b = a + 1
+          indices.push(a, b)
+        }
+      }
+    }
+
+    // 连接内外壁的垂直线
+    for (let y = 0; y <= segments; y++) {
+      for (let i = 0; i <= segments; i++) {
+        const outerIdx = y * (segments + 1) + i
+        const innerIdx = outerIdx + (segments + 1) * (segments + 1)
+        indices.push(outerIdx, innerIdx)
+      }
+    }
+
+    // === 3. 转换为 LineGeometry ===
+    const lineGeo = new LineGeometry()
+    const linePositions = []
+
+    // 将顶点索引转换为连续的线段数据
+    for (let i = 0; i < indices.length; i += 2) {
+      const startIdx = indices[i]
+      const endIdx = indices[i + 1]
+      linePositions.push(
+        vertices[startIdx * 3], // 起点X
+        vertices[startIdx * 3 + 1], // 起点Y
+        vertices[startIdx * 3 + 2], // 起点Z
+        vertices[endIdx * 3], // 终点X
+        vertices[endIdx * 3 + 1], // 终点Y
+        vertices[endIdx * 3 + 2], // 终点Z
+      )
+    }
+    lineGeo.setPositions(linePositions)
+
+    // === 4. 创建宽线材质 ===
+    const lineMaterial = new LineMaterial({
+      color, // 线条颜色
+      linewidth: lineWidth, // 线宽（单位由worldUnits决定）
+      resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
+      worldUnits: false, // false: 线宽单位为像素, true: 使用三维单位
+      dashed: false, // 是否虚线
+      alphaToCoverage: true, // 优化透明度渲染
+    })
+
+    // === 5. 创建最终线条对象 ===
+    const line = new Line2(lineGeo, lineMaterial)
+    // line.computeLineDistances(); // 用于虚线计算（本例未启用）
+
+    return line
+  }
+
+  // // 创建漏斗实例（线宽设为5像素）
+  // const funnel = createLineFunnel(
+  //   5,   // 顶部半径
+  //   1,   // 底部半径
+  //   10,  // 高度
+  //   8,   // 分段数（控制网格密度）
+  //   0.3, // 壁厚
+  //   5    // 线宽（像素）
+  // );
+  // scene.add(funnel);
+
+  // // 相机位置
+  // camera.position.z = 25;
+
+  // // 窗口大小变化响应
+  // window.addEventListener('resize', () => {
+  //   camera.aspect = window.innerWidth / window.innerHeight;
+  //   camera.updateProjectionMatrix();
+  //   renderer.setSize(window.innerWidth, window.innerHeight);
+  //   // 更新所有LineMaterial的分辨率
+  //   scene.traverse(obj => {
+  //     if (obj.isLine2 && obj.material.isLineMaterial) {
+  //       obj.material.resolution.set(window.innerWidth, window.innerHeight);
+  //     }
+  //   });
+  // });
+
+// // 动画循环
+// function animate() {
+//   requestAnimationFrame(animate);
+//   funnel.rotation.y += 0.01; // 旋转演示
+//   renderer.render(scene, camera);
+// }
+// animate();
 }

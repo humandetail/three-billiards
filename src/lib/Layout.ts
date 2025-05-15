@@ -306,5 +306,11 @@ export default class Layout {
     this.renderer.setSize(width, height)
     this.camera.aspect = width / height
     this.camera.updateProjectionMatrix()
+    // 更新所有LineMaterial的分辨率
+    this.scene.traverse((obj: any) => {
+      if (obj.isLine2 && obj.material.isLineMaterial) {
+        obj.material.resolution.set(width, height)
+      }
+    });
   }
 }

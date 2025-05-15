@@ -225,163 +225,157 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Cannon.js 扇形 Demo</title>
-  <style> body { margin: 0; } </style>
+    <title>Cannon.js 漏斗Demo</title>
+    <style>body { margin: 0; }</style>
 </head>
 <body>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script type="module" src="https://cdn.jsdelivr.net/npm/cannon-es@0.19.0/dist/cannon-es.js"></script>
-
+  <!-- 基础 Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- 扩展线条库 -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/Line2.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineMaterial.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineGeometry.js"></script>
 <script>
-// 初始化 Three.js
+// 初始化场景、相机、渲染器
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// 初始化 Cannon.js
-const world = new CANNON.World();
-world.gravity.set(0, -9.82, 0);
+// 灯光设置
+const ambientLight = new THREE.AmbientLight(0x404040);
+scene.add(ambientLight);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(10, 20, 10);
+scene.add(directionalLight);
 
-// 创建扇形物理体
-function createFanBody() {
-  // 扇形参数
-  const radius = 2;
-  const startAngle = -Math.PI/4;
-  const endAngle = Math.PI/4;
-  const segments = 8;
-  const height = 0.2;
-
-  // 生成顶点
+// 创建抗锯齿宽线漏斗
+function createLineFunnel(topR, bottomR, height, segments, thickness, lineWidth) {
   const vertices = [];
-  for (let side = 0; side < 2; side++) {
-    const z = side === 0 ? height/2 : -height/2;
-    vertices.push(new CANNON.Vec3(0, 0, z)); // 圆心
-    for (let i = 0; i <= segments; i++) {
-      const theta = startAngle + (endAngle - startAngle) * (i/segments);
-      const x = radius * Math.cos(theta);
-      const y = radius * Math.sin(theta);
-      vertices.push(new CANNON.Vec3(x, y, z));
-    }
-  }
-
-  // 生成三角面
-  const faces = [];
-  // 侧面
-  for (let i = 1; i <= segments; i++) {
-    const topCurrent = i;
-    const topNext = i + 1;
-    const bottomCurrent = segments + 2 + i;
-    const bottomNext = segments + 2 + i + 1;
-
-    faces.push([topCurrent, bottomCurrent, topNext]);
-    faces.push([topNext, bottomCurrent, bottomNext]);
-  }
-  // 顶面/底面
-  for (let side = 0; side < 2; side++) {
-    const offset = side === 0 ? 0 : segments + 2;
-    for (let i = 1; i <= segments; i++) {
-      faces.push([offset, offset + i, offset + i + 1]);
-    }
-  }
-
-  // 创建物理体
-  const shape = new CANNON.ConvexPolyhedron({ vertices, faces });
-  const body = new CANNON.Body({
-    mass: 1,
-    position: new CANNON.Vec3(0, 5, 0),
-    angularVelocity: new CANNON.Vec3(0, 2, 0) // 初始旋转
-  });
-  body.addShape(shape);
-  return body;
-}
-
-// 创建 Three.js 扇形可视化
-function createFanMesh(body) {
-  const geometry = new THREE.BufferGeometry();
-  const positions = [];
-  
-  // 将Cannon顶点转换为Three.js格式
-  body.shapes[0].vertices.forEach(v => {
-    positions.push(v.x, v.y, v.z);
-  });
-
-  // 生成索引
   const indices = [];
-  body.shapes[0].faces.forEach(face => {
-    indices.push(face[0], face[1], face[2]);
+
+  // === 1. 生成顶点数据（保持原方案结构） ===
+  for (let side = 0; side < 2; side++) { // 0=外壁, 1=内壁
+    const radiusOffset = side === 0 ? thickness : 0;
+    for (let y = 0; y <= segments; y++) {
+      const progress = y / segments;
+      const radius = topR + (bottomR - topR) * progress - radiusOffset;
+      const angleStep = (Math.PI * 2) / segments;
+      for (let i = 0; i <= segments; i++) {
+        const angle = i * angleStep;
+        vertices.push(
+          radius * Math.cos(angle),
+          -height/2 + progress * height,
+          radius * Math.sin(angle)
+        );
+      }
+    }
+  }
+
+  // === 2. 生成线段索引 ===
+  // 内外壁纵向线
+  for (let side = 0; side < 2; side++) {
+    const offset = side * (segments + 1) * (segments + 1);
+    for (let y = 0; y < segments; y++) {
+      for (let i = 0; i <= segments; i++) {
+        const a = offset + y * (segments + 1) + i;
+        const b = a + (segments + 1);
+        indices.push(a, b);
+      }
+    }
+  }
+
+  // 内外壁横向线
+  for (let side = 0; side < 2; side++) {
+    const offset = side * (segments + 1) * (segments + 1);
+    for (let y = 0; y <= segments; y++) {
+      for (let i = 0; i < segments; i++) {
+        const a = offset + y * (segments + 1) + i;
+        const b = a + 1;
+        indices.push(a, b);
+      }
+    }
+  }
+
+  // 连接内外壁的垂直线
+  for (let y = 0; y <= segments; y++) {
+    for (let i = 0; i <= segments; i++) {
+      const outerIdx = y * (segments + 1) + i;
+      const innerIdx = outerIdx + (segments + 1) * (segments + 1);
+      indices.push(outerIdx, innerIdx);
+    }
+  }
+
+  // === 3. 转换为 LineGeometry ===
+  const lineGeo = new THREE.LineGeometry();
+  const linePositions = [];
+  
+  // 将顶点索引转换为连续的线段数据
+  for (let i = 0; i < indices.length; i += 2) {
+    const startIdx = indices[i];
+    const endIdx = indices[i + 1];
+    linePositions.push(
+      vertices[startIdx * 3],     // 起点X
+      vertices[startIdx * 3 + 1], // 起点Y
+      vertices[startIdx * 3 + 2], // 起点Z
+      vertices[endIdx * 3],       // 终点X
+      vertices[endIdx * 3 + 1],   // 终点Y
+      vertices[endIdx * 3 + 2]    // 终点Z
+    );
+  }
+  lineGeo.setPositions(linePositions);
+
+  // === 4. 创建宽线材质 ===
+  const lineMaterial = new THREE.LineMaterial({
+    color: 0x00ff88,           // 线条颜色
+    linewidth: lineWidth,      // 线宽（单位由worldUnits决定）
+    resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
+    worldUnits: false,         // false: 线宽单位为像素, true: 使用三维单位
+    dashed: false,             // 是否虚线
+    alphaToCoverage: true      // 优化透明度渲染
   });
 
-  geometry.setIndex(indices);
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.computeVertexNormals();
+  // === 5. 创建最终线条对象 ===
+  const line = new THREE.Line2(lineGeo, lineMaterial);
+  line.computeLineDistances(); // 用于虚线计算（本例未启用）
 
-  const material = new THREE.MeshPhongMaterial({ 
-    color: 0x00ff00,
-    transparent: true,
-    opacity: 0.8
-  });
-  return new THREE.Mesh(geometry, material);
+  return line;
 }
 
-// 创建地面
-const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane() });
-groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0), -Math.PI/2);
-world.addBody(groundBody);
-
-const groundMesh = new THREE.Mesh(
-  new THREE.PlaneGeometry(20, 20),
-  new THREE.MeshPhongMaterial({ color: 0x444444 })
+// 创建漏斗实例（线宽设为5像素）
+const funnel = createLineFunnel(
+  5,   // 顶部半径
+  1,   // 底部半径
+  10,  // 高度
+  8,   // 分段数（控制网格密度）
+  0.3, // 壁厚
+  5    // 线宽（像素）
 );
-groundMesh.rotation.x = -Math.PI/2;
-scene.add(groundMesh);
+scene.add(funnel);
 
-// 添加灯光
-scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-const light = new THREE.DirectionalLight(0xffffff, 0.8);
-light.position.set(10, 10, 10);
-scene.add(light);
+// 相机位置
+camera.position.z = 25;
 
-// 创建并添加扇形
-const fanBody = createFanBody();
-world.addBody(fanBody);
-const fanMesh = createFanMesh(fanBody);
-scene.add(fanMesh);
-
-// 添加测试小球
-const ballGeometry = new THREE.SphereGeometry(0.3);
-const ballMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
-const ballMesh = new THREE.Mesh(ballGeometry, ballMaterial);
-scene.add(ballMesh);
-
-const ballBody = new CANNON.Body({
-  mass: 1,
-  position: new CANNON.Vec3(3, 5, 0),
-  shape: new CANNON.Sphere(0.3)
+// 窗口大小变化响应
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  // 更新所有LineMaterial的分辨率
+  scene.traverse(obj => {
+    if (obj.isLine2 && obj.material.isLineMaterial) {
+      obj.material.resolution.set(window.innerWidth, window.innerHeight);
+    }
+  });
 });
-world.addBody(ballBody);
-
-// 调整相机
-camera.position.set(8, 8, 8);
-camera.lookAt(0, 0, 0);
 
 // 动画循环
 function animate() {
   requestAnimationFrame(animate);
-  world.step(1/60);
-  
-  // 同步扇形位置
-  fanMesh.position.copy(fanBody.position);
-  fanMesh.quaternion.copy(fanBody.quaternion);
-  
-  // 同步小球位置
-  ballMesh.position.copy(ballBody.position);
-  ballMesh.quaternion.copy(ballBody.quaternion);
-  
+  funnel.rotation.y += 0.01; // 旋转演示
   renderer.render(scene, camera);
 }
-
 animate();
 </script>
 </body>
