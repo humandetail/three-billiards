@@ -30,6 +30,23 @@ interface PocketAttr {
   isRotate: boolean
 }
 
+type BarrelShapedAttr = [number, number, number, number][]
+function createBarrelShaped(attrs: BarrelShapedAttr) {
+  const geometries:THREE.BufferGeometry[] = []
+  let y = attrs.reduce((acc, [_1, _2, h]) => acc + h, 0) / 2
+  attrs.forEach(([r1, r2, h, s]) => {
+    const geo = new THREE.CylinderGeometry(r1, r2, h, s)
+    setGeometryColor(geo, new THREE.Color(0x3170A6))
+    const matrix = new THREE.Matrix4()
+    y -= h / 2
+    matrix.makeTranslation(new THREE.Vector3(0, y, 0))
+    geo.applyMatrix4(matrix)
+    geometries.push(geo)
+    y -= h / 2
+  })
+  return BufferGeometryUtils.mergeGeometries(geometries, false)
+}
+
 export default class Table {
   offGround = {
     tableBottom: PARAMETERS.offGroundHeight,
@@ -46,6 +63,8 @@ export default class Table {
 
   clothColor = new THREE.Color(0x00AA00)
   woodColor = new THREE.Color(0x8B4513)
+  bodyColor = new THREE.Color(0xCD5C20)
+  legColor = new THREE.Color(0xCD5C20)
 
   boxes: BoxAttr[] = []
 
@@ -59,28 +78,7 @@ export default class Table {
     this.makeTableBody()
     this.makeTableBoard()
     this.makeTableLine()
-
-    const cornerX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius
-    const cornerZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.cornerPocketRadius
-    const middleX = 0
-    const middleZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.middlePocketRadius
-    const pocketOptions = [
-      { x: -cornerX, z: -cornerZ }, // 左上
-      { x: middleX, z: -middleZ }, // 中上
-      { x: cornerX, z: -cornerZ }, // 右上
-      { x: cornerX, z: cornerZ }, // 右下
-      { x: middleX, z: middleZ }, // 中下
-      { x: -cornerX, z: cornerZ }, // 左下
-    ]
-    pocketOptions.forEach((position, index) => {
-      this.makePocket({
-        position: {
-          ...position,
-          y: this.offGround.tableBottom ,
-        },
-        isRotate: index === 0 || index === pocketOptions.length - 1,
-      })
-    })
+    this.makePockets()
   }
 
   makeTableBoard() {
@@ -527,14 +525,14 @@ export default class Table {
     const height = boardHeight - legWidth * 2
 
     const bodyGeo = new THREE.BoxGeometry(width, bodyDepth, height)
-    setGeometryColor(bodyGeo, this.woodColor)
+    setGeometryColor(bodyGeo, this.bodyColor)
     geometries.push(bodyGeo)
 
     for (let i = 0; i < 4; i++) {
       const w = (width - legWidth) / 2
       const h = legWidth
       const geo = new THREE.BoxGeometry(w, bodyDepth, h)
-      setGeometryColor(geo, this.woodColor)
+      setGeometryColor(geo, this.bodyColor)
       const matrix = new THREE.Matrix4()
       matrix.makeTranslation(new THREE.Vector3(
           (i < 2 ? -1 : 1) * (w / 2 + legWidth / 2),
@@ -549,7 +547,7 @@ export default class Table {
       const w = legWidth
       const h = height
       const geo = new THREE.BoxGeometry(w, bodyDepth, h)
-      setGeometryColor(geo, this.woodColor)
+      setGeometryColor(geo, this.bodyColor)
       const matrix = new THREE.Matrix4()
       matrix.makeTranslation(new THREE.Vector3(
           (i === 0 ? -1 : 1) * (width / 2 + legWidth / 2),
@@ -562,7 +560,7 @@ export default class Table {
 
     const mesh = new THREE.Mesh(
       BufferGeometryUtils.mergeGeometries(geometries, false),
-      new THREE.MeshPhongMaterial({ vertexColors: true, }),
+      new THREE.MeshPhysicalMaterial({ vertexColors: true, clearcoat: 0.5, clearcoatRoughness: 0.35 }),
     )
 
     mesh.position.set(0, this.offGround.tableBottom - bodyDepth / 2, 0)
@@ -588,8 +586,8 @@ export default class Table {
     ]
 
     const geometries = positions.map((position) => {
-      const geometry = new THREE.BoxGeometry(legWidth, legHeight, legDepth)
-      setGeometryColor(geometry, this.woodColor)
+      const geometry = this.makeTableLeg()
+      setGeometryColor(geometry, this.legColor)
       const matrix = new THREE.Matrix4()
       matrix.makeTranslation(new THREE.Vector3(
         position[0],
@@ -603,11 +601,80 @@ export default class Table {
 
     const mesh = new THREE.Mesh(
       BufferGeometryUtils.mergeGeometries(geometries, false),
-      new THREE.MeshPhongMaterial({ vertexColors: true, }),
+      new THREE.MeshPhysicalMaterial({ vertexColors: true, clearcoat: 0.5, clearcoatRoughness: 0.35 }),
     )
     this.layout.scene.add(mesh)
   }
+  makeTableLeg() {
+    const { legWidth, legDepth, legHeight } = PARAMETERS
 
+    // 分成8段，从上到下
+    const h1 = legHeight * 0.5 // 长方体
+    const h2 = legHeight * 0.03 // 圆柱
+    const h3 = legHeight * 0.04 // 环柱
+    const h4 = legHeight * 0.03 // 圆柱
+    const h5 = legHeight * 0.3 // 长环柱
+    const h6 = legHeight * 0.01 // 圆柱
+    const h7 = legHeight * 0.04 // 环柱
+    const h8 = legHeight * 0.05 // 圆柱
+    const fatRadius = legWidth / 2
+    const fitRadius = legWidth * 0.8 / 2
+    const arr: any[] = [
+      { h: h1, type: 'box', attr: [legWidth, h1, legDepth] },
+      { h: h2, type: 'cylinder', attr: [fitRadius, fitRadius, h2, 32] },
+      { h: h3, type: 'barrel-shaped', attr: [[fitRadius, fatRadius, h3 * 0.4, 8], [fatRadius, fatRadius, h3 * 0.2, 8], [fatRadius, fitRadius, h3 * 0.4, 8]] },
+      { h: h4, type: 'cylinder', attr: [fitRadius, fitRadius, h4, 32] },
+      { h: h5, type: 'barrel-shaped', attr: [[fitRadius, fatRadius, h5 * 0.05, 8], [fatRadius, fitRadius, h5 * 0.95, 8]] },
+      { h: h6, type: 'cylinder', attr: [fitRadius, fitRadius, h6, 32] },
+      { h: h7, type: 'barrel-shaped', attr: [[fitRadius, fatRadius, h7 / 3, 8], [fatRadius, fatRadius, h7 / 3, 8], [fatRadius, fitRadius, h7 / 3, 8]] },
+      { h: h8, type: 'cylinder', attr: [fitRadius, fitRadius, h8, 32] },
+    ]
+
+    let y = (h1 + h2 + h3 + h4 + h5 + h6 + h7 + h8) / 2
+    const geometries = arr.map(({ h, type, attr }) => {
+      let geo!: THREE.BufferGeometry
+      if (type === 'barrel-shaped') {
+        geo = createBarrelShaped(attr)
+      } else if (type === 'cylinder') {
+        geo = new THREE.CylinderGeometry(...attr)
+      } else {
+        geo = new THREE.BoxGeometry(...attr)
+      }
+      setGeometryColor(geo, this.legColor)
+      const m = new THREE.Matrix4()
+      y -= h / 2
+      m.makeTranslation(new THREE.Vector3(0, y, 0))
+      geo.applyMatrix4(m)
+      y -= h / 2
+      return geo
+    })
+
+    return BufferGeometryUtils.mergeGeometries(geometries, false)
+  }
+
+  makePockets() {
+    const cornerX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius
+    const cornerZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.cornerPocketRadius
+    const middleX = 0
+    const middleZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.middlePocketRadius
+    const pocketOptions = [
+      { x: -cornerX, z: -cornerZ }, // 左上
+      { x: middleX, z: -middleZ }, // 中上
+      { x: cornerX, z: -cornerZ }, // 右上
+      { x: cornerX, z: cornerZ }, // 右下
+      { x: middleX, z: middleZ }, // 中下
+      { x: -cornerX, z: cornerZ }, // 左下
+    ]
+    pocketOptions.forEach((position, index) => {
+      this.makePocket({
+        position: {
+          ...position,
+          y: this.offGround.tableBottom ,
+        },
+        isRotate: index === 0 || index === pocketOptions.length - 1,
+      })
+    })
+  }
   makePocket(options: PocketAttr) {
     // 漏斗参数
     const topWidth = PARAMETERS.cornerPocketRadius * 2 // 顶部宽度
