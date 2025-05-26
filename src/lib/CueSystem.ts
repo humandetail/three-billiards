@@ -4,11 +4,11 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
 import { BilliardsStatus, emitter, EventTypes } from '../central-control'
-import { PARAMETERS } from '../config'
+import config from '../config'
 import { getIntersectionPoints, setGeometryColor } from '../utils'
 
 class Cue {
-  private config = PARAMETERS.cue
+  private config = config.cue
   private segments = 128
 
   get jointRadius() {
@@ -164,13 +164,13 @@ export default class CueSystem {
   private phi = Math.PI / 2
   /** 水平角度 (0到2π) */
   private theta = Math.PI
-  private ballRadius = PARAMETERS.ballRadius
+  private ballRadius = config.ball.radius
 
   /** 力的方向 */
   private forceArrow = new THREE.ArrowHelper(
     new THREE.Vector3(), // 方向
     new THREE.Vector3(), // 位置
-    30,
+    0.3,
     '#ff0000', // 箭头颜色
   )
 
@@ -178,7 +178,7 @@ export default class CueSystem {
   private rayArrow = new THREE.ArrowHelper(
     new THREE.Vector3(), // 方向
     new THREE.Vector3(), // 位置
-    (PARAMETERS.cue.poleLength) / 2,
+    config.cue.poleLength / 2,
     '#0000ff', // 箭头颜色
   )
 
@@ -240,7 +240,7 @@ export default class CueSystem {
 
   /** 相机到主球球心的距离 */
   get cameraDistance() {
-    return PARAMETERS.cue.poleLength / 2 + this.ballOffset
+    return config.cue.poleLength / 2 + this.ballOffset
   }
 
   get cameraMinY() {
@@ -295,8 +295,9 @@ export default class CueSystem {
   setCuePositionByForce(diff: number) {
     const direction = new THREE.Vector3(0, 0, 1) // 局部Z轴正方向
     direction.applyQuaternion(this.cue.quaternion) // 转换为世界坐标
+    console.log(diff)
     this.cue.position[diff > 0 ? 'add' : 'sub'](
-      direction.multiplyScalar(-10 * Math.abs(diff) / this.maxForce),
+      direction.multiplyScalar(-0.8 * Math.abs(diff) / this.maxForce),
     )
     return this
   }
@@ -363,7 +364,7 @@ export default class CueSystem {
     )
 
     // 3. 乘以力的大小（牛顿）
-    forceDirection.scale(this.#hitForce / 20, forceDirection)
+    forceDirection.scale(this.#hitForce / 250, forceDirection)
 
     const applyPoint = getIntersectionPoints(this.cue, this.ball)
     if (!applyPoint) {
@@ -373,17 +374,16 @@ export default class CueSystem {
     // this.ballBody.applyForce(forceDirection, new CANNON.Vec3(x, y, z))
     this.ballBody.applyImpulse(forceDirection, new CANNON.Vec3(x, y, z))
 
-    // 画出受力点
-    const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.2, 128, 128),
-      new THREE.MeshPhongMaterial({ color: 'purple' }),
-    )
-    // mesh.position.copy(applyPoint)
-    mesh.position.set(x, y, z)
-    this.scene.add(mesh)
+    // // 画出受力点
+    // const mesh = new THREE.Mesh(
+    //   new THREE.SphereGeometry(0.002, 128, 128),
+    //   new THREE.MeshPhongMaterial({ color: 'purple' }),
+    // )
+    // // mesh.position.copy(applyPoint)
+    // mesh.position.set(x, y, z)
+    // this.scene.add(mesh)
 
-    this.#hitForce = 0
-    // emitter.emit(EventTypes.cueStatus, 'finished')
+    // this.#hitForce = 0
     emitter.emit(EventTypes.status, BilliardsStatus.ShotCompleted)
   }
 

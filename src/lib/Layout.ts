@@ -4,6 +4,7 @@ import CannonDebugger from 'cannon-es-debugger'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { BilliardsStatus, context, emitter, EventTypes, setContext } from '../central-control'
+import config from '../config'
 import { getTexturePath } from '../utils'
 
 export default class Layout {
@@ -38,7 +39,7 @@ export default class Layout {
   // canCheckBody = false
   // bodyMoving = false
 
-  velocityThreshold = 0.2 // 速度阈值（判断是否静止）
+  velocityThreshold = 0.1 // 速度阈值（判断是否静止）
 
   constructor(protected canvas: HTMLCanvasElement) {
     const rect = this.canvas.getBoundingClientRect()
@@ -48,8 +49,7 @@ export default class Layout {
       canvas: this.canvas,
       antialias: true,
     })
-    this.camera.position.set(-200, 200, 0)
-    // this.camera.position.set(0, 200, 0)
+    this.camera.position.set(0, 2, 0) // 从y轴直接看向000
     this.camera.lookAt(0, 0, 0)
 
     this.renderer.setClearColor(0xFFFFFF)
@@ -66,38 +66,38 @@ export default class Layout {
     this.initObserver()
     this.initLight()
     this.initControls()
-    this.initGround()
+    // this.initGround()
 
     this.initEvents()
 
     if (this.showHelper) {
       this.scene.add(...this.helpers)
 
-      this.scene.add(new THREE.AxesHelper(10))
-      // this.scene.add(new THREE.GridHelper(this.renderer.domElement.width, this.renderer.domElement.height))
+      this.scene.add(new THREE.AxesHelper(5))
+      // this.scene.add(new THREE.GridHelper(10, this.renderer.domElement.height))
     }
   }
 
   initWorld() {
     const world = new CANNON.World()
     // 设置重力
-    world.gravity.set(0, -9.82 * 100, 0)
+    world.gravity.set(0, -9.82, 0)
     world.broadphase = new CANNON.NaiveBroadphase() // 使用默认碰撞检测
 
     // 设置摩擦系数和弹性系数
     const ballBallContact = new CANNON.ContactMaterial(this.ballMaterial, this.ballMaterial, {
       friction: 0.02, // 摩擦系数（0=无摩擦，1=完全摩擦）
-      restitution: 0.9, // 弹性系数（0=完全非弹性，1=完全弹性）
+      restitution: 0.95, // 弹性系数（0=完全非弹性，1=完全弹性）
     })
 
     const ballTableContact = new CANNON.ContactMaterial(this.ballMaterial, this.tableMaterial, {
-      friction: 0.2, // 摩擦系数（0=无摩擦，1=完全摩擦）
-      restitution: 0.5, // 弹性系数（0=完全非弹性，1=完全弹性）
+      friction: config.material.cloth.friction, // 摩擦系数（0=无摩擦，1=完全摩擦）
+      restitution: config.material.cloth.restitution, // 弹性系数（0=完全非弹性，1=完全弹性）
     })
 
     const ballRubberContact = new CANNON.ContactMaterial(this.ballMaterial, this.rubberMaterial, {
-      friction: 0.1, // 摩擦系数（0=无摩擦，1=完全摩擦）
-      restitution: 0.8, // 弹性系数（0=完全非弹性，1=完全弹性）
+      friction: config.material.cushion.friction, // 摩擦系数（0=无摩擦，1=完全摩擦）
+      restitution: config.material.cushion.restitution, // 弹性系数（0=完全非弹性，1=完全弹性）
     })
 
     world.addContactMaterial(ballBallContact)
@@ -160,8 +160,8 @@ export default class Layout {
   }
 
   initLight() {
-    const light = new THREE.PointLight(0xFFFFFF, 10000)
-    light.position.set(0, 180, 0)
+    const light = new THREE.PointLight(0xFFFFFF, 10)
+    light.position.set(0, 3.8, 0)
 
     light.castShadow = true
 
@@ -177,7 +177,7 @@ export default class Layout {
    * 地板最顶面所在位置就是 y = 0
    */
   initGround() {
-    // const texture = new THREE.TextureLoader().load(getTexturePath('ground.jpg'))
+    const texture = new THREE.TextureLoader().load(getTexturePath('ground.jpg'))
     // texture.wrapS = THREE.RepeatWrapping
     // texture.wrapT = THREE.RepeatWrapping
     // texture.repeat.set(4, 2)
@@ -185,8 +185,8 @@ export default class Layout {
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(400, 400),
       new THREE.MeshBasicMaterial({
-        // map: texture,
-        color: 'gray',
+        map: texture,
+        // color: 'gray',
       }),
     )
     ground.position.y = 0
@@ -246,8 +246,8 @@ export default class Layout {
   initControls() {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.enableDamping = true
-    this.controls.maxDistance = 500
-    this.controls.minDistance = 100
+    this.controls.maxDistance = 50
+    this.controls.minDistance = 0.001
   }
 
   syncPhysicsToGraphics() {
@@ -313,6 +313,6 @@ export default class Layout {
       if (obj.isLine2 && obj.material.isLineMaterial) {
         obj.material.resolution.set(width, height)
       }
-    });
+    })
   }
 }

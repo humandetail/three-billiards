@@ -1,523 +1,153 @@
-import type Layout from './Layout'
+import type { Point } from '../utils'
 
+import type Layout from './Layout'
 import * as CANNON from 'cannon-es'
 import * as THREE from 'three'
 import { Line2 } from 'three/addons/lines/Line2.js'
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js'
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 
-import { PARAMETERS } from '../config'
-import { getPoints, setGeometryColor } from '../utils'
-import Compound from './Compound'
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
 
-interface BoxAttr {
-  width: number
-  height: number
-  depth: number
-  color: THREE.Color
-  x: number
-  y: number
-  z: number
-}
+import UnitPath from 'unit-path'
+import config, { getTangent } from '../config'
+import { arcToPoints, setGeometryColor } from '../utils'
 
-interface PocketAttr {
-  position: {
-    x: number
-    y: number
-    z: number
-  }
-  isRotate: boolean
-}
-
-type BarrelShapedAttr = [number, number, number, number][]
-function createBarrelShaped(attrs: BarrelShapedAttr) {
-  const geometries:THREE.BufferGeometry[] = []
-  let y = attrs.reduce((acc, [_1, _2, h]) => acc + h, 0) / 2
-  attrs.forEach(([r1, r2, h, s]) => {
-    const geo = new THREE.CylinderGeometry(r1, r2, h, s)
-    setGeometryColor(geo, new THREE.Color(0x3170A6))
-    const matrix = new THREE.Matrix4()
-    y -= h / 2
-    matrix.makeTranslation(new THREE.Vector3(0, y, 0))
-    geo.applyMatrix4(matrix)
-    geometries.push(geo)
-    y -= h / 2
-  })
-  return BufferGeometryUtils.mergeGeometries(geometries, false)
-}
-
+// **********************
+// * 台面顶部为 Y === 0； *
+// **********************
 export default class Table {
-  offGround = {
-    tableBottom: PARAMETERS.offGroundHeight,
-    tableCenter: PARAMETERS.offGroundHeight + PARAMETERS.tableThickness / 2,
-    tableTop: PARAMETERS.offGroundHeight + PARAMETERS.tableThickness,
+  scene: THREE.Scene
 
-    bankBottom: PARAMETERS.offGroundHeight + PARAMETERS.tableThickness,
-    bankCenter: PARAMETERS.offGroundHeight + PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness / 2,
-    bankTop: PARAMETERS.offGroundHeight + PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness,
+  #quantity = 32 // 弧形分段数
+
+  cushionGeometries: THREE.ExtrudeGeometry[] = []
+
+  pocketSealGeometries: THREE.ExtrudeGeometry[] = []
+
+  tableBoardGeometry: THREE.BufferGeometry
+
+  constructor(public layout: Layout) {
+    this.scene = layout.scene
+
+    this.cushionGeometries = this.#generateCushionGeometries()
+    this.pocketSealGeometries = this.#generatePocketSealGeometries()
+    this.tableBoardGeometry = this.#generateTableBoardGeometry()
+
+    const physics = new TablePhysics(layout, this)
+    physics.init()
   }
 
-  clothMaterial = new THREE.MeshPhongMaterial({ color: 0x00AA00 })
-  woodMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 })
-
-  clothColor = new THREE.Color(0x00AA00)
-  woodColor = new THREE.Color(0x8B4513)
-  bodyColor = new THREE.Color(0xCD5C20)
-  legColor = new THREE.Color(0xCD5C20)
-
-  boxes: BoxAttr[] = []
-
-  constructor(public layout: Layout) {}
-
-  makeTable() {
-    const sceneObject = this.layout.makeSceneObject('table')
-    sceneObject.position.y = this.offGround.tableCenter
-
-    this.makeTableLegs()
-    this.makeTableBody()
-    this.makeTableBoard()
-    this.makeTableLine()
-    this.makePockets()
+  init() {
+    this.createTableBoard()
+    this.createCushionRubbers()
+    this.createCushionWood()
+    this.createPocketSeals()
+    this.createTableBody()
+    this.createTableLegs()
+    this.createPockets()
   }
 
-  makeTableBoard() {
-    const tableCompound = new Compound({
-      mass: 0,
-      meshPosition: new THREE.Vector3(0, this.offGround.tableCenter, 0),
-      bodyPosition: new CANNON.Vec3(0, this.offGround.tableCenter, 0),
+  createTableBoard() {
+    const mesh = new THREE.Mesh(this.tableBoardGeometry, new THREE.MeshPhongMaterial({ color: config.colors.cloth }))
+    mesh.rotateX(Math.PI / 2)
+    mesh.position.set(0, -config.table.height / 2, 0)
+    this.scene.add(mesh)
+  }
+
+  createCushionRubbers() {
+    const {
+      cushion: {
+        height: cushionHeight, // 台面到库边顶部高度
+        contactHeight,
+      },
+      colors: {
+        cloth,
+      },
+    } = config
+
+    const y = cushionHeight - contactHeight / 2
+    this.cushionGeometries.forEach((geometry) => {
+      const mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: cloth }))
+      this.scene.add(mesh)
+      mesh.rotateX(Math.PI / 2)
+      mesh.position.set(0, y, 0)
     })
-    // 中间整个大板
-    {
-      const width = PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4
-      const height = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
-      tableCompound.add({
-        width,
-        height: PARAMETERS.tableThickness,
-        depth: height,
-        color: this.clothColor,
-        x: 0,
-        y: 0,
-        z: 0,
-      })
-    }
-    // 补齐板
-    {
-      const horizontalWidth = (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.middlePocketRadius
-      const horizontalHeight = PARAMETERS.cornerPocketRadius * 2
-      const horizontalZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.cornerPocketRadius
-
-      for (let i = 0; i < 4; i++) {
-        tableCompound.add({
-          width: horizontalWidth,
-          height: PARAMETERS.tableThickness,
-          depth: horizontalHeight,
-          color: this.clothColor,
-          x: i % 2 === 0
-            ? -horizontalWidth / 2 - PARAMETERS.middlePocketRadius
-            : horizontalWidth / 2 + PARAMETERS.middlePocketRadius,
-          y: 0,
-          z: i < 2
-            ? -horizontalZ
-            : horizontalZ,
-        })
-      }
-
-      const verticalWidth = PARAMETERS.cornerPocketRadius * 2
-      const verticalHeight = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
-      const verticalX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius
-
-      for (let j = 0; j < 2; j++) {
-        tableCompound.add({
-          width: verticalWidth,
-          height: PARAMETERS.tableThickness,
-          depth: verticalHeight,
-          color: this.clothColor,
-          x: j === 0
-            ? -verticalX
-            : verticalX,
-          y: 0,
-          z: 0,
-        })
-      }
-
-      const fixedBoardWidth = PARAMETERS.middlePocketRadius * 2
-      const fixedBoardHeight = PARAMETERS.cornerPocketRadius * 2 - PARAMETERS.middlePocketRadius * 2
-      const fixedBoardZ = horizontalZ - horizontalHeight / 2 + fixedBoardHeight / 2
-
-      for (let k = 0; k < 2; k++) {
-        tableCompound.add({
-          width: fixedBoardWidth,
-          height: PARAMETERS.tableThickness,
-          depth: fixedBoardHeight,
-          color: this.clothColor,
-          x: 0,
-          y: 0,
-          z: k === 0
-            ? -fixedBoardZ
-            : fixedBoardZ,
-        })
-      }
-    }
-    // 木质支撑层
-    {
-      const y = PARAMETERS.tableThickness / 2 + PARAMETERS.bankTotalThickness / 2
-
-      const horizontalWidth = (PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4) / 2 - PARAMETERS.middlePocketRadius
-      const horizontalHeight = PARAMETERS.woodWidth
-      const horizontalZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.woodWidth / 2
-
-      for (let i = 0; i < 4; i++) {
-        tableCompound.add({
-          width: horizontalWidth,
-          height: PARAMETERS.bankTotalThickness,
-          depth: horizontalHeight,
-          color: this.woodColor,
-          x: i % 2 === 0
-            ? -horizontalWidth / 2 - PARAMETERS.middlePocketRadius
-            : horizontalWidth / 2 + PARAMETERS.middlePocketRadius,
-          y,
-          z: i < 2
-            ? -horizontalZ
-            : horizontalZ,
-        })
-      }
-
-      const verticalWidth = PARAMETERS.woodWidth
-      const verticalHeight = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
-      const verticalX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.woodWidth / 2
-
-      for (let j = 0; j < 2; j++) {
-        tableCompound.add({
-          width: verticalWidth,
-          height: PARAMETERS.bankTotalThickness,
-          depth: verticalHeight,
-          color: this.woodColor,
-          x: j === 0
-            ? -verticalX
-            : verticalX,
-          y,
-          z: 0,
-        })
-      }
-    }
-    // 木条外边框 side
-    for (let i = 0; i < 2; i++) {
-      tableCompound.add({
-        width: PARAMETERS.outerWidth,
-        height: PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness,
-        depth: PARAMETERS.sideWidth,
-        color: this.woodColor,
-        x: 0,
-        y: PARAMETERS.bankTotalThickness / 2,
-        z: (PARAMETERS.outerHeight / 2 - PARAMETERS.sideWidth / 2) * (i === 0 ? -1 : 1),
-      })
-    }
-
-    for (let j = 0; j < 2; j++) {
-      tableCompound.add({
-        width: PARAMETERS.sideWidth,
-        height: PARAMETERS.tableThickness + PARAMETERS.bankTotalThickness,
-        depth: PARAMETERS.outerHeight,
-        color: this.woodColor,
-        x: (PARAMETERS.outerWidth / 2 - PARAMETERS.sideWidth / 2) * (j === 0 ? -1 : 1),
-        y: PARAMETERS.bankTotalThickness / 2,
-        z: 0,
-      })
-    }
-
-    const { mesh, body } = tableCompound.generate()
-    this.layout.scene.add(mesh)
-    this.layout.world.addBody(body)
-
-    // 袋口包边
-    {
-      const tableSceneObject = this.layout.getSceneObject('table')!
-      // 角袋周长
-      const scale = 20
-      const size = 0.1
-      const quarterCornerPocketPerimeter = Math.ceil(2 * PARAMETERS.cornerPocketRadius * Math.PI * scale / 4)
-      const quarterMiddlePocketPerimeter = Math.ceil(2 * PARAMETERS.middlePocketRadius * Math.PI * scale / 4)
-
-      let thickness = PARAMETERS.tableThickness
-      let y = 0
-      let color = this.clothColor
-
-      const posX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius
-      const posZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.cornerPocketRadius
-
-      // 区分入口和非入口
-      const diff = PARAMETERS.cornerPocketRadius - PARAMETERS.woodWidth
-      const pos = [
-        { x: -posX, z: -posZ }, // top
-        { x: posX, z: -posZ }, // right
-        { x: posX, z: posZ }, // bottom
-        { x: -posX, z: posZ }, // left
-      ]
-
-      pos.map(({ x, z }, index) => {
-        const obj = this.layout.makeSceneObject(`cornerPocket-${index}`, tableSceneObject)
-        obj.position.x = x
-        obj.position.z = z
-        return obj
-      }).forEach((obj, cIndex) => {
-        const p = obj.getWorldPosition(new THREE.Vector3())
-        const compound = new Compound({
-          mass: 0,
-          meshPosition: new THREE.Vector3(0, 0, 0),
-          bodyPosition: new CANNON.Vec3(p.x, this.offGround.tableCenter, p.z),
-        })
-        for (let i = 0; i < 4; i++) {
-          const startAngle = i * (Math.PI / 2)
-          const endAngle = (i + 1) * (Math.PI / 2)
-          const points = getPoints(
-            0,
-            0,
-            PARAMETERS.cornerPocketRadius,
-            startAngle,
-            endAngle,
-            false,
-            quarterCornerPocketPerimeter,
-          )
-
-          const isOpenLeft = (cIndex === 0 && i === 1)
-            || (cIndex === 1 && i === 0)
-            || (cIndex === 2 && i === 3)
-            || (cIndex === 3 && i === 2)
-
-          const isOpenRight = (cIndex === 0 && i === 3)
-            || (cIndex === 1 && i === 2)
-            || (cIndex === 2 && i === 1)
-            || (cIndex === 3 && i === 0)
-
-          points.forEach((p) => {
-            const width = PARAMETERS.cornerPocketRadius - Math.abs(p.x)
-            const height = PARAMETERS.cornerPocketRadius - Math.abs(p.y)
-
-            if (
-              cIndex === i || (
-                (Math.abs(p.x) <= diff) && isOpenLeft
-              ) || (
-                Math.abs(p.y) <= diff && isOpenRight
-              )
-            ) {
-              color = this.clothColor
-              thickness = PARAMETERS.tableThickness
-              y = 0
-            }
-            else {
-              thickness = PARAMETERS.bankTotalThickness + PARAMETERS.tableThickness
-              y = -PARAMETERS.tableThickness / 2 + thickness / 2
-              color = this.woodColor
-            }
-
-            compound.add({
-              width: isOpenRight ? width : size,
-              height: thickness,
-              depth: isOpenRight ? size : height,
-              x: isOpenRight
-                ? cIndex === 0 || cIndex === 3
-                  ? PARAMETERS.cornerPocketRadius - width / 2
-                  : -PARAMETERS.cornerPocketRadius + width / 2
-                : p.x,
-              y,
-              z: isOpenRight
-                ? p.y
-                : i < 2
-                  ? PARAMETERS.cornerPocketRadius - height / 2
-                  : -PARAMETERS.cornerPocketRadius + height / 2,
-              color,
-            })
-          })
-        }
-
-        const { mesh, body } = compound.generate()
-        obj.add(mesh)
-        this.layout.world.addBody(body)
-
-        body.material = this.layout.rubberMaterial
-        this.layout.boxes.push(mesh)
-        this.layout.boxesBody.push(body)
-      })
-
-      Array.from({ length: 2 }, (_, cIndex) => {
-        const obj = this.layout.makeSceneObject(`middlePocket-${cIndex}`, tableSceneObject)
-        obj.position.x = 0
-        obj.position.z = cIndex === 0
-          ? -PARAMETERS.withWoodHeight / 2 + PARAMETERS.middlePocketRadius
-          : PARAMETERS.withWoodHeight / 2 - PARAMETERS.middlePocketRadius
-        return obj
-      }).forEach((obj, cIndex) => {
-        const p = obj.getWorldPosition(new THREE.Vector3())
-        const compound = new Compound({
-          mass: 0,
-          meshPosition: new THREE.Vector3(0, 0, 0),
-          bodyPosition: new CANNON.Vec3(p.x, this.offGround.tableCenter, p.z),
-        })
-        for (let i = 0; i < 4; i++) {
-          const points = getPoints(0, 0, PARAMETERS.middlePocketRadius, i * (Math.PI / 2), (i + 1) * (Math.PI / 2), false, quarterMiddlePocketPerimeter)
-          if ((cIndex === 0 && i < 2) || (cIndex === 1 && i >= 2)) {
-            thickness = PARAMETERS.tableThickness
-            y = 0
-            color = this.clothColor
-          }
-          else {
-            thickness = PARAMETERS.bankTotalThickness + PARAMETERS.tableThickness
-            y = -PARAMETERS.tableThickness / 2 + thickness / 2
-            color = this.woodColor
-          }
-          points.forEach((p) => {
-            const height = PARAMETERS.middlePocketRadius - Math.abs(p.y)
-
-            compound.add({
-              width: size,
-              height: thickness,
-              depth: height,
-              x: p.x,
-              y,
-              z: i < 2
-                ? 0 + PARAMETERS.middlePocketRadius - height / 2
-                : 0 - PARAMETERS.middlePocketRadius + height / 2,
-              color,
-            })
-          })
-        }
-
-        const { mesh, body } = compound.generate()
-        obj.add(mesh)
-        this.layout.world.addBody(body)
-      })
-    }
-
-    // 胶条
-    {
-      const tableSceneObject = this.layout.getSceneObject('table')!
-
-      const scale = 20
-      const perimeter = Math.ceil(2 * PARAMETERS.rubberWidth * Math.PI * scale / 4)
-      const size = PARAMETERS.rubberWidth / perimeter
-
-      const bankTop = PARAMETERS.tableThickness / 2 + PARAMETERS.bankTotalThickness
-      const horizontalWidth = PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius * 2 - PARAMETERS.middlePocketRadius - PARAMETERS.rubberWidth * 2 + 0.5
-      const horizontalX = PARAMETERS.middlePocketRadius + PARAMETERS.rubberWidth + horizontalWidth / 2
-      const horizontalZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.woodWidth - PARAMETERS.rubberWidth / 2
-
-      Array.from({ length: 4 }, (_, cIndex) => {
-        const cx = cIndex % 2 === 0
-          ? -horizontalX
-          : horizontalX
-        const cz = cIndex < 2
-          ? -horizontalZ
-          : horizontalZ
-
-        const leftPoints = cIndex < 2
-          ? getPoints(0, 0, PARAMETERS.rubberWidth, Math.PI / 2, Math.PI, false, perimeter)
-          : getPoints(0, 0, PARAMETERS.rubberWidth, Math.PI * 1.5, Math.PI, true, perimeter)
-
-        const compound = new Compound({
-          mass: 0,
-          meshPosition: new THREE.Vector3(0, 0, 0),
-          bodyPosition: new CANNON.Vec3(0, this.offGround.tableCenter, 0),
-        })
-
-        leftPoints.forEach(({ x }, i) => {
-          compound.add({
-            width: horizontalWidth + Math.abs(x) * 2,
-            height: PARAMETERS.bankContactHeight,
-            depth: size,
-            x: cx,
-            y: bankTop - PARAMETERS.bankContactHeight / 2,
-            z: cz + (PARAMETERS.rubberWidth / 2 - size * i) * (cIndex < 2 ? 1 : -1),
-            color: this.clothColor,
-          })
-        })
-
-        const { mesh, body } = compound.generate()
-        tableSceneObject.add(mesh)
-        this.layout.world.addBody(body)
-        body.material = this.layout.rubberMaterial
-
-        return null
-      })
-
-      const verticalHeight = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4 - PARAMETERS.rubberWidth * 2 + 0.5
-      const verticalX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.woodWidth - PARAMETERS.rubberWidth / 2
-
-      Array.from({ length: 2 }, (_, cIndex) => {
-        const cx = cIndex === 0
-          ? -verticalX
-          : verticalX
-        const points = cIndex === 0
-          ? getPoints(0, 0, PARAMETERS.rubberWidth, 0, Math.PI * 1.5, true, perimeter)
-          : getPoints(0, 0, PARAMETERS.rubberWidth, 0, Math.PI / 2, false, perimeter)
-
-        const compound = new Compound({
-          mass: 0,
-          meshPosition: new THREE.Vector3(0, 0, 0),
-          bodyPosition: new CANNON.Vec3(0, this.offGround.tableCenter, 0),
-        })
-
-        points.forEach(({ y }, i) => {
-          compound.add({
-            width: size,
-            height: PARAMETERS.bankContactHeight,
-            depth: verticalHeight + Math.abs(y) * 2,
-            x: cx + (PARAMETERS.rubberWidth / 2 - size * i) * (cIndex === 0 ? 1 : -1),
-            y: bankTop - PARAMETERS.bankContactHeight / 2,
-            z: 0,
-            color: this.clothColor,
-          })
-        })
-
-        const { mesh, body } = compound.generate()
-        tableSceneObject.add(mesh)
-        this.layout.world.addBody(body)
-
-        body.material = this.layout.rubberMaterial
-
-        return null
-      })
-    }
   }
 
-  makeTableLine() {
-    const tableSceneObject = this.layout.getSceneObject('table')!
-    const lineSize = PARAMETERS.tableHeight / 2
+  createCushionWood() {
+    const {
+      cushion: {
+        woodEndPoints,
+        height,
+      },
+      table,
+      colors: {
+        wood,
+      },
+    } = config
 
-    const geometry = new THREE.BufferGeometry()
-    const vertices = new Float32Array([
-      -PARAMETERS.withWoodWidth / 4,
-      PARAMETERS.tableThickness / 2,
-      -lineSize, // 起点
+    const woodHeight = height + table.height
 
-      -PARAMETERS.withWoodWidth / 4,
-      PARAMETERS.tableThickness / 2,
-      lineSize, // 终点
-    ])
-    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
-    const material = new THREE.LineBasicMaterial({ color: 0xFFFFFF })
-    const line = new THREE.Line(geometry, material)
+    const y = -table.height + woodHeight / 2
 
-    tableSceneObject.add(line)
+    woodEndPoints.forEach(([A, ...points]) => {
+      const shape = new THREE.Shape()
+      shape.moveTo(A.x, A.y)
+      points.forEach(p => shape.lineTo(p.x, p.y))
+      shape.lineTo(A.x, A.y)
 
-    // 置球点
-    const cueBallPosition = PARAMETERS.withWoodWidth / 4
-    const cueBallGeometry = new THREE.CircleGeometry(1, 32, 32)
-    const cueBallMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF })
-    const cueBallMesh = new THREE.Mesh(cueBallGeometry, cueBallMaterial)
-
-    cueBallMesh.position.x = cueBallPosition
-    cueBallMesh.position.y = PARAMETERS.tableThickness / 2
-    cueBallMesh.rotation.x = -Math.PI / 2
-    tableSceneObject.add(cueBallMesh)
+      const extrudeSettings = {
+        depth: woodHeight, // 厚度
+        bevelEnabled: false,
+      }
+      const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings)
+      geometry.translate(0, 0, -woodHeight / 2)
+      const mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: wood }))
+      this.scene.add(mesh)
+      mesh.rotateX(Math.PI / 2)
+      mesh.position.set(0, y, 0)
+    })
   }
 
-  makeTableBody() {
-    const boardWidth = PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4
-    const boardHeight = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
+  createPocketSeals() {
+    const {
+      cushion: {
+        height: cushionHeight,
+      },
+    } = config
 
-    const bodyDepth = PARAMETERS.bodyDepth
-    const legWidth = PARAMETERS.legWidth
+    const height = cushionHeight
+
+    this.pocketSealGeometries.forEach((geometry) => {
+      const mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0xE1E2DD }))
+      mesh.rotateX(Math.PI / 2)
+      mesh.position.set(0, height / 2, 0)
+      this.scene.add(mesh)
+    })
+  }
+
+  createTableBody() {
+    const {
+      table: {
+        width: tableWidth,
+        depth: tableDepth,
+        height: tableHeight,
+        leg: {
+          width: legWidth,
+        },
+        body: {
+          depth: bodyDepth,
+        },
+      },
+      colors: {
+        body: bodyColor,
+      },
+      cornerParams,
+      middleParams,
+    } = config
+    const boardWidth = tableWidth - cornerParams.r * 2
+    const boardHeight = tableDepth - middleParams.side * 2
 
     const geometries: THREE.BufferGeometry[] = []
 
@@ -525,19 +155,19 @@ export default class Table {
     const height = boardHeight - legWidth * 2
 
     const bodyGeo = new THREE.BoxGeometry(width, bodyDepth, height)
-    setGeometryColor(bodyGeo, this.bodyColor)
+    setGeometryColor(bodyGeo, bodyColor)
     geometries.push(bodyGeo)
 
     for (let i = 0; i < 4; i++) {
       const w = (width - legWidth) / 2
       const h = legWidth
       const geo = new THREE.BoxGeometry(w, bodyDepth, h)
-      setGeometryColor(geo, this.bodyColor)
+      setGeometryColor(geo, bodyColor)
       const matrix = new THREE.Matrix4()
       matrix.makeTranslation(new THREE.Vector3(
-          (i < 2 ? -1 : 1) * (w / 2 + legWidth / 2),
-          0,
-          (i % 2 === 0 ? -1 : 1) * (height + legWidth) / 2,
+        (i < 2 ? -1 : 1) * (w / 2 + legWidth / 2),
+        0,
+        (i % 2 === 0 ? -1 : 1) * (height + legWidth) / 2,
       ))
       geo.applyMatrix4(matrix)
       geometries.push(geo)
@@ -547,12 +177,12 @@ export default class Table {
       const w = legWidth
       const h = height
       const geo = new THREE.BoxGeometry(w, bodyDepth, h)
-      setGeometryColor(geo, this.bodyColor)
+      setGeometryColor(geo, bodyColor)
       const matrix = new THREE.Matrix4()
       matrix.makeTranslation(new THREE.Vector3(
-          (i === 0 ? -1 : 1) * (width / 2 + legWidth / 2),
-          0,
-          0,
+        (i === 0 ? -1 : 1) * (width / 2 + legWidth / 2),
+        0,
+        0,
       ))
       geo.applyMatrix4(matrix)
       geometries.push(geo)
@@ -563,18 +193,31 @@ export default class Table {
       new THREE.MeshPhysicalMaterial({ vertexColors: true, clearcoat: 0.5, clearcoatRoughness: 0.35 }),
     )
 
-    mesh.position.set(0, this.offGround.tableBottom - bodyDepth / 2, 0)
+    mesh.position.set(0, -tableHeight - bodyDepth / 2, 0)
     this.layout.scene.add(mesh)
   }
 
   // 创建桌脚
-  makeTableLegs() {
-    const boardWidth = PARAMETERS.withWoodWidth - PARAMETERS.cornerPocketRadius * 4
-    const boardHeight = PARAMETERS.withWoodHeight - PARAMETERS.cornerPocketRadius * 4
-
-    const legWidth = PARAMETERS.legWidth
-    const legHeight = PARAMETERS.legHeight
-    const legDepth = PARAMETERS.legDepth
+  createTableLegs() {
+    const {
+      table: {
+        width: tableWidth,
+        height: tableHeight,
+        depth: tableDepth,
+        leg: {
+          width: legWidth,
+          depth: legDepth,
+          height: legHeight,
+        },
+      },
+      colors: {
+        leg: legColor,
+      },
+      cornerParams,
+      middleParams,
+    } = config
+    const boardWidth = tableWidth - cornerParams.r * 2
+    const boardHeight = tableDepth - middleParams.side * 2
 
     const positions = [
       [boardWidth / 2 - legWidth / 2, boardHeight / 2 - legDepth / 2],
@@ -586,8 +229,8 @@ export default class Table {
     ]
 
     const geometries = positions.map((position) => {
-      const geometry = this.makeTableLeg()
-      setGeometryColor(geometry, this.legColor)
+      const geometry = this.#createTableLeg()
+      setGeometryColor(geometry, legColor)
       const matrix = new THREE.Matrix4()
       matrix.makeTranslation(new THREE.Vector3(
         position[0],
@@ -603,10 +246,43 @@ export default class Table {
       BufferGeometryUtils.mergeGeometries(geometries, false),
       new THREE.MeshPhysicalMaterial({ vertexColors: true, clearcoat: 0.5, clearcoatRoughness: 0.35 }),
     )
+    mesh.position.set(0, -tableHeight - legHeight, 0)
     this.layout.scene.add(mesh)
   }
-  makeTableLeg() {
-    const { legWidth, legDepth, legHeight } = PARAMETERS
+
+  createPockets() {
+    const {
+      table: {
+        height: tableHeight,
+      },
+      cornerPositions,
+      middlePositions,
+    } = config
+
+    ;[
+      ...cornerPositions,
+      ...middlePositions,
+    ].forEach((position, index) => {
+      new Funnel(this.layout).setupMesh({
+        position: new THREE.Vector3(position.x, -tableHeight / 2, position.y),
+        isRotate: [0, 3].includes(index),
+      })
+    })
+  }
+
+  #createTableLeg() {
+    const {
+      table: {
+        leg: {
+          width: legWidth,
+          depth: legDepth,
+          height: legHeight,
+        },
+      },
+      colors: {
+        leg: legColor,
+      },
+    } = config
 
     // 分成8段，从上到下
     const h1 = legHeight * 0.5 // 长方体
@@ -634,13 +310,15 @@ export default class Table {
     const geometries = arr.map(({ h, type, attr }) => {
       let geo!: THREE.BufferGeometry
       if (type === 'barrel-shaped') {
-        geo = createBarrelShaped(attr)
-      } else if (type === 'cylinder') {
+        geo = this.#createBarrelShaped(attr)
+      }
+      else if (type === 'cylinder') {
         geo = new THREE.CylinderGeometry(...attr)
-      } else {
+      }
+      else {
         geo = new THREE.BoxGeometry(...attr)
       }
-      setGeometryColor(geo, this.legColor)
+      setGeometryColor(geo, legColor)
       const m = new THREE.Matrix4()
       y -= h / 2
       m.makeTranslation(new THREE.Vector3(0, y, 0))
@@ -652,367 +330,707 @@ export default class Table {
     return BufferGeometryUtils.mergeGeometries(geometries, false)
   }
 
-  makePockets() {
-    const cornerX = PARAMETERS.withWoodWidth / 2 - PARAMETERS.cornerPocketRadius
-    const cornerZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.cornerPocketRadius
-    const middleX = 0
-    const middleZ = PARAMETERS.withWoodHeight / 2 - PARAMETERS.middlePocketRadius
-    const pocketOptions = [
-      { x: -cornerX, z: -cornerZ }, // 左上
-      { x: middleX, z: -middleZ }, // 中上
-      { x: cornerX, z: -cornerZ }, // 右上
-      { x: cornerX, z: cornerZ }, // 右下
-      { x: middleX, z: middleZ }, // 中下
-      { x: -cornerX, z: cornerZ }, // 左下
-    ]
-    pocketOptions.forEach((position, index) => {
-      this.makePocket({
-        position: {
-          ...position,
-          y: this.offGround.tableBottom ,
-        },
-        isRotate: index === 0 || index === pocketOptions.length - 1,
-      })
+  #createBarrelShaped(attrs: [number, number, number, number][]) {
+    const geometries: THREE.BufferGeometry[] = []
+    let y = attrs.reduce((acc, [_1, _2, h]) => acc + h, 0) / 2
+    attrs.forEach(([r1, r2, h, s]) => {
+      const geo = new THREE.CylinderGeometry(r1, r2, h, s)
+      setGeometryColor(geo, new THREE.Color(0x3170A6))
+      const matrix = new THREE.Matrix4()
+      y -= h / 2
+      matrix.makeTranslation(new THREE.Vector3(0, y, 0))
+      geo.applyMatrix4(matrix)
+      geometries.push(geo)
+      y -= h / 2
+    })
+    return BufferGeometryUtils.mergeGeometries(geometries, false)
+  }
+
+  /** 生成库边橡胶条的几何形状 */
+  #generateCushionGeometries() {
+    const {
+      rubberTotalWidth,
+      rubberEndPoints,
+      contactHeight,
+    } = config.cushion
+    const r = rubberTotalWidth
+    return rubberEndPoints.map((points, index) => {
+      const [A, B, C, D, E, F, G, H] = points
+
+      let tangent1: Point
+      let tangent2: Point
+      let tangent3: Point
+      let tangent4: Point
+
+      if ([0, 3, 5].includes(index)) {
+        ;[tangent1, tangent2] = getTangent(A, B, C, r)
+        ;[tangent3, tangent4] = getTangent(B, C, D, r)
+      }
+      else {
+        ;[tangent2, tangent1] = getTangent(C, B, A, r)
+        ;[tangent4, tangent3] = getTangent(D, C, B, r)
+      }
+
+      const shape = new THREE.Shape()
+      shape.moveTo(A.x, A.y)
+      shape.lineTo(tangent1.x, tangent1.y)
+
+      // 替代 arcTo(B, tangent2, r)
+      const arcPoints1 = arcToPoints(tangent1, B, tangent2, r)
+      arcPoints1.forEach(p => shape.lineTo(p.x, p.y))
+
+      // 替代 arcTo(tangent2, C, r)
+      const arcPoints2 = arcToPoints(B, tangent2, C, r)
+      arcPoints2.forEach(p => shape.lineTo(p.x, p.y))
+
+      shape.lineTo(tangent3.x, tangent3.y)
+
+      // 替代 arcTo(C, tangent4, r)
+      const arcPoints3 = arcToPoints(tangent3, C, tangent4, r)
+      arcPoints3.forEach(p => shape.lineTo(p.x, p.y))
+
+      // 剩下直线连接
+      shape.lineTo(D.x, D.y)
+      shape.lineTo(E.x, E.y)
+      shape.lineTo(F.x, F.y)
+      shape.lineTo(G.x, G.y)
+      shape.lineTo(H.x, H.y)
+      shape.lineTo(A.x, A.y) // 闭合
+
+      const extrudeSettings = {
+        depth: contactHeight, // 厚度
+        bevelEnabled: false,
+      }
+
+      const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings)
+      geometry.translate(0, 0, -contactHeight / 2)
+      return geometry
     })
   }
-  makePocket(options: PocketAttr) {
-    // 漏斗参数
-    const topWidth = PARAMETERS.cornerPocketRadius * 2 // 顶部宽度
-    const bottomWidth = PARAMETERS.ballRadius * 2 * 1.1 // 底部宽度
-    const height = PARAMETERS.ballRadius * 2 * 1.5 // 高度
-    const bottomHeight = PARAMETERS.ballRadius * 2 * 1.2 // 底部高度
-    const wallThickness = 0.2 // 壁厚
 
-    // 计算几何参数
-    const delta = (topWidth / 2 - bottomWidth / 2)
-    const theta = Math.atan(delta / height) // 倾斜角度
-    const L = Math.sqrt(delta * delta + height * height) // 斜面长度
+  #generatePocketSealGeometries() {
+    const {
+      sealPoints,
+      cushion: {
+        height: cushionHeight,
+      },
+    } = config
+    const quantity = this.#quantity
+    const un = new UnitPath()
 
-    const poleMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x3170A6,
-      clearcoat: 0.92,
-      clearcoatRoughness: 0.35,
+    const height = cushionHeight
+
+    return sealPoints.map(([A, B, C, D], index) => {
+      const shape = new THREE.Shape()
+
+      if (index % 3 === 1) {
+        // 中袋
+        const AB = new THREE.Vector2(A.x, A.y).distanceTo(new THREE.Vector2(B.x, B.y))
+        const M = new THREE.Vector2((A.x + C.x) / 2, (A.y + C.y) / 2)
+        shape.moveTo(A.x, A.y)
+        const arcAB = arcToPoints(A, M, B, AB / 2)
+        arcAB.forEach(p => shape.lineTo(p.x, p.y))
+        shape.lineTo(C.x, C.y)
+        shape.lineTo(D.x, D.y)
+        shape.lineTo(A.x, A.y)
+      }
+      else {
+        let args1: [number, number, number, number, number, boolean] = [0, 0, 0, 0, 0, false]
+        let args2: [number, number, number, number, number, boolean] = [0, 0, 0, 0, 0, false]
+        switch (index) {
+          case 0:
+            args1 = [A.x, B.y, Math.abs(A.x - B.x), Math.PI * 1.5, Math.PI, true]
+            args2 = [D.x, C.y, Math.abs(C.x - D.x), Math.PI, Math.PI * 1.5, false]
+            break
+          case 2:
+            args1 = [A.x, B.y, Math.abs(A.x - B.x), Math.PI * 1.5, Math.PI * 2, false]
+            args2 = [D.x, C.y, Math.abs(C.x - D.x), Math.PI * 2, Math.PI * 1.5, true]
+            break
+          case 3:
+            args1 = [A.x, B.y, Math.abs(A.x - B.x), Math.PI / 2, Math.PI, false]
+            args2 = [D.x, C.y, Math.abs(C.x - D.x), Math.PI, Math.PI / 2, true]
+            break
+          case 5:
+            args1 = [A.x, B.y, Math.abs(A.x - B.x), Math.PI / 2, 0, true]
+            args2 = [D.x, C.y, Math.abs(C.x - D.x), 0, Math.PI / 2, false]
+            break
+        }
+
+        shape.moveTo(A.x, A.y)
+        un.setPath('ARC', ...args1).getPoints(quantity).forEach(p => shape.lineTo(p.x, p.y))
+        shape.lineTo(B.x, B.y)
+        shape.lineTo(C.x, C.y)
+        un.setPath('ARC', ...args2).getPoints(quantity).forEach(p => shape.lineTo(p.x, p.y))
+        shape.lineTo(D.x, D.y)
+        shape.lineTo(A.x, A.y)
+      }
+
+      const extrudeSettings = {
+        depth: height,
+        bevelEnabled: false,
+      }
+
+      const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings)
+      geometry.translate(0, 0, -height / 2)
+      return geometry
     })
+  }
 
-    // 四个方向：+x, -x, +z, -z
-    const directions = [
-      { axis: 'x', sign: 1, rotAxis: new CANNON.Vec3(0, 0, 1) }, // +X方向绕Z轴旋转
-      { axis: 'x', sign: -1, rotAxis: new CANNON.Vec3(0, 0, 1) }, // -X方向绕Z轴旋转
-      { axis: 'z', sign: 1, rotAxis: new CANNON.Vec3(1, 0, 0) }, // +Z方向绕X轴旋转
-      { axis: 'z', sign: -1, rotAxis: new CANNON.Vec3(1, 0, 0) }, // -Z方向绕X轴旋转
-    ]
+  #generateTableBoardGeometry() {
+    const {
+      table: {
+        width, // x
+        height, // y
+        depth, // z
+      },
+      cornerParams,
+      middleParams,
+    } = config
+
+    //   A    B  C     D
+    // L                 E
+    //
+    // K                 F
+    //   J    I  H     G
+    const cOffset = cornerParams.r
+    const mOffset = middleParams.side
+    const A = { x: -width / 2 + cOffset, y: -depth / 2 }
+    const B = { x: 0 - mOffset, y: -depth / 2 }
+    const C = { x: 0 + mOffset, y: -depth / 2 }
+    const D = { x: width / 2 - cOffset, y: -depth / 2 }
+    const E = { x: width / 2, y: -depth / 2 + cOffset }
+    const F = { x: width / 2, y: depth / 2 - cOffset }
+    const G = { x: width / 2 - cOffset, y: depth / 2 }
+    const H = { x: 0 + mOffset, y: depth / 2 }
+    const I = { x: 0 - mOffset, y: depth / 2 }
+    const J = { x: -width / 2 + cOffset, y: depth / 2 }
+    const K = { x: -width / 2, y: depth / 2 - cOffset }
+    const L = { x: -width / 2, y: -depth / 2 + cOffset }
+
+    const quantity = this.#quantity
+    const un = new UnitPath()
+
+    const shape = new THREE.Shape()
+    shape.moveTo(A.x, A.y)
+    shape.lineTo(B.x, B.y)
+
+    un.setPath('ARC', 0, -depth / 2, mOffset, Math.PI, 0, true).getPoints(quantity).forEach(p => shape.lineTo(p.x, p.y))
+    shape.lineTo(C.x, C.y)
+    shape.lineTo(D.x, D.y)
+
+    un.setPath('ARC', width / 2, -depth / 2, cOffset, Math.PI, Math.PI / 2, true).getPoints(quantity).forEach(p => shape.lineTo(p.x, p.y))
+    shape.lineTo(E.x, E.y)
+    shape.lineTo(F.x, F.y)
+
+    un.setPath('ARC', width / 2, depth / 2, cOffset, Math.PI * 1.5, Math.PI, true).getPoints(quantity).forEach(p => shape.lineTo(p.x, p.y))
+    shape.lineTo(G.x, G.y)
+    shape.lineTo(H.x, H.y)
+    un.setPath('ARC', 0, depth / 2, mOffset, 0, Math.PI, true).getPoints(quantity).forEach(p => shape.lineTo(p.x, p.y))
+    shape.lineTo(I.x, I.y)
+    shape.lineTo(J.x, J.y)
+    un.setPath('ARC', -width / 2, depth / 2, cOffset, 0, Math.PI * 1.5, true).getPoints(quantity).forEach(p => shape.lineTo(p.x, p.y))
+    shape.lineTo(K.x, K.y)
+    shape.lineTo(L.x, L.y)
+    un.setPath('ARC', -width / 2, -depth / 2, cOffset, Math.PI / 2, 0, true).getPoints(quantity).forEach(p => shape.lineTo(p.x, p.y))
+    shape.lineTo(A.x, A.y)
+
+    const extrudeSettings = {
+      depth: height,
+      bevelEnabled: false,
+    }
+
+    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings)
+    geometry.translate(0, 0, -height / 2)
+    return geometry
+  }
+}
+
+class TablePhysics {
+  world: CANNON.World
+
+  cushionGeometries: THREE.ExtrudeGeometry[]
+  pocketSealGeometries: THREE.ExtrudeGeometry[]
+  tableBoardGeometry: THREE.BufferGeometry
+  constructor(public layout: Layout, table: Table) {
+    this.world = layout.world
+
+    this.cushionGeometries = table.cushionGeometries
+    this.pocketSealGeometries = table.pocketSealGeometries
+    this.tableBoardGeometry = table.tableBoardGeometry
+  }
+
+  init() {
+    this.createTable()
+    // this.createPockets()
+    this.createCushion()
+    this.createPocketSeals()
+  }
+
+  createTable() {
+    const {
+      height, // y
+    } = config.table
 
     const body = new CANNON.Body({
       mass: 0,
+      shape: this.#threeToCannonTrimesh(this.tableBoardGeometry),
+      position: new CANNON.Vec3(0, -height / 2, 0),
     })
+    body.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2)
+    body.material = this.layout.tableMaterial
+    this.world.addBody(body)
+  }
 
-    directions.forEach((dir) => {
-      // 根据方向设置尺寸
-      let halfExtents
-      if (dir.axis === 'x') {
-        halfExtents = new CANNON.Vec3(
-          wallThickness / 2,
-          L / 2,
-          topWidth / 2,
-        )
-      }
-      else { // z方向
-        halfExtents = new CANNON.Vec3(
-          topWidth / 2,
-          L / 2,
-          wallThickness / 2,
-        )
-      }
+  createPockets() {
+    const {
+      table: {
+        height: tableHeight,
+      },
+      cornerParams,
+      middleParams,
 
-      // 计算旋转角度（正负号处理）
-      const angle = dir.sign * theta
-      const quaternion = new CANNON.Quaternion().setFromAxisAngle(dir.rotAxis, angle)
+      cornerPositions,
+      middlePositions,
+    } = config
 
-      // 设置位置
-      const pos = new CANNON.Vec3()
-      if (dir.axis === 'x') {
-        pos.x = -1 * dir.sign * (topWidth / 2 + bottomWidth / 2) / 2 // X方向中心
-        pos.y = height / 2 // 高度居中
-      }
-      else {
-        pos.z = dir.sign * (topWidth / 2 + bottomWidth / 2) / 2 // Z方向中心
-        pos.y = height / 2
-      }
+    const y = -tableHeight / 2
 
-      body.addShape(
-        new CANNON.Box(halfExtents),
-        pos,
-        quaternion,
+    ;[...cornerPositions, ...middlePositions].forEach((position, index) => {
+      const r = index < 4 ? cornerParams.r : middleParams.r
+      const shape = new CANNON.Cylinder(
+        r,
+        r,
+        tableHeight,
+        32,
+      )
+      const body = new CANNON.Body({
+        mass: 0,
+        shape,
+        position: new CANNON.Vec3(position.x, y, position.y),
+      })
+      body.material = this.layout.tableMaterial
+
+      this.world.addBody(body)
+
+      ;(body as any).isTrigger = true
+      // @todo - 把 body 添加到 context 里面
+
+      // 集球区
+      const funnel = new Funnel(this.layout)
+      funnel.setupPhysics({
+        position: new THREE.Vector3(position.x, y, position.y),
+        isRotate: [0, 3].includes(index),
+      })
+    })
+  }
+
+  createCushion() {
+    const {
+      cushion: {
+        height: cushionHeight, // 台面到库边顶部高度
+        contactHeight,
+      },
+    } = config
+
+    const y = cushionHeight - contactHeight / 2
+
+    this.cushionGeometries.forEach((geometry) => {
+      const body = new CANNON.Body({
+        mass: 0,
+        shape: this.#threeToCannonTrimesh(geometry),
+        position: new CANNON.Vec3(0, y, 0),
+      })
+      body.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2)
+      body.material = this.layout.rubberMaterial
+
+      this.world.addBody(body)
+
+      ;(body as any).isRubber = true
+      // @todo - 把 body 添加到 context 里面
+    })
+  }
+
+  createPocketSeals() {
+    const {
+      cushion: {
+        height: cushionHeight,
+      },
+    } = config
+
+    const y = cushionHeight / 2
+
+    this.pocketSealGeometries.forEach((geometry) => {
+      const body = new CANNON.Body({
+        mass: 0,
+        shape: this.#threeToCannonTrimesh(geometry),
+        position: new CANNON.Vec3(0, y, 0),
+      })
+      body.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2)
+      body.material = this.layout.rubberMaterial
+
+      this.world.addBody(body)
+    })
+  }
+
+  #threeToCannonTrimesh(geometry: THREE.BufferGeometry) {
+    // 更新几何体缓存
+    geometry.computeBoundingBox()
+    geometry.computeBoundingSphere()
+    geometry.computeVertexNormals()
+    geometry = geometry.toNonIndexed() // 非索引模式
+
+    const position = geometry.attributes.position
+    const vertices = []
+    for (let i = 0; i < position.count; i++) {
+      vertices.push(position.getX(i), position.getY(i), position.getZ(i))
+    }
+
+    const indices = []
+    for (let i = 0; i < position.count; i += 3) {
+      indices.push(i, i + 1, i + 2)
+    }
+
+    const cannonTrimesh = new CANNON.Trimesh(
+      new Float32Array(vertices) as any,
+      new Uint16Array(indices) as any,
+    )
+    return cannonTrimesh
+  }
+}
+interface FunnelOptions {
+  position: THREE.Vector3
+  isRotate?: boolean
+}
+
+class Funnel {
+  /**
+   * 漏斗几何参数
+   */
+  topDiameter: number
+  bottomDiameter: number
+  funnelHeight: number
+  bottomCatchHeight: number
+  wallThickness: number
+  radiusDifference: number
+  tiltAngle: number
+  slantHeight: number
+  baseWidth: number
+  floorYOffset: number
+
+  poleMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0x3170A6,
+    clearcoat: 0.92,
+    clearcoatRoughness: 0.35,
+  })
+
+  constructor(private layout: Layout) {
+    const {
+      cornerParams,
+      ball: { radius: ballRadius },
+    } = config
+
+    // 几何参数
+    this.topDiameter = cornerParams.r * 2
+    this.bottomDiameter = ballRadius * 2 * 1.1
+    this.funnelHeight = ballRadius * 2 * 1.5
+    this.bottomCatchHeight = ballRadius * 2 * 1.2
+    this.wallThickness = 0.002
+
+    this.radiusDifference = (this.topDiameter - this.bottomDiameter) / 2
+    this.tiltAngle = Math.atan(this.radiusDifference / this.funnelHeight)
+    this.slantHeight = Math.sqrt(this.radiusDifference ** 2 + this.funnelHeight ** 2)
+
+    this.baseWidth = ballRadius * 12
+    this.floorYOffset = this.baseWidth / 2 * Math.sin(2 * Math.PI / 180)
+  }
+
+  #addBoxShape(body: CANNON.Body, size: CANNON.Vec3, position: CANNON.Vec3, rotation = new CANNON.Quaternion()) {
+    body.addShape(new CANNON.Box(size), position, rotation)
+  }
+
+  setupPhysics(options: FunnelOptions) {
+    const {
+      topDiameter,
+      bottomDiameter,
+      funnelHeight,
+      bottomCatchHeight,
+      wallThickness,
+      tiltAngle,
+      slantHeight,
+      baseWidth,
+      floorYOffset,
+    } = this
+
+    const funnelBody = new CANNON.Body({ mass: 0 })
+
+    const directions = [
+      { axis: 'x', sign: 1, rotAxis: new CANNON.Vec3(0, 0, 1) },
+      { axis: 'x', sign: -1, rotAxis: new CANNON.Vec3(0, 0, 1) },
+      { axis: 'z', sign: 1, rotAxis: new CANNON.Vec3(1, 0, 0) },
+      { axis: 'z', sign: -1, rotAxis: new CANNON.Vec3(1, 0, 0) },
+    ]
+
+    directions.forEach(({ axis, sign, rotAxis }) => {
+      const isXAxis = axis === 'x'
+
+      const sideHalfSize = new CANNON.Vec3(
+        isXAxis ? wallThickness / 2 : topDiameter / 2,
+        slantHeight / 2,
+        isXAxis ? topDiameter / 2 : wallThickness / 2,
       )
 
-      if (dir.axis === 'z' && dir.sign === 1) {
-        return
-      }
-      // 底部接球区
-      const bottomShape = new CANNON.Box(new CANNON.Vec3(
-        bottomWidth / 2,
-        bottomHeight / 2,
-        wallThickness / 2,
-      ))
-      const bottomPos = new CANNON.Vec3()
-      bottomPos.y = -bottomHeight / 2 // 高度居中
-      if (dir.axis === 'x') {
-        bottomPos.z = dir.sign * bottomWidth / 2 // Z方向中心
-      }
-      else {
-        bottomPos.x = -1 * dir.sign * bottomWidth / 2 // X方向中心
-      }
-      body.addShape(
-        bottomShape,
-        bottomPos,
-        new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0, 1, 0), dir.sign * Math.PI / 2 * (dir.axis === 'x' ? 0 : 1)),
+      const sidePosition = new CANNON.Vec3(
+        isXAxis ? -sign * (topDiameter + bottomDiameter) / 4 : 0,
+        funnelHeight / 2,
+        isXAxis ? 0 : sign * (topDiameter + bottomDiameter) / 4,
       )
+
+      const sideRotation = new CANNON.Quaternion().setFromAxisAngle(rotAxis, sign * tiltAngle)
+      this.#addBoxShape(funnelBody, sideHalfSize, sidePosition, sideRotation)
+
+      // 加底接球区
+      if (!(axis === 'z' && sign === 1)) {
+        const bottomHalf = new CANNON.Vec3(bottomDiameter / 2, bottomCatchHeight / 2, wallThickness / 2)
+        const bottomPos = new CANNON.Vec3()
+        bottomPos.y = -bottomCatchHeight / 2
+
+        if (isXAxis) {
+          bottomPos.z = sign * bottomDiameter / 2
+        }
+        else {
+          bottomPos.x = -sign * bottomDiameter / 2
+        }
+
+        const bottomRot = new CANNON.Quaternion().setFromAxisAngle(
+          new CANNON.Vec3(0, 1, 0),
+          sign * Math.PI / 2 * (isXAxis ? 0 : 1),
+        )
+
+        this.#addBoxShape(funnelBody, bottomHalf, bottomPos, bottomRot)
+      }
     })
 
-    // 底板
-    const baseWidth = PARAMETERS.ballRadius * 12
-    const baseShape = new CANNON.Box(new CANNON.Vec3(
-      baseWidth / 2,
-      bottomHeight / 2,
-      wallThickness / 2,
-    ))
-    // 后
-    body.addShape(
-      baseShape,
-      new CANNON.Vec3(bottomWidth / 2 - baseWidth / 2, -bottomHeight / 2, -bottomWidth / 2),
-    )
-    // 前
-    body.addShape(
-      baseShape,
-      new CANNON.Vec3(bottomWidth / 2 - baseWidth / 2, -bottomHeight / 2, bottomWidth / 2),
-    )
-    // 底
-    const floor = new CANNON.Box(new CANNON.Vec3(
-      baseWidth / 2,
-      wallThickness / 2,
-      bottomWidth / 2,
-    ))
-    const q = new CANNON.Quaternion()
-    const tiltAngle = 2 * (Math.PI / 180) // 绕 Z 轴旋转 10 度（右下倾斜）
-    q.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), tiltAngle)
+    // 下部横向底板
+    const baseHeight = bottomCatchHeight
+    const baseHalfSize = new CANNON.Vec3(baseWidth / 2, baseHeight / 2, wallThickness / 2)
 
-    const h = baseWidth / 2 * Math.sin(tiltAngle)
-    body.addShape(
-      floor,
-      new CANNON.Vec3(
-        bottomWidth / 2 - baseWidth / 2,
-        -bottomHeight + h,
-        0,
-      ),
-      q,
-    )
-    // 上
-    const ceiling = new CANNON.Box(new CANNON.Vec3(
-      (baseWidth - bottomWidth) / 2,
-      wallThickness / 2,
-      bottomWidth / 2,
-    ))
+    this.#addBoxShape(funnelBody, baseHalfSize, new CANNON.Vec3(bottomDiameter / 2 - baseWidth / 2, -baseHeight / 2, -bottomDiameter / 2))
+    this.#addBoxShape(funnelBody, baseHalfSize, new CANNON.Vec3(bottomDiameter / 2 - baseWidth / 2, -baseHeight / 2, bottomDiameter / 2))
 
-    body.addShape(
-      ceiling,
-      new CANNON.Vec3(
-        -(baseWidth - bottomWidth) / 2 - bottomWidth / 2,
-        0,
-        0,
-      ),
-      q,
+    // 倾斜底板
+    const floorThickness = wallThickness
+    const floorRotation = new CANNON.Quaternion().setFromAxisAngle(
+      new CANNON.Vec3(0, 0, 1),
+      2 * Math.PI / 180,
     )
 
-    // 封
-    const capShape = new CANNON.Box(new CANNON.Vec3(
-      wallThickness / 2,
-      bottomHeight / 2,
-      bottomWidth / 2,
-    ))
-    const capPos = new CANNON.Vec3(-baseWidth + bottomWidth / 2, -bottomHeight / 2, 0)
-    body.addShape(
-      capShape,
-      capPos,
+    this.#addBoxShape(
+      funnelBody,
+      new CANNON.Vec3(baseWidth / 2, floorThickness / 2, bottomDiameter / 2),
+      new CANNON.Vec3(bottomDiameter / 2 - baseWidth / 2, -baseHeight + floorYOffset, 0),
+      floorRotation,
     )
 
-    // THREE ---------
+    // 顶板
+    this.#addBoxShape(
+      funnelBody,
+      new CANNON.Vec3((baseWidth - bottomDiameter) / 2, wallThickness / 2, bottomDiameter / 2),
+      new CANNON.Vec3(-(baseWidth - bottomDiameter) / 2 - bottomDiameter / 2, 0, 0),
+      floorRotation,
+    )
+
+    // 后盖
+    this.#addBoxShape(
+      funnelBody,
+      new CANNON.Vec3(wallThickness / 2, baseHeight / 2, bottomDiameter / 2),
+      new CANNON.Vec3(-baseWidth + bottomDiameter / 2, -baseHeight / 2, 0),
+    )
+
+    const { x, y, z } = options.position
+    funnelBody.position.set(x, y - baseHeight, z)
+    funnelBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), options.isRotate ? Math.PI : 0)
+    this.layout.world.addBody(funnelBody)
+  }
+
+  setupMesh(options: FunnelOptions) {
+    const {
+      topDiameter,
+      bottomDiameter,
+      funnelHeight,
+      bottomCatchHeight,
+      baseWidth,
+      floorYOffset,
+      poleMaterial,
+    } = this
+
+    const ballRadius = config.ball.radius
+
     const group = new THREE.Group()
 
-    const cylinderMesh = this.createLineFunnel(
-      bottomWidth / 2,
-      topWidth / 2,
-      height,
-      8,
-      0.1,
-      3,
+    const cylinderMesh = this.#createLineFunnel(
+      topDiameter / 2,
+      bottomDiameter / 2,
+      funnelHeight,
+      32,
+      4,
+      0.003,
       0xE9ECF1,
     )
-    cylinderMesh.position.set(0, height / 2, 0)
+    cylinderMesh.position.set(0, 0, 0)
     group.add(cylinderMesh)
 
-    let sWidth = baseWidth
-    const sHeight = bottomHeight
-    const sSize = 0.5
-    const tiltAngleDiff = h
-    const m1Points = [
-      [0, sHeight],
-      [sWidth, sHeight + tiltAngleDiff],
-      [sWidth, -height - tiltAngleDiff], // 注意 -height 延长到入口处
-      [sWidth - sSize, -height - tiltAngleDiff],
-      [sWidth - sSize, sHeight + tiltAngleDiff - sSize],
-      [sSize, sHeight - sSize],
-      [sSize, 0],
-    ]
-    sWidth -= bottomWidth / 2
-    const m2Points = [
-      [0, sHeight],
-      [sWidth, sHeight + tiltAngleDiff],
-      [sWidth, -height + tiltAngleDiff],
-      [sWidth - sSize, -height + tiltAngleDiff],
-      [sWidth - sSize, sHeight + tiltAngleDiff - sSize],
-      [sSize, sHeight - sSize],
-      [sSize, 0],
-    ]
-    const attrs = [
-      { points: m1Points, position: new THREE.Vector3(bottomWidth / 2, 0, 0) },
-      { points: m2Points, position: new THREE.Vector3(0, PARAMETERS.ballRadius / 2, bottomWidth / 2) },
-      { points: m2Points, position: new THREE.Vector3(0, PARAMETERS.ballRadius / 2, -bottomWidth / 2) },
+    // 侧面形状
+    const sideWallThickness = 0.005
+    const sideHeight = bottomCatchHeight
+    const tiltOffset = floorYOffset
+
+    const rightSideWallPoints = [
+      [0, sideHeight],
+      [baseWidth, sideHeight + tiltOffset],
+      [baseWidth, -funnelHeight - tiltOffset],
+      [baseWidth - sideWallThickness, -funnelHeight - tiltOffset],
+      [baseWidth - sideWallThickness, sideHeight + tiltOffset - sideWallThickness],
+      [sideWallThickness, sideHeight - sideWallThickness],
+      [sideWallThickness, 0],
     ]
 
-    attrs.forEach(({ points, position }) => {
+    const leftSideWallXOffset = baseWidth - bottomDiameter / 2
+    const leftSideWallPoints = [
+      [0, sideHeight],
+      [leftSideWallXOffset, sideHeight + tiltOffset],
+      [leftSideWallXOffset, -sideHeight - tiltOffset], // 注意 -funnelHeight 延长到入口处
+      [leftSideWallXOffset - sideWallThickness, -sideHeight - tiltOffset],
+      [leftSideWallXOffset - sideWallThickness, sideHeight + tiltOffset - sideWallThickness],
+      [sideWallThickness, sideHeight - sideWallThickness],
+      [sideWallThickness, 0],
+    ]
+
+    const sideWalls = [
+      { points: rightSideWallPoints, position: new THREE.Vector3(bottomDiameter / 2, 0, 0) },
+      { points: leftSideWallPoints, position: new THREE.Vector3(0, ballRadius / 2, bottomDiameter / 2) },
+      { points: leftSideWallPoints, position: new THREE.Vector3(0, ballRadius / 2, -bottomDiameter / 2) },
+    ]
+
+    sideWalls.forEach(({ points, position }) => {
       const shape = new THREE.Shape()
       shape.moveTo(0, 0)
-      points.forEach(([x, y]) => {
-        shape.lineTo(x, y)
-      })
+      points.forEach(([x, y]) => shape.lineTo(x, y))
       shape.lineTo(0, 0)
-      const extrudeSettings = {
-        depth: sSize * 2, // 挤出厚度
-        bevelEnabled: false, // 禁用倒角
-      }
-      const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings)
-      const m = new THREE.Mesh(geo, poleMaterial)
-      m.position.set(position.x, position.y, position.z)
-      m.rotation.set(Math.PI, Math.PI, 0)
-      group.add(m)
+
+      const extrudeGeo = new THREE.ExtrudeGeometry(shape, {
+        depth: sideWallThickness * 2,
+        bevelEnabled: false,
+      })
+
+      const mesh = new THREE.Mesh(extrudeGeo, poleMaterial)
+      mesh.position.copy(position)
+      mesh.rotation.set(Math.PI, Math.PI, 0)
+      group.add(mesh)
     })
 
-    // 加几个环
+    const baseHeight = bottomCatchHeight
+    // 加圆环
     ;[
-      { position: new THREE.Vector3(0, 0, 0), rotation: new THREE.Vector3(Math.PI / 2, 0, 0) },
-      { position: new THREE.Vector3(-sWidth / 3, -bottomHeight / 2 - sSize, sSize), rotation: new THREE.Vector3(0, Math.PI / 2, 0) },
-      { position: new THREE.Vector3(-sWidth * 2 / 3, -bottomHeight / 2 - sSize, sSize), rotation: new THREE.Vector3(0, Math.PI / 2, 0) },
-    ].forEach(({ position, rotation }) => {
-      const tours = new THREE.TorusGeometry(
-        bottomWidth / 2,
-        sSize,
-        128,
-        128,
-      )
-      const tourMesh = new THREE.Mesh(tours, poleMaterial)
-      tourMesh.position.copy(position)
-      tourMesh.rotation.set(rotation.x, rotation.y, rotation.z)
-      group.add(tourMesh)
+      { pos: new THREE.Vector3(0, 0, 0), rot: new THREE.Vector3(Math.PI / 2, 0, 0) },
+      { pos: new THREE.Vector3(-baseWidth / 3, -baseHeight / 2 - sideWallThickness, sideWallThickness), rot: new THREE.Vector3(0, Math.PI / 2, 0) },
+      { pos: new THREE.Vector3(-2 * baseWidth / 3, -baseHeight / 2 - sideWallThickness, sideWallThickness), rot: new THREE.Vector3(0, Math.PI / 2, 0) },
+    ].forEach(({ pos, rot }) => {
+      const torus = new THREE.TorusGeometry(bottomDiameter / 2, sideWallThickness, 128, 128)
+      const torusMesh = new THREE.Mesh(torus, poleMaterial)
+      torusMesh.position.copy(pos)
+      torusMesh.rotation.set(rot.x, rot.y, rot.z)
+      group.add(torusMesh)
     })
-    group.position.set(options.position.x, options.position.y - height, options.position.z)
+
+    const { x, y, z } = options.position
+    group.position.set(x, y - baseHeight, z)
     group.rotation.set(0, options.isRotate ? Math.PI : 0, 0)
     this.layout.scene.add(group)
-
-    body.position.set(options.position.x, options.position.y - height, options.position.z)
-    body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), options.isRotate ? Math.PI : 0)
-    this.layout.world.addBody(body)
   }
 
   // 创建抗锯齿宽线漏斗
-  createLineFunnel(topR: number, bottomR: number, height: number, segments: number, thickness: number, lineWidth: number, color: number) {
+  #createLineFunnel(topRadius: number, baseRadius: number, height: number, baseSegments: number, layers: number, lineWidth: number, color: number) {
+    const points = []
+    const layerHeights = []
+    for (let i = 0; i <= layers; i++) {
+      const t = i / layers
+      layerHeights.push(height * (t * t))
+    }
+
+    function radiusAtHeight(y: number) {
+      const t = y / height
+      return baseRadius * (1 - t) + topRadius * t
+    }
+
+    for (let i = 0; i <= layers; i++) {
+      const y = layerHeights[i]
+      const r = radiusAtHeight(y)
+      const segments = Math.floor(baseSegments * (1 - i / layers * 0.7)) + 4
+
+      for (let j = 0; j < segments; j++) {
+        const angle = (j / segments) * Math.PI * 2
+        const x = r * Math.cos(angle)
+        const z = r * Math.sin(angle)
+        points.push(new THREE.Vector3(x, y, z))
+      }
+    }
+
+    // 构建线段顶点数组（浮点数组，x,y,z,x,y,z,...）
     const vertices = []
-    const indices = []
 
-    // === 1. 生成顶点数据（保持原方案结构） ===
-    for (let side = 0; side < 2; side++) { // 0=外壁, 1=内壁
-      const radiusOffset = side === 0 ? thickness : 0
-      for (let y = 0; y <= segments; y++) {
-        const progress = y / segments
-        const radius = topR + (bottomR - topR) * progress - radiusOffset
-        const angleStep = (Math.PI * 2) / segments
-        for (let i = 0; i <= segments; i++) {
-          const angle = i * angleStep
-          vertices.push(
-            radius * Math.cos(angle),
-            -height / 2 + progress * height,
-            radius * Math.sin(angle),
-          )
-        }
+    // 水平环线
+    let index = 0
+    for (let i = 0; i <= layers; i++) {
+      const segments = Math.floor(baseSegments * (1 - i / layers * 0.7)) + 4
+      for (let j = 0; j < segments; j++) {
+        const current = points[index + j]
+        const next = points[index + ((j + 1) % segments)]
+        vertices.push(current.x, current.y, current.z)
+        vertices.push(next.x, next.y, next.z)
       }
+      index += segments
     }
 
-    // === 2. 生成线段索引 ===
-    // 内外壁纵向线
-    for (let side = 0; side < 2; side++) {
-      const offset = side * (segments + 1) * (segments + 1)
-      for (let y = 0; y < segments; y++) {
-        for (let i = 0; i <= segments; i++) {
-          const a = offset + y * (segments + 1) + i
-          const b = a + (segments + 1)
-          indices.push(a, b)
-        }
+    // 竖直线段
+    index = 0
+    for (let i = 0; i < layers; i++) {
+      const segmentsA = Math.floor(baseSegments * (1 - i / layers * 0.7)) + 4
+      const segmentsB = Math.floor(baseSegments * (1 - (i + 1) / layers * 0.7)) + 4
+
+      const layerAStart = index
+      const layerBStart = index + segmentsA
+
+      for (let j = 0; j < segmentsA; j++) {
+        const mappedIndex = Math.floor(j * segmentsB / segmentsA)
+
+        const ptA = points[layerAStart + j]
+        const ptB = points[layerBStart + mappedIndex]
+
+        vertices.push(ptA.x, ptA.y, ptA.z)
+        vertices.push(ptB.x, ptB.y, ptB.z)
       }
+      index += segmentsA
     }
 
-    // 内外壁横向线
-    for (let side = 0; side < 2; side++) {
-      const offset = side * (segments + 1) * (segments + 1)
-      for (let y = 0; y <= segments; y++) {
-        for (let i = 0; i < segments; i++) {
-          const a = offset + y * (segments + 1) + i
-          const b = a + 1
-          indices.push(a, b)
-        }
-      }
-    }
+    // 使用LineGeometry
+    const lineGeometry = new LineGeometry()
+    lineGeometry.setPositions(vertices)
 
-    // 连接内外壁的垂直线
-    for (let y = 0; y <= segments; y++) {
-      for (let i = 0; i <= segments; i++) {
-        const outerIdx = y * (segments + 1) + i
-        const innerIdx = outerIdx + (segments + 1) * (segments + 1)
-        indices.push(outerIdx, innerIdx)
-      }
-    }
-
-    // === 3. 转换为 LineGeometry ===
-    const lineGeo = new LineGeometry()
-    const linePositions = []
-
-    // 将顶点索引转换为连续的线段数据
-    for (let i = 0; i < indices.length; i += 2) {
-      const startIdx = indices[i]
-      const endIdx = indices[i + 1]
-      linePositions.push(
-        vertices[startIdx * 3], // 起点X
-        vertices[startIdx * 3 + 1], // 起点Y
-        vertices[startIdx * 3 + 2], // 起点Z
-        vertices[endIdx * 3], // 终点X
-        vertices[endIdx * 3 + 1], // 终点Y
-        vertices[endIdx * 3 + 2], // 终点Z
-      )
-    }
-    lineGeo.setPositions(linePositions)
-
-    // === 4. 创建宽线材质 ===
+    // 粗线材质，单位是屏幕像素宽度
     const lineMaterial = new LineMaterial({
-      color, // 线条颜色
-      linewidth: lineWidth, // 线宽（单位由worldUnits决定）
+      color,
+      linewidth: 5, // 线宽，单位屏幕像素
+      transparent: true,
+      opacity: 1,
+      // resolution 必须设置为渲染器画布尺寸
       resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
       worldUnits: false, // false: 线宽单位为像素, true: 使用三维单位
       dashed: false, // 是否虚线
       alphaToCoverage: true, // 优化透明度渲染
     })
 
-    // === 5. 创建最终线条对象 ===
-    const line = new Line2(lineGeo, lineMaterial)
-    // line.computeLineDistances(); // 用于虚线计算（本例未启用）
-
+    const line = new Line2(lineGeometry, lineMaterial)
+    // line.computeLineDistances(); // 用于虚线计算
     return line
   }
 }

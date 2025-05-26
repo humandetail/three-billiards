@@ -76,31 +76,32 @@ export function createCanvas(width = 400, height = 300, canvas?: HTMLCanvasEleme
 export function getIntersectionPoints(mesh: THREE.Mesh, sphere: THREE.Mesh) {
   const direction = mesh.getWorldDirection(new THREE.Vector3()).normalize()
   // direction.applyQuaternion(mesh.getWorldQuaternion(new THREE.Quaternion()))
-  const ray = new THREE.Ray(mesh.getWorldPosition(new THREE.Vector3()), direction);
+  const ray = new THREE.Ray(mesh.getWorldPosition(new THREE.Vector3()), direction)
   // 3. 计算相交点
-  const intersectionPoint = new THREE.Vector3();
+  const intersectionPoint = new THREE.Vector3()
   const result = ray.intersectSphere(
     new THREE.Sphere(sphere.getWorldPosition(new THREE.Vector3()), (sphere.geometry as any).parameters.radius),
-    intersectionPoint
-  );
+    intersectionPoint,
+  )
 
   if (result) {
     return intersectionPoint
-  } else {
+  }
+  else {
     return null
   }
 }
 
 export function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
-  const canvas = renderer.domElement;
-  const width = canvas.clientWidth;
-  const height = canvas.clientHeight;
-  const needResize = canvas.width !== width || canvas.height !== height;
+  const canvas = renderer.domElement
+  const width = canvas.clientWidth
+  const height = canvas.clientHeight
+  const needResize = canvas.width !== width || canvas.height !== height
   if (needResize) {
-    renderer.setSize( width, height, false );
+    renderer.setSize(width, height, false)
   }
 
-  return needResize;
+  return needResize
 }
 
 export function setGeometryColor(geometry: THREE.BufferGeometry, color: THREE.Color) {
@@ -111,4 +112,37 @@ export function setGeometryColor(geometry: THREE.BufferGeometry, color: THREE.Co
     colors[i + 2] = color.b
   }
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+}
+/**
+ * 模拟 canvas 的 arcTo 方法
+ */
+export function arcToPoints(p1: Point, p2: Point, p3: Point, radius = 5, segments = 32) {
+  const points = []
+
+  const v1 = new THREE.Vector2(p1.x - p2.x, p1.y - p2.y).normalize()
+  const v2 = new THREE.Vector2(p3.x - p2.x, p3.y - p2.y).normalize()
+
+  const angle = Math.acos(v1.dot(v2))
+  const dir = v1.clone().add(v2).normalize()
+
+  // 圆心
+  const dist = radius / Math.sin(angle / 2)
+  const center = new THREE.Vector2(p2.x, p2.y).addScaledVector(dir, dist)
+
+  const startAngle = Math.atan2(p1.y - center.y, p1.x - center.x)
+  const endAngle = Math.atan2(p3.y - center.y, p3.x - center.x)
+
+  const clockwise = v1.x * v2.y - v1.y * v2.x < 0
+
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments
+    const angle = clockwise
+      ? startAngle - t * (startAngle - endAngle)
+      : startAngle + t * (endAngle - startAngle)
+    const x = center.x + radius * Math.cos(angle)
+    const y = center.y + radius * Math.sin(angle)
+    points.push(new THREE.Vector2(x, y))
+  }
+
+  return points
 }

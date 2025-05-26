@@ -1,382 +1,703 @@
-<!-- <html>
-  <body>
-    <div
-        class="test"
-        style="
-          position: absolute;
-          right: 50%;
-          top: 50%;
-          transform: translate(50%, -50%);
-        "
-      >
-        <div
-          :style="`
-            width: ${PARAMETERS.tableWidth}px;
-            height: ${PARAMETERS.tableHeight}px;
-            border: 1px solid black;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="外边"
-          :style="`
-            position: absolute;
-            top: ${-PARAMETERS.middlePocketRadius}px;
-            left: ${-PARAMETERS.middlePocketRadius}px;
-            width: ${PARAMETERS.tableWidth + PARAMETERS.middlePocketRadius * 2}px;
-            height: ${PARAMETERS.tableHeight + PARAMETERS.middlePocketRadius * 2}px;
-            border: 1px dashed red;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="左上"
-          :style="`
-            position: absolute;
-            top: ${-PARAMETERS.cornerPocketRadius + cs}px;
-            left: ${-PARAMETERS.cornerPocketRadius + cs}px;
-            width: ${PARAMETERS.cornerPocketRadius * 2}px;
-            height: ${PARAMETERS.cornerPocketRadius * 2}px;
-            border-radius: 50%;
-            border: 1px solid orange;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="右上"
-          :style="`
-            position: absolute;
-            top: ${-PARAMETERS.cornerPocketRadius + cs}px;
-            left: ${PARAMETERS.tableWidth - PARAMETERS.cornerPocketRadius - cs}px;
-            width: ${PARAMETERS.cornerPocketRadius * 2}px;
-            height: ${PARAMETERS.cornerPocketRadius * 2}px;
-            border-radius: 50%;
-            border: 1px solid orange;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="左下"
-          :style="`
-            position: absolute;
-            top: ${PARAMETERS.tableHeight - PARAMETERS.cornerPocketRadius - cs}px;
-            left: ${-PARAMETERS.cornerPocketRadius + cs}px;
-            width: ${PARAMETERS.cornerPocketRadius * 2}px;
-            height: ${PARAMETERS.cornerPocketRadius * 2}px;
-            border-radius: 50%;
-            border: 1px solid orange;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="右下"
-          :style="`
-            position: absolute;
-            top: ${PARAMETERS.tableHeight - PARAMETERS.cornerPocketRadius - cs}px;
-            left: ${PARAMETERS.tableWidth - PARAMETERS.cornerPocketRadius - cs}px;
-            width: ${PARAMETERS.cornerPocketRadius * 2}px;
-            height: ${PARAMETERS.cornerPocketRadius * 2}px;
-            border-radius: 50%;
-            border: 1px solid orange;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="中上"
-          :style="`
-            position: absolute;
-            top: -${PARAMETERS.cornerPocketRadius}px;
-            left: ${PARAMETERS.tableWidth / 2 - PARAMETERS.middlePocketRadius}px;
-            width: ${PARAMETERS.middlePocketRadius * 2}px;
-            height: ${PARAMETERS.middlePocketRadius * 2}px;
-            border-radius: 50%;
-            border: 1px solid orange;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="中下"
-          :style="`
-            position: absolute;
-            top: ${PARAMETERS.tableHeight - PARAMETERS.middlePocketRadius}px;
-            left: ${PARAMETERS.tableWidth / 2 - PARAMETERS.middlePocketRadius}px;
-            width: ${PARAMETERS.middlePocketRadius * 2}px;
-            height: ${PARAMETERS.middlePocketRadius * 2}px;
-            border-radius: 50%;
-            border: 1px solid orange;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="白球"
-          :style="`
-            position: absolute;
-            top: ${PARAMETERS.cornerPocketRadius - PARAMETERS.ballRadius}px;
-            left: ${PARAMETERS.cornerPocketRadius - PARAMETERS.ballRadius}px;
-            width: ${PARAMETERS.ballRadius * 2}px;
-            height: ${PARAMETERS.ballRadius * 2}px;
-            border-radius: 50%;
-            border: 1px solid red;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="左上库边"
-          :style="`
-            position: absolute;
-            top: ${0}px;
-            left: ${PARAMETERS.cornerPocketRadius + cs}px;
-            width: ${PARAMETERS.tableWidth / 2 - PARAMETERS.cornerPocketRadius - cs - PARAMETERS.middlePocketRadius}px;
-            height: ${PARAMETERS.cornerPocketWidth}px;
-            border: 1px solid green;
-            border-bottom-left-radius: ${PARAMETERS.cornerPocketWidth}px;
-            border-bottom-right-radius: ${PARAMETERS.cornerPocketWidth}px;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="右上库边"
-          :style="`
-            position: absolute;
-            top: ${0}px;
-            left: ${PARAMETERS.tableWidth / 2 + PARAMETERS.middlePocketRadius}px;
-            width: ${PARAMETERS.tableWidth / 2 - PARAMETERS.cornerPocketRadius - cs - PARAMETERS.middlePocketRadius}px;
-            height: ${PARAMETERS.cornerPocketWidth}px;
-            border: 1px solid green;
-            border-bottom-left-radius: ${PARAMETERS.cornerPocketWidth}px;
-            border-bottom-right-radius: ${PARAMETERS.cornerPocketWidth}px;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="右库边"
-          :style="`
-            position: absolute;
-            top: ${0 + PARAMETERS.cornerPocketRadius + cs}px;
-            right: ${0}px;
-            width: ${PARAMETERS.cornerPocketWidth}px;
-            height: ${PARAMETERS.tableHeight - (PARAMETERS.cornerPocketRadius + cs) * 2}px;
-            border: 1px solid green;
-            border-top-left-radius: ${PARAMETERS.cornerPocketWidth}px;
-            border-bottom-left-radius: ${PARAMETERS.cornerPocketWidth}px;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="右下库边"
-          :style="`
-            position: absolute;
-            bottom: ${0}px;
-            left: ${PARAMETERS.tableWidth / 2 + PARAMETERS.middlePocketRadius}px;
-            width: ${PARAMETERS.tableWidth / 2 - PARAMETERS.cornerPocketRadius - cs - PARAMETERS.middlePocketRadius}px;
-            height: ${PARAMETERS.cornerPocketWidth}px;
-            border: 1px solid green;
-            border-top-left-radius: ${PARAMETERS.cornerPocketWidth}px;
-            border-top-right-radius: ${PARAMETERS.cornerPocketWidth}px;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="左下库边"
-          :style="`
-            position: absolute;
-            bottom: ${0}px;
-            left: ${PARAMETERS.cornerPocketRadius + cs}px;
-            width: ${PARAMETERS.tableWidth / 2 - PARAMETERS.cornerPocketRadius - cs - PARAMETERS.middlePocketRadius}px;
-            height: ${PARAMETERS.cornerPocketWidth}px;
-            border: 1px solid green;
-            border-top-left-radius: ${PARAMETERS.cornerPocketWidth}px;
-            border-top-right-radius: ${PARAMETERS.cornerPocketWidth}px;
-            box-sizing: border-box;
-          `"
-        ></div>
-
-        <div
-          name="左库边"
-          :style="`
-            position: absolute;
-            top: ${PARAMETERS.cornerPocketRadius + cs}px;
-            left: ${0}px;
-            width: ${PARAMETERS.cornerPocketWidth}px;
-            height: ${PARAMETERS.tableHeight - (PARAMETERS.cornerPocketRadius + cs) * 2}px;
-            border: 1px solid green;
-            border-top-right-radius: ${PARAMETERS.cornerPocketWidth}px;
-            border-bottom-right-radius: ${PARAMETERS.cornerPocketWidth}px;
-            box-sizing: border-box;
-          `"
-        ></div>
-      </div>
-  </body>
-</html> -->
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <title>Cannon.js 漏斗Demo</title>
-    <style>body { margin: 0; }</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2D</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    canvas {
+      opacity: 0.1;
+      display: block;
+    }
+
+    .operations {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      padding: 16px;
+      background-color: #fff;
+      z-index: 100;
+    }
+  </style>
 </head>
+
 <body>
-  <!-- 基础 Three.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<!-- 扩展线条库 -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/Line2.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineMaterial.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineGeometry.js"></script>
-<script>
-// 初始化场景、相机、渲染器
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+  <div class="operations" style="position: absolute; top: 0; left: 0; padding: 16px;">
+    <button id="fillButton">Fill</button>
+    <button id="strokeButton">Stroke</button>
+    <input id="opacity" type="range" min="0.05" max="0.2" step="0.01" value="0.1" id="progress">
+  </div>
+  <canvas id="tableCanvas"></canvas>
+  <script>
+    function createCanvas(width = 400, height = 300, canvas) {
+      const c = canvas ?? document.createElement('canvas')
 
-// 灯光设置
-const ambientLight = new THREE.AmbientLight(0x404040);
-scene.add(ambientLight);
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-directionalLight.position.set(10, 20, 10);
-scene.add(directionalLight);
+      c.style.width = `${width}px`
+      c.style.height = `${height}px`
 
-// 创建抗锯齿宽线漏斗
-function createLineFunnel(topR, bottomR, height, segments, thickness, lineWidth) {
-  const vertices = [];
-  const indices = [];
+      const dpr = window.devicePixelRatio ?? 1
 
-  // === 1. 生成顶点数据（保持原方案结构） ===
-  for (let side = 0; side < 2; side++) { // 0=外壁, 1=内壁
-    const radiusOffset = side === 0 ? thickness : 0;
-    for (let y = 0; y <= segments; y++) {
-      const progress = y / segments;
-      const radius = topR + (bottomR - topR) * progress - radiusOffset;
-      const angleStep = (Math.PI * 2) / segments;
-      for (let i = 0; i <= segments; i++) {
-        const angle = i * angleStep;
-        vertices.push(
-          radius * Math.cos(angle),
-          -height/2 + progress * height,
-          radius * Math.sin(angle)
-        );
+      c.width = Math.floor(dpr * width)
+      c.height = Math.floor(dpr * height)
+
+      c.getContext('2d').scale(dpr, dpr)
+
+      return c
+    }
+    const canvas = createCanvas(800, 400, document.getElementById('tableCanvas'));
+    const ctx = canvas.getContext('2d');
+
+    const fillButton = document.getElementById('fillButton')
+    const strokeButton = document.getElementById('strokeButton')
+    const opacity = document.getElementById('opacity')
+
+    const control = {
+      fill: false,
+      stroke: true,
+    }
+    fillButton.addEventListener('click', () => {
+      control.fill = !control.fill
+      control.stroke = !control.stroke
+      draw()
+    })
+    strokeButton.addEventListener('click', () => {
+      control.stroke = !control.stroke
+      control.fill = !control.fill
+      draw()
+    })
+    opacity.addEventListener('input', (e) => {
+      canvas.style.opacity = e.target.value
+    })
+
+    const config = {
+      /** 台球桌相关参数 */
+      table: {
+        /** x轴 */
+        width: 2.54,
+        /** y轴 */
+        height: 0.05,
+        /** z轴 */
+        depth: 1.27,
+      },
+      cushion: {
+        /*** 木质框架宽度（从台面到外侧） ***/
+        woodWidth: 0.08,
+        rubberWidth: 0.05, // 橡胶宽度
+        rubberProtrusion: 0.045, // 橡胶凸起
+        /*** 台面到库边顶部高度 ***/
+        height: 0.063,
+        slope: {
+          corner: 45,
+          middle: 60,
+        },
+        offset: 0.01,
+        cornerEdgeInset: 0.025,
+        middleEdgeInset: 0.01
+      },
+      pocket: {
+        cornerWidth: 0.085,
+        middleWidth: 0.088,
+        depth: 0.15,
+        cornerDegrees: 145,
+        middleDegrees: 165,
+      },
+
+      /** 台球参数 */
+      ball: {
+        /** 球的半径（单位：米），标准为直径 57.15mm / 2 */
+        radius: 0.028575,
+        /** 球的质量（单位：kg），标准为约 170g */
+        mass: 0.17,
+      },
+
+      /** 材质摩擦力与弹性配置 */
+      material: {
+        /** 球的材质属性（主要用于球与其他表面之间的交互） */
+        ball: {
+          /** 
+           * 滑动摩擦系数
+           * 球体与布面或库边的滑动摩擦力，建议较低以保持滚动 
+           * - 低值（0.02）使球体滚动更持久
+           * - 高值会快速消耗动能 
+           */
+          friction: 0.02,
+          /**
+           * 弹性恢复系数（COR）
+           * 球体与库边/其他物体的反弹系数，越高表示越弹
+           * - 0.85 表示碰撞后保留 85% 速度（高弹性）
+           * - 影响碰撞后的反弹力度 
+           */
+          restitution: 0.85,
+        },
+        /** 库边材质（库边与球的碰撞行为） */
+        cushion: {
+          /** 球撞击库边时的摩擦力 */
+          friction: 0.2,
+          /** 球撞击库边时的反弹力度 */
+          restitution: 0.85,
+        },
+        /** 台面布料（球在台面上滚动时的交互） */
+        cloth: {
+          /** 球与布面之间的摩擦，通常设置低值以保持运动距离 */
+          friction: 0.02,
+          /** 球在布面上弹跳的弹性（几乎为 0） */
+          restitution: 0.1,
+        },
+      },
+    }
+
+    function getScaleValue(v) {
+      return v * scale
+    }
+
+    function toRadians(degrees) {
+      return degrees * Math.PI / 180
+    }
+
+    /**
+     * 获取袋口参数
+     * @params L - 角袋开口宽度，弦长
+     * @params degrees - 袋口角度
+     * @params isMiddle - 是否为中袋
+     */
+    function getPocketParams(L, degrees, isMiddle = false) {
+      const side = isMiddle ? L / 2 : L / Math.sqrt(2)
+      const angle = toRadians((isMiddle ? (180 - degrees) : (degrees - 90)) / 2)
+
+      const r = side / Math.cos(angle)
+
+      const offset = side * Math.tan(angle)
+
+      return {
+        r,
+        /** 袋口在台面的端点距离圆心的距离 */
+        side,
+        offset,
+        isMiddle,
       }
     }
-  }
 
-  // === 2. 生成线段索引 ===
-  // 内外壁纵向线
-  for (let side = 0; side < 2; side++) {
-    const offset = side * (segments + 1) * (segments + 1);
-    for (let y = 0; y < segments; y++) {
-      for (let i = 0; i <= segments; i++) {
-        const a = offset + y * (segments + 1) + i;
-        const b = a + (segments + 1);
-        indices.push(a, b);
+    // 比例系数，按像素与米的比
+    const scale = 200; // 1米 = 200像素
+    const tableWidth = getScaleValue(config.table.width);
+    const tableHeight = getScaleValue(config.table.depth);
+
+    // 橡胶层总宽度
+    const rubberTotalWidth = getScaleValue(config.cushion.rubberWidth)
+    // 橡胶凸起宽度
+    const rubberProtrusionWidth = getScaleValue(config.cushion.rubberProtrusion)
+    // 橡胶连接层宽度
+    const rubberLinkWidth = rubberTotalWidth - rubberProtrusionWidth
+    // 角袋斜坡
+    const c45 = rubberProtrusionWidth * Math.tan(toRadians(90 - config.cushion.slope.corner))
+    // 中袋斜坡
+    const m60 = rubberProtrusionWidth * Math.tan(toRadians(90 - config.cushion.slope.middle))
+
+    // 角袋斜坡偏移量
+    const cornerEdgeInset = getScaleValue(config.cushion.cornerEdgeInset)
+    // 中袋斜坡偏移量
+    const middleEdgeInset = getScaleValue(config.cushion.middleEdgeInset)
+    // 中袋橡胶偏移量
+    const middleRubberOffset = rubberTotalWidth / Math.tan(toRadians(config.cushion.slope.middle))
+
+    const cornerParams = getPocketParams(getScaleValue(config.pocket.cornerWidth), config.pocket.cornerDegrees, false)
+    const middleParams = getPocketParams(getScaleValue(config.pocket.middleWidth), config.pocket.middleDegrees, true)
+
+    const woodWidth = getScaleValue(config.cushion.woodWidth)
+    const halfWoodWidth = woodWidth / 2
+
+    const cornerPositions = [
+      { x: -tableWidth / 2, y: -tableHeight / 2 }, // 上
+      { x: tableWidth / 2, y: -tableHeight / 2 }, // 右
+      { x: tableWidth / 2, y: tableHeight / 2 }, // 下
+      { x: -tableWidth / 2, y: tableHeight / 2 }, // 左
+    ]
+    const middlePositions = [
+      { x: 0, y: -tableHeight / 2 },
+      { x: 0, y: tableHeight / 2 },
+    ]
+
+    const cornerProtrusion = halfWoodWidth / Math.tan(toRadians(config.cushion.slope.corner)) - cornerEdgeInset // 45度斜坡
+    const middleProtrusion = halfWoodWidth / Math.tan(toRadians(config.cushion.slope.middle)) - middleEdgeInset // 60度斜坡
+
+    const horizontalRubberWidth = tableWidth / 2 - cornerParams.r - middleParams.side
+    const verticalHeight = tableHeight - cornerParams.r * 2
+
+    // 木质层
+    // ┌-----┐
+    // \-----/
+    // F     E
+    // A     D
+    //  B   C
+    const woodEndPoints = [
+      // 左上
+      [
+        { x: -tableWidth / 2 + cornerParams.r - cornerProtrusion, y: -tableHeight / 2 - cornerProtrusion - cornerProtrusion }, // A
+        { x: -tableWidth / 2 + cornerParams.r + cornerProtrusion, y: -tableHeight / 2 }, // B
+        { x: -middleParams.side - middleProtrusion, y: -tableHeight / 2 }, // C
+        { x: -middleParams.side + middleProtrusion, y: -tableHeight / 2 - halfWoodWidth }, // D
+        { x: -middleParams.side + middleProtrusion, y: -tableHeight / 2 - woodWidth }, // E
+        { x: -tableWidth / 2 + cornerParams.r - cornerProtrusion, y: -tableHeight / 2 - woodWidth }, // F
+      ],
+      // 右上
+      [
+        { x: tableWidth / 2 - cornerParams.r + cornerProtrusion, y: -tableHeight / 2 - cornerProtrusion - cornerProtrusion }, // A
+        { x: tableWidth / 2 - cornerParams.r - cornerProtrusion, y: -tableHeight / 2 }, // B
+        { x: middleParams.side + middleProtrusion, y: -tableHeight / 2 }, // C
+        { x: middleParams.side - middleProtrusion, y: -tableHeight / 2 - halfWoodWidth }, // D
+        { x: middleParams.side - middleProtrusion, y: -tableHeight / 2 - woodWidth }, // E
+        { x: tableWidth / 2 - cornerParams.r + cornerProtrusion, y: -tableHeight / 2 - woodWidth }, // F
+      ],
+      // 左下
+      [
+        { x: -tableWidth / 2 + cornerParams.r - cornerProtrusion, y: tableHeight / 2 + cornerProtrusion + cornerProtrusion }, // A
+        { x: -tableWidth / 2 + cornerParams.r + cornerProtrusion, y: tableHeight / 2 }, // B
+        { x: -middleParams.side - middleProtrusion, y: tableHeight / 2 }, // C
+        { x: -middleParams.side + middleProtrusion, y: tableHeight / 2 + halfWoodWidth }, // D
+        { x: -middleParams.side + middleProtrusion, y: tableHeight / 2 + woodWidth }, // E
+        { x: -tableWidth / 2 + cornerParams.r - cornerProtrusion, y: tableHeight / 2 + woodWidth }, // F
+      ],
+      // 右下
+      [
+        { x: tableWidth / 2 - cornerParams.r + cornerProtrusion, y: tableHeight / 2 + cornerProtrusion + cornerProtrusion }, // A
+        { x: tableWidth / 2 - cornerParams.r - cornerProtrusion, y: tableHeight / 2 }, // B
+        { x: middleParams.side + middleProtrusion, y: tableHeight / 2 }, // C
+        { x: middleParams.side - middleProtrusion, y: tableHeight / 2 + halfWoodWidth }, // D
+        { x: middleParams.side - middleProtrusion, y: tableHeight / 2 + woodWidth }, // E
+        { x: tableWidth / 2 - cornerParams.r + cornerProtrusion, y: tableHeight / 2 + woodWidth }, // F
+      ],
+      // 左
+      [
+        { x: -tableWidth / 2 - cornerProtrusion - cornerProtrusion, y: -tableHeight / 2 + cornerParams.r - cornerProtrusion }, // A
+        { x: -tableWidth / 2, y: -tableHeight / 2 + cornerParams.r + cornerProtrusion }, // B
+        { x: -tableWidth / 2, y: tableHeight / 2 - cornerParams.r - cornerProtrusion }, // C
+        { x: -tableWidth / 2 - cornerProtrusion - cornerProtrusion, y: tableHeight / 2 - cornerParams.r + cornerProtrusion }, // D
+        { x: -tableWidth / 2 - woodWidth, y: tableHeight / 2 - cornerParams.r + cornerProtrusion }, // E
+        { x: -tableWidth / 2 - woodWidth, y: -tableHeight / 2 + cornerParams.r - cornerProtrusion }, // F
+      ],
+      // 右
+      [
+        { x: tableWidth / 2 + cornerProtrusion + cornerProtrusion, y: -tableHeight / 2 + cornerParams.r - cornerProtrusion }, // A
+        { x: tableWidth / 2, y: -tableHeight / 2 + cornerParams.r + cornerProtrusion }, // B
+        { x: tableWidth / 2, y: tableHeight / 2 - cornerParams.r - cornerProtrusion }, // C
+        { x: tableWidth / 2 + cornerProtrusion + cornerProtrusion, y: tableHeight / 2 - cornerParams.r + cornerProtrusion }, // D
+        { x: tableWidth / 2 + woodWidth, y: tableHeight / 2 - cornerParams.r + cornerProtrusion }, // E
+        { x: tableWidth / 2 + woodWidth, y: -tableHeight / 2 + cornerParams.r - cornerProtrusion }, // F
+      ],
+    ]
+
+    // 橡胶层
+    const rubberEndPoints = [
+      // 左上
+      [
+        { x: woodEndPoints[0][0].x, y: woodEndPoints[0][0].y + cornerProtrusion },
+        { x: -tableWidth / 2 + cornerParams.r + rubberTotalWidth, y: -tableHeight / 2 + rubberTotalWidth },
+        { x: woodEndPoints[0][2].x - middleRubberOffset, y: woodEndPoints[0][2].y + rubberTotalWidth },
+        { x: -middleParams.r, y: -tableHeight / 2 },
+        { x: woodEndPoints[0][3].x, y: woodEndPoints[0][3].y },
+        { x: woodEndPoints[0][2].x, y: woodEndPoints[0][2].y },
+        { x: woodEndPoints[0][1].x, y: woodEndPoints[0][1].y },
+        { x: woodEndPoints[0][0].x, y: woodEndPoints[0][0].y },
+      ],
+      // 右上
+      [
+        { x: woodEndPoints[1][0].x, y: woodEndPoints[1][0].y + cornerProtrusion },
+        { x: tableWidth / 2 - cornerParams.r - rubberTotalWidth, y: -tableHeight / 2 + rubberTotalWidth },
+        { x: woodEndPoints[1][2].x + middleRubberOffset, y: woodEndPoints[1][2].y + rubberTotalWidth },
+        { x: middleParams.r, y: -tableHeight / 2 },
+        { x: woodEndPoints[1][3].x, y: woodEndPoints[1][3].y },
+        { x: woodEndPoints[1][2].x, y: woodEndPoints[1][2].y },
+        { x: woodEndPoints[1][1].x, y: woodEndPoints[1][1].y },
+        { x: woodEndPoints[1][0].x, y: woodEndPoints[1][0].y },
+      ],
+      // 左下
+      [
+        { x: woodEndPoints[2][0].x, y: woodEndPoints[2][0].y - cornerProtrusion },
+        { x: -tableWidth / 2 + cornerParams.r + rubberTotalWidth, y: tableHeight / 2 - rubberTotalWidth },
+        { x: woodEndPoints[2][2].x - middleRubberOffset, y: woodEndPoints[2][2].y - rubberTotalWidth },
+        { x: -middleParams.r, y: tableHeight / 2 },
+        { x: woodEndPoints[2][3].x, y: woodEndPoints[2][3].y },
+        { x: woodEndPoints[2][2].x, y: woodEndPoints[2][2].y },
+        { x: woodEndPoints[2][1].x, y: woodEndPoints[2][1].y },
+        { x: woodEndPoints[2][0].x, y: woodEndPoints[2][0].y },
+      ],
+      // 右下
+      [
+        { x: woodEndPoints[3][0].x, y: woodEndPoints[3][0].y - cornerProtrusion },
+        { x: tableWidth / 2 - cornerParams.r - rubberTotalWidth, y: tableHeight / 2 - rubberTotalWidth },
+        { x: woodEndPoints[3][2].x + middleRubberOffset, y: woodEndPoints[3][2].y - rubberTotalWidth },
+        { x: middleParams.r, y: tableHeight / 2 },
+        { x: woodEndPoints[3][3].x, y: woodEndPoints[3][3].y },
+        { x: woodEndPoints[3][2].x, y: woodEndPoints[3][2].y },
+        { x: woodEndPoints[3][1].x, y: woodEndPoints[3][1].y },
+        { x: woodEndPoints[3][0].x, y: woodEndPoints[3][0].y },
+      ],
+      // 左
+      [
+        { x: woodEndPoints[4][0].x + cornerProtrusion, y: woodEndPoints[4][0].y },
+        { x: -tableWidth / 2 + rubberTotalWidth, y: -tableHeight / 2 + cornerParams.r + rubberTotalWidth },
+        { x: woodEndPoints[4][2].x + rubberTotalWidth, y: woodEndPoints[4][2].y - rubberTotalWidth },
+        { x: woodEndPoints[4][3].x + cornerProtrusion, y: woodEndPoints[4][3].y },
+        { x: woodEndPoints[4][3].x, y: woodEndPoints[4][3].y },
+        { x: woodEndPoints[4][2].x, y: woodEndPoints[4][2].y },
+        { x: woodEndPoints[4][1].x, y: woodEndPoints[4][1].y },
+        { x: woodEndPoints[4][0].x, y: woodEndPoints[4][0].y },
+      ],
+      // 右
+      [
+        { x: woodEndPoints[5][0].x - cornerProtrusion, y: woodEndPoints[5][0].y },
+        { x: tableWidth / 2 - rubberTotalWidth, y: -tableHeight / 2 + cornerParams.r + rubberTotalWidth },
+        { x: woodEndPoints[5][2].x - rubberTotalWidth, y: woodEndPoints[5][2].y - rubberTotalWidth },
+        { x: woodEndPoints[5][3].x - cornerProtrusion, y: woodEndPoints[5][3].y },
+        { x: woodEndPoints[5][3].x, y: woodEndPoints[5][3].y },
+        { x: woodEndPoints[5][2].x, y: woodEndPoints[5][2].y },
+        { x: woodEndPoints[5][1].x, y: woodEndPoints[5][1].y },
+        { x: woodEndPoints[5][0].x, y: woodEndPoints[5][0].y },
+      ],
+    ]
+
+    // const tableWithWoodPoints = [
+    //   // 左上
+    //   { x: -tableWidth / 2 - woodWidth, y: -tableHeight / 2 - woodWidth },
+    //   // 中上
+    //   { x: 0, y: -tableHeight / 2 - woodWidth },
+    //   // 右上
+    //   { x: tableWidth / 2 + woodWidth, y: -tableHeight / 2 - woodWidth },
+    //   // 左下
+    //   { x: -tableWidth / 2 - woodWidth, y: tableHeight / 2 + woodWidth },
+    //   // 中下
+    //   { x: 0, y: tableHeight / 2 + woodWidth },
+    //   // 右下
+    //   { x: tableWidth / 2 + woodWidth, y: tableHeight / 2 + woodWidth },
+    // ]
+    const sealPoints = [
+      // 左上
+      [
+        { x: woodEndPoints[0][0].x, y: woodEndPoints[0][0].y },
+        { x: woodEndPoints[4][0].x, y: woodEndPoints[4][0].y },
+
+        { x: woodEndPoints[4][5].x, y: woodEndPoints[4][5].y },
+        { x: woodEndPoints[0][5].x, y: woodEndPoints[0][5].y },
+      ],
+      // 中上
+      [
+        { x: woodEndPoints[0][3].x, y: woodEndPoints[0][3].y },
+        { x: woodEndPoints[1][3].x, y: woodEndPoints[1][3].y },
+
+        { x: woodEndPoints[1][4].x, y: woodEndPoints[1][4].y },
+        { x: woodEndPoints[0][4].x, y: woodEndPoints[0][4].y },
+      ],
+      // 右上
+      [
+        { x: woodEndPoints[1][0].x, y: woodEndPoints[1][0].y },
+        { x: woodEndPoints[5][0].x, y: woodEndPoints[5][0].y },
+
+        { x: woodEndPoints[5][5].x, y: woodEndPoints[5][5].y },
+        { x: woodEndPoints[1][5].x, y: woodEndPoints[1][5].y },
+      ],
+      // 左下
+      [
+        { x: woodEndPoints[2][0].x, y: woodEndPoints[2][0].y },
+        { x: woodEndPoints[4][3].x, y: woodEndPoints[4][3].y },
+
+        { x: woodEndPoints[4][4].x, y: woodEndPoints[4][4].y },
+        { x: woodEndPoints[2][5].x, y: woodEndPoints[2][5].y },
+      ],
+      // 中下
+      [
+        { x: woodEndPoints[2][3].x, y: woodEndPoints[2][3].y },
+        { x: woodEndPoints[3][3].x, y: woodEndPoints[3][3].y },
+
+        { x: woodEndPoints[3][4].x, y: woodEndPoints[3][4].y },
+        { x: woodEndPoints[2][4].x, y: woodEndPoints[2][4].y },
+      ],
+      // 右下
+      [
+        { x: woodEndPoints[3][0].x, y: woodEndPoints[3][0].y },
+        { x: woodEndPoints[5][3].x, y: woodEndPoints[5][3].y },
+
+        { x: woodEndPoints[5][4].x, y: woodEndPoints[5][4].y },
+        { x: woodEndPoints[3][5].x, y: woodEndPoints[3][5].y },
+      ],
+    ]
+
+    // 绘制台面
+    function drawTable() {
+      // 台面
+      ctx.beginPath()
+      ctx.strokeStyle = '#006400'; // 绿色
+      ctx.strokeRect(-tableWidth / 2, -tableHeight / 2, tableWidth, tableHeight);
+    }
+
+    function drawPockets() {
+      cornerPositions.forEach(({ x, y }, index) => {
+        // let startAngle = index * 90 - (config.pocket.cornerDegrees - 90) / 2
+        // let endAngle = startAngle + config.pocket.cornerDegrees
+        const startAngle = index * 90
+        const endAngle = startAngle + 90
+        drawPocket(x, y, cornerParams.r, startAngle, endAngle)
+      })
+      middlePositions.forEach(({ x, y }, i) => {
+        // let startAngle = i * 180 + (config.pocket.middleDegrees - 90) / 4
+        // let endAngle = startAngle + 180 - (config.pocket.middleDegrees - 90) / 2
+        const startAngle = i * 180
+        const endAngle = startAngle + 180
+        drawPocket(x, y - (i === 0 ? middleParams.offset : -middleParams.offset), middleParams.r, startAngle, endAngle)
+      })
+    }
+    function drawPocket(x, y, r, startAngle, endAngle) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.strokeStyle = 'blue'
+      ctx.arc(x, y, r, toRadians(startAngle), toRadians(endAngle))
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    function drawCushion() {
+      const r = rubberTotalWidth
+      rubberEndPoints.forEach((points, index) => {
+        const [A, B, C, D, ...rest] = points
+
+        let tangent1
+        let tangent2
+        let tangent3
+        let tangent4
+
+        if ([0, 3, 5].includes(index)) {
+          ;[tangent1, tangent2] = getTangent(A, B, C, r)
+            ;[tangent3, tangent4] = getTangent(B, C, D, r)
+        } else {
+          ;[tangent2, tangent1] = getTangent(C, B, A, r)
+            ;[tangent4, tangent3] = getTangent(D, C, B, r)
+        }
+
+        console.log({
+          A,
+          B,
+          C,
+          D,
+          tangent1,
+          tangent2,
+          tangent3,
+          tangent4,
+          E: rest[0],
+          F: rest[1],
+          G: rest[2],
+          H: rest[3],
+        })
+
+        ctx.beginPath()
+        ctx.save()
+        ctx.beginPath()
+        ctx.moveTo(A.x, A.y)
+        ctx.lineTo(tangent1.x, tangent1.y)
+        ctx.arcTo(B.x, B.y, tangent2.x, tangent2.y, r)
+        ctx.arcTo(tangent2.x, tangent2.y, C.x, C.y, r)
+        ctx.lineTo(tangent3.x, tangent3.y)
+        ctx.arcTo(C.x, C.y, tangent4.x, tangent4.y, r)
+        ctx.lineTo(D.x, D.y)
+        rest.forEach(({ x, y }) => {
+          ctx.lineTo(x, y)
+        })
+        ctx.closePath()
+        if (control.stroke) {
+          ctx.strokeStyle = '#0f0'
+          ctx.stroke()
+        }
+        if (control.fill) {
+          ctx.fillStyle = '#0f0'
+          ctx.fill()
+        }
+        ctx.restore()
+      })
+    }
+
+    function drawWoodLayer() {
+      woodEndPoints.forEach((points) => {
+        ctx.save()
+        ctx.beginPath()
+        ctx.moveTo(points[0].x, points[0].y)
+        points.slice(1).forEach(({ x, y }) => {
+          ctx.lineTo(x, y)
+        })
+        ctx.closePath()
+        if (control.stroke) {
+          ctx.strokeStyle = 'brown'
+          ctx.stroke()
+        }
+        if (control.fill) {
+          ctx.fillStyle = 'brown'
+          ctx.fill()
+        }
+        ctx.restore()
+      })
+    }
+
+    function drawPocketSeals() {
+      sealPoints.forEach((points, index) => {
+        const [A, B, C, D] = points
+
+        if (index % 3 === 1) {
+          // 处理两个中袋
+          // 取矩形ABCD的中点
+          const M = {
+            x: (A.x + C.x) / 2,
+            y: (A.y + C.y) / 2,
+          }
+          const AB = Math.hypot(B.x - A.x, B.y - A.y)
+          ctx.beginPath()
+          ctx.moveTo(A.x, A.y)
+          ctx.arcTo(M.x, M.y, B.x, B.y, AB / 2)
+          ctx.lineTo(B.x, B.y)
+          ctx.lineTo(C.x, C.y)
+          ctx.lineTo(D.x, D.y)
+          ctx.closePath()
+          if (control.stroke) {
+            ctx.strokeStyle = '#b2b3b5'
+            ctx.stroke()
+          }
+          if (control.fill) {
+            ctx.fillStyle = '#b2b3b5'
+            ctx.fill()
+          }
+          return
+        }
+
+        // AB的顶点
+        const P1 = {
+          x: B.x,
+          y: A.y,
+        }
+        // 取AB长度
+        const AB = Math.hypot(B.x - A.x, B.y - A.y)
+        const P2 = {
+          x: C.x,
+          y: D.y,
+        }
+        const CD = Math.hypot(C.x - D.x, C.y - D.y)
+        ctx.save()
+        ctx.beginPath()
+        ctx.moveTo(A.x, A.y)
+        ctx.arcTo(P1.x, P1.y, B.x, B.y, AB / 2)
+        ctx.lineTo(B.x, B.y)
+        ctx.lineTo(C.x, C.y)
+        ctx.arcTo(P2.x, P2.y, D.x, D.y, CD / 2)
+        ctx.lineTo(D.x, D.y)
+        ctx.closePath()
+        if (control.stroke) {
+          ctx.strokeStyle = '#b2b3b5'
+          ctx.stroke()
+        }
+        if (control.fill) {
+          ctx.fillStyle = '#b2b3b5'
+          ctx.fill()
+        }
+        ctx.restore()
+      })
+    }
+
+    function drawBall(x, y) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.arc(x, y, getScaleValue(config.ball.radius), 0, Math.PI * 2)
+      if (control.stroke) {
+        ctx.strokeStyle = '#f00'
+        ctx.stroke()
       }
-    }
-  }
-
-  // 内外壁横向线
-  for (let side = 0; side < 2; side++) {
-    const offset = side * (segments + 1) * (segments + 1);
-    for (let y = 0; y <= segments; y++) {
-      for (let i = 0; i < segments; i++) {
-        const a = offset + y * (segments + 1) + i;
-        const b = a + 1;
-        indices.push(a, b);
+      if (control.fill) {
+        ctx.fillStyle = '#f00'
+        ctx.fill()
       }
+      ctx.restore()
     }
-  }
 
-  // 连接内外壁的垂直线
-  for (let y = 0; y <= segments; y++) {
-    for (let i = 0; i <= segments; i++) {
-      const outerIdx = y * (segments + 1) + i;
-      const innerIdx = outerIdx + (segments + 1) * (segments + 1);
-      indices.push(outerIdx, innerIdx);
+    // 绘制台球桌
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save()
+      ctx.translate(canvas.width / 4, canvas.height / 4)
+
+      drawTable();
+      drawPockets();
+      drawCushion();
+      drawWoodLayer()
+      drawPocketSeals()
+
+      drawBall(-tableWidth / 2 + 32, -tableHeight / 2 + 32)
+      drawBall(-0, -tableHeight / 2 + 32)
+      drawBall(-0, -tableHeight / 2)
+
+      ctx.restore()
     }
-  }
 
-  // === 3. 转换为 LineGeometry ===
-  const lineGeo = new THREE.LineGeometry();
-  const linePositions = [];
-  
-  // 将顶点索引转换为连续的线段数据
-  for (let i = 0; i < indices.length; i += 2) {
-    const startIdx = indices[i];
-    const endIdx = indices[i + 1];
-    linePositions.push(
-      vertices[startIdx * 3],     // 起点X
-      vertices[startIdx * 3 + 1], // 起点Y
-      vertices[startIdx * 3 + 2], // 起点Z
-      vertices[endIdx * 3],       // 终点X
-      vertices[endIdx * 3 + 1],   // 终点Y
-      vertices[endIdx * 3 + 2]    // 终点Z
-    );
-  }
-  lineGeo.setPositions(linePositions);
+    draw(); // 绘制图形
 
-  // === 4. 创建宽线材质 ===
-  const lineMaterial = new THREE.LineMaterial({
-    color: 0x00ff88,           // 线条颜色
-    linewidth: lineWidth,      // 线宽（单位由worldUnits决定）
-    resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
-    worldUnits: false,         // false: 线宽单位为像素, true: 使用三维单位
-    dashed: false,             // 是否虚线
-    alphaToCoverage: true      // 优化透明度渲染
-  });
-
-  // === 5. 创建最终线条对象 ===
-  const line = new THREE.Line2(lineGeo, lineMaterial);
-  line.computeLineDistances(); // 用于虚线计算（本例未启用）
-
-  return line;
-}
-
-// 创建漏斗实例（线宽设为5像素）
-const funnel = createLineFunnel(
-  5,   // 顶部半径
-  1,   // 底部半径
-  10,  // 高度
-  8,   // 分段数（控制网格密度）
-  0.3, // 壁厚
-  5    // 线宽（像素）
-);
-scene.add(funnel);
-
-// 相机位置
-camera.position.z = 25;
-
-// 窗口大小变化响应
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  // 更新所有LineMaterial的分辨率
-  scene.traverse(obj => {
-    if (obj.isLine2 && obj.material.isLineMaterial) {
-      obj.material.resolution.set(window.innerWidth, window.innerHeight);
+    // 向量 BA 和 BC
+    function vector(p1, p2) {
+      return { x: p2.x - p1.x, y: p2.y - p1.y };
     }
-  });
-});
 
-// 动画循环
-function animate() {
-  requestAnimationFrame(animate);
-  funnel.rotation.y += 0.01; // 旋转演示
-  renderer.render(scene, camera);
-}
-animate();
-</script>
+    function normalize(v) {
+      const len = Math.hypot(v.x, v.y);
+      return { x: v.x / len, y: v.y / len };
+    }
+
+    function doScale(v, s) {
+      return { x: v.x * s, y: v.y * s };
+    }
+
+    function add(p, v) {
+      return { x: p.x + v.x, y: p.y + v.y };
+    }
+
+    function getTangent(A, B, C, r) {
+      // 单位向量
+      const u1 = normalize(vector(B, A));
+      const u2 = normalize(vector(B, C));
+
+      // 角平分线方向单位向量
+      const bisector = normalize({ x: u1.x + u2.x, y: u1.y + u2.y });
+
+      // 圆心位置 = B 点 + 角平分线方向 × 半径 / sin(θ / 2)
+      const angleBA = Math.atan2(u1.y, u1.x);
+      const angleBC = Math.atan2(u2.y, u2.x);
+      let angleDiff = angleBC - angleBA;
+      if (angleDiff <= -Math.PI) angleDiff += 2 * Math.PI;
+      if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+      const halfAngle = angleDiff / 2;
+      const sinHalfAngle = Math.sin(Math.abs(halfAngle));
+
+      // 圆心
+      const distanceToCenter = r / sinHalfAngle;
+      const center = add(B, doScale(bisector, distanceToCenter));
+
+      // 切点（圆心到两边的垂线方向，距离为 r）
+      const normal1 = { x: -u1.y, y: u1.x }; // 向量 AB 的左法线
+      const normal2 = { x: u2.y, y: -u2.x }; // 向量 BC 的左法线
+
+      const tangent1 = add(center, doScale(normal1, -r)); // 对 AB 切点
+      const tangent2 = add(center, doScale(normal2, -r)); // 对 BC 切点
+
+      return [tangent1, tangent2]
+    }
+  </script>
 </body>
+
 </html>
