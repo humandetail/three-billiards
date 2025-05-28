@@ -1,86 +1,3 @@
-// export const PARAMETERS = {
-//   /** 台面内尺寸 */
-//   tableWidth: 254,
-//   /** 台面高度 */
-//   tableHeight: 127,
-
-//   /** 台面厚度 30mm */
-//   tableThickness: 3,
-
-//   /** 木质支撑层尺寸 */
-//   woodWidth: 4,
-//   /** 外包台呢尺寸 */
-//   sideWidth: 1.5,
-//   /** 橡胶条尺寸 */
-//   rubberWidth: 7,
-//   /** 中袋半径 */
-//   middlePocketRadius: 4.5,
-//   /** 角袋半径 */
-//   // cornerPocketRadius: Number.parseFloat(getConnerPocketRadius(8.5, 7).toFixed(1)),
-//   cornerPocketRadius: 6.5,
-//   /** 球半径 */
-//   ballRadius: 2.86,
-//   /** 台面外框宽度 */
-//   get withWoodWidth() {
-//     return this.tableWidth + this.woodWidth * 2
-//   },
-//   get withWoodHeight() {
-//     return this.tableHeight + this.woodWidth * 2
-//   },
-//   get outerWidth() {
-//     return this.tableWidth + this.woodWidth * 2 + this.sideWidth * 2
-//   },
-//   get outerHeight() {
-//     return this.tableHeight + this.woodWidth * 2 + this.sideWidth * 2
-//   },
-
-//   /** 库边总厚度 */
-//   bankTotalThickness: 3.8,
-//   /** 库边与球接触面高度 */
-//   bankContactHeight: 1.5,
-
-//   /** 离地高度 */
-//   offGroundHeight: 75,
-//   bodyDepth: 15,
-//   // 桌脚
-//   legWidth: 10,
-//   legHeight: 75,
-//   legDepth: 10,
-
-//   cue: {
-//     // 皮头（Tip）
-//     tipRadius: 0.5,
-//     tipHeadLength: 0.15,
-//     tipBodyLength: 1.05,
-//     // 先角（Ferrule）：连接前节与皮头的白色环状部件。
-//     ferruleLength: 2,
-
-//     // 前节（Shaft）105CM包含先角（2 cm）和皮头（1.2 cm）
-//     shaftLength: 105 - 2 - 1.2,
-//     // 接牙（Joint）
-//     jointLength: 2,
-//     get jointRadius() {
-//       const {
-//         tipRadius: a,
-//         shaftLength: b,
-//         buttLength: e,
-//         endRadius: d,
-//       } = this
-//       const x = e * (d - a) / (b + e)
-//       return d - x
-//     },
-//     // 后节（Butt）45CM含橡胶防滑垫（1–2 cm）
-//     buttLength: 45,
-//     // 球杆末端半径
-//     endRadius: 1.4,
-
-//     // 杆子（Pole）= 皮头 + 前节 + 接牙、和后节 + 接牙(0CM)
-//     get poleLength() {
-//       return this.tipHeadLength + this.tipBodyLength + this.ferruleLength + this.shaftLength + this.buttLength
-//     },
-//   },
-// }
-
 import type { Point } from '../utils'
 import * as THREE from 'three'
 
@@ -233,8 +150,8 @@ export function getConfig(scale = 1) {
   // 中袋橡胶偏移量
   const middleRubberOffset = rubberTotalWidth / Math.tan(toRadians(PARAMETERS.cushion.slope.middle))
 
-  const cornerParams = getPocketParams(getScaleValue(PARAMETERS.pocket.cornerWidth), PARAMETERS.pocket.cornerDegrees, false)
-  const middleParams = getPocketParams(getScaleValue(PARAMETERS.pocket.middleWidth), PARAMETERS.pocket.middleDegrees, true)
+  const cornerParams = getPocketParams(getScaleValue(PARAMETERS.pocket.cornerWidth, scale), PARAMETERS.pocket.cornerDegrees, false)
+  const middleParams = getPocketParams(getScaleValue(PARAMETERS.pocket.middleWidth, scale), PARAMETERS.pocket.middleDegrees, true)
 
   const woodWidth = getScaleValue(PARAMETERS.cushion.woodWidth, scale)
   const halfWoodWidth = woodWidth / 2
@@ -400,6 +317,7 @@ export function getConfig(scale = 1) {
     // 右下
     { x: tableWidth / 2 + woodWidth, y: tableHeight / 2 + woodWidth },
   ]
+
   const sealPoints = [
     // 左上
     [
@@ -494,6 +412,7 @@ export function getConfig(scale = 1) {
 
     ball: {
       radius: getScaleValue(PARAMETERS.ball.radius, scale),
+      mass: getScaleValue(PARAMETERS.ball.mass, scale),
     },
 
     cue: {
@@ -534,6 +453,7 @@ export function getConfig(scale = 1) {
       wood: new THREE.Color(0x8B4513),
       body: new THREE.Color(0xCD5C20),
       leg: new THREE.Color(0xCD5C20),
+      seals: new THREE.Color(0xF1F2F3),
     },
 
     /** 材质摩擦力与弹性配置 */
@@ -550,28 +470,46 @@ export function getConfig(scale = 1) {
         /**
          * 弹性恢复系数（COR）
          * 球体与库边/其他物体的反弹系数，越高表示越弹
-         * - 0.85 表示碰撞后保留 85% 速度（高弹性）
+         * - 0.95 表示碰撞后保留 95% 速度（高弹性）
          * - 影响碰撞后的反弹力度
          */
-        restitution: 0.85,
+        restitution: 0.95,
+        /**
+         * 线性/角速度缓慢衰减（空气+桌面阻力）
+         */
+        damping: {
+          linear: 0.5,
+          angular: 0.2,
+        },
+        /**
+         * 连续碰撞检测（CCD）阈值
+         * 用于确定何时启用连续碰撞检测
+         * 较低的值会更快地启用 CCD
+         * 较高的值会减少 CCD 的使用
+         */
+        ccdThreshold: 0.001,
+        /**
+         * 连续碰撞检测（CCD）球体半径
+         * 用于确定连续碰撞检测的球体半径
+         * 较低的值会更快地启用 CCD
+         * 较高的值会减少 CCD 的使用
+         */
+        ccdSweptSphereRadiusScale: 0.2,
       },
       /** 库边材质（库边与球的碰撞行为） */
       cushion: {
-        /** 球撞击库边时的摩擦力 */
-        friction: 0.2,
-        /** 球撞击库边时的反弹力度 */
-        restitution: 0.85,
+        friction: 0.05, // 球撞上后应该滑而不是刹车
+        restitution: 0.92, // 更真实的弹跳反应
       },
       /** 台面布料（球在台面上滚动时的交互） */
       cloth: {
         /** 球与布面之间的摩擦，通常设置低值以保持运动距离 */
-        friction: 0.02,
+        friction: 0.1,
         /** 球在布面上弹跳的弹性（几乎为 0） */
-        restitution: 0.1,
+        restitution: 0,
       },
     },
   }
 }
-// 台面顶部为 Y === 0
 
 export default getConfig(1)

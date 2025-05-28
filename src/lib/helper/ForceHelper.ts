@@ -164,13 +164,12 @@ export default class ForceHelper {
     //   setContext('status', BilliardsStatus.Release)
     // })
 
-    hm.on('panstart', e => {
+    hm.on('panstart', () => {
       this.draw()
     })
     hm.on('panmove', setProgress)
     hm.on('panend', (e) => {
       setProgress(e)
-      console.log(this.currentForce)
       if (this.currentForce < 100) {
         // @todo - 进入高级控制模式
         // return

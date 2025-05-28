@@ -1,19 +1,19 @@
 import type { BilliardsContext } from './Context'
-import * as CANNON from 'cannon-es'
-import * as THREE from 'three'
-import { getConfig, PARAMETERS } from '../config'
+import { PhysicsLoader, Project } from 'enable3d'
 
+import config from '../config'
 import {
   Ball,
   CueSystem,
   ForceHelper,
-  Layout,
   PointHelper,
   RegulatorHelper,
   Table,
 } from '../lib'
 import context, { BilliardsStatus, setContext } from './Context'
 import emitter, { EventTypes } from './Emitter'
+
+import MainScene from './MainScene'
 
 export {
   type BilliardsContext,
@@ -25,24 +25,51 @@ export {
   setContext,
 }
 
-export function setup() {
-  const layout = new Layout(document.querySelector('#main-canvas') as HTMLCanvasElement)
+async function loadPhysics() {
+  return new Promise<MainScene>((resolve) => {
+    PhysicsLoader('/ammo', () => {
+      const project = new Project({ scenes: [MainScene] })
+      const mainScene = project.scenes.values().next().value as MainScene
+      resolve(mainScene)
+    })
+  })
+}
 
-  const config = getConfig()
+export async function setup() {
+  const mainScene = await loadPhysics()
 
-  const table = new Table(layout)
+  const container = document.querySelector('#main') as HTMLElement
+  container.appendChild(mainScene.renderer.domElement)
+  const handleResize = () => {
+    mainScene.renderer.setSize(container.clientWidth, container.clientHeight)
+    if ((mainScene.camera as any)?.aspect) {
+      ;(mainScene.camera as any).aspect = container.clientWidth / container.clientHeight
+    }
+    ;(mainScene.camera as any).updateProjectionMatrix()
+  }
+  handleResize()
+  window.addEventListener('resize', handleResize)
+
+  const table = new Table(mainScene)
   table.init()
 
-  const ball = new Ball(layout)
+  const ball = new Ball(mainScene)
   ball.init()
 
-  const cueSystem = new CueSystem(layout.renderer, layout.scene, ball.mainBall, ball.mainBallBody)
-  layout.addCueSystem(cueSystem)
+  const cueSystem = new CueSystem(mainScene, ball.mainBall)
+  cueSystem.init()
+
+  mainScene.setCueSystem(cueSystem)
 
   const pointHelper = new PointHelper('#point-helper')
   const forceHelper = new ForceHelper('#force-helper')
-  const horizontalRegulatorHelper = new RegulatorHelper('#horizontal-regulator-helper', 'horizontal')
-  const verticalRegulatorHelper = new RegulatorHelper('#vertical-regulator-helper', 'vertical')
+  // eslint-disable-next-line no-new
+  new RegulatorHelper('#horizontal-regulator-helper', 'horizontal')
+  // eslint-disable-next-line no-new
+  new RegulatorHelper('#vertical-regulator-helper', 'vertical')
+
+  // 场景初始化完毕
+  mainScene.init()
 
   emitter.on(EventTypes.point, (point) => {
     // 击球安全区是 2/3
@@ -88,32 +115,12 @@ export function setup() {
         cueSystem.hide()
         forceHelper.progress = 0
         pointHelper.resetTarget()
-        setContext('canCheckBody', true)
         break
 
       case BilliardsStatus.Idle:
       default:
-        console.log('Idle?')
         cueSystem.show()
-        setContext('renderRequested', true)
         break
     }
   })
-
-  setTimeout(() => {
-    setContext('renderRequested', true)
-  })
 }
-
-// export function setup() {
-//   const layout = new Layout(document.querySelector('#main-canvas') as HTMLCanvasElement)
-//   setTimeout(() => {
-//     setContext('renderRequested', true)
-//   })
-
-//   const table = new Table(layout)
-//   table.init()
-
-//   const ball = new Ball(layout)
-//   ball.init()
-// }

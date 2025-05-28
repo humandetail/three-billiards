@@ -1,42 +1,25 @@
-import type { Point } from '../utils'
+import type MainScene from '../central-control/MainScene'
 
-import type Layout from './Layout'
-import * as CANNON from 'cannon-es'
+import type { Point } from '../utils'
+import { ExtendedMesh } from 'enable3d'
 import * as THREE from 'three'
+
 import { Line2 } from 'three/addons/lines/Line2.js'
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js'
 
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
-
 import UnitPath from 'unit-path'
 import config, { getTangent } from '../config'
 import { arcToPoints, setGeometryColor } from '../utils'
 
-// **********************
-// * 台面顶部为 Y === 0； *
-// **********************
 export default class Table {
-  scene: THREE.Scene
-
   #quantity = 32 // 弧形分段数
 
-  cushionGeometries: THREE.ExtrudeGeometry[] = []
+  boardTopY = config.table.leg.height + config.table.height
+  boardBottomY = config.table.leg.height
 
-  pocketSealGeometries: THREE.ExtrudeGeometry[] = []
-
-  tableBoardGeometry: THREE.BufferGeometry
-
-  constructor(public layout: Layout) {
-    this.scene = layout.scene
-
-    this.cushionGeometries = this.#generateCushionGeometries()
-    this.pocketSealGeometries = this.#generatePocketSealGeometries()
-    this.tableBoardGeometry = this.#generateTableBoardGeometry()
-
-    const physics = new TablePhysics(layout, this)
-    physics.init()
-  }
+  constructor(public mainScene: MainScene) {}
 
   init() {
     this.createTableBoard()
@@ -46,52 +29,141 @@ export default class Table {
     this.createTableBody()
     this.createTableLegs()
     this.createPockets()
+
+    // 触发器
+    this.createTrigger()
+  }
+
+  createTrigger() {
+    const {
+      cornerPositions,
+      middlePositions,
+    } = config
+
+    const names = ['top', 'right', 'bottom', 'left', 'middle-top', 'middle-bottom']
+
+    ;[
+      ...cornerPositions,
+      ...middlePositions,
+    ].forEach((position, index) => {
+      const trigger = new ExtendedMesh(new THREE.CylinderGeometry(config.cornerParams.r, config.cornerParams.r, config.table.height, 32), new THREE.MeshBasicMaterial({ color: 0x00FF00 }))
+      trigger.position.set(position.x, this.boardTopY - config.table.height / 2, position.y)
+      // this.mainScene.add.existing(trigger)
+      this.mainScene.physics.add.existing(trigger as any, { shape: 'convex', mass: 0 })
+      trigger.body.setCollisionFlags(4)
+      trigger.name = `trigger-${names[index]}`
+
+      this.mainScene.setPocket(trigger)
+    })
   }
 
   createTableBoard() {
-    const mesh = new THREE.Mesh(this.tableBoardGeometry, new THREE.MeshPhongMaterial({ color: config.colors.cloth }))
-    mesh.rotateX(Math.PI / 2)
-    mesh.position.set(0, -config.table.height / 2, 0)
-    this.scene.add(mesh)
+    // const tableBoardGeometry = new THREE.BoxGeometry(config.table.width, config.table.height, config.table.depth)
+    const tableBoardGeometry = this.#generateTableBoardGeometry()
+    tableBoardGeometry.rotateX(Math.PI / 2)
+    const tableBoard = new ExtendedMesh(tableBoardGeometry, new THREE.MeshPhongMaterial({ color: config.colors.cloth }))
+    tableBoard.position.set(0, this.boardTopY - config.table.height / 2, 0)
+    this.mainScene.add.existing(tableBoard)
+    this.mainScene.physics.add.existing(tableBoard as any, { shape: 'convex', mass: 0 })
+    tableBoard.body.setFriction(config.material.cloth.friction)
+    tableBoard.body.setRestitution(config.material.cloth.restitution)
+
+    tableBoard.name = 'tableBoard'
   }
 
   createCushionRubbers() {
-    const {
-      cushion: {
-        height: cushionHeight, // 台面到库边顶部高度
-        contactHeight,
-      },
-      colors: {
-        cloth,
-      },
-    } = config
-
-    const y = cushionHeight - contactHeight / 2
-    this.cushionGeometries.forEach((geometry) => {
-      const mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: cloth }))
-      this.scene.add(mesh)
+    const cushionRubbers = this.#generateCushionGeometries()
+    cushionRubbers.forEach((geometry, index) => {
+      const mesh = new ExtendedMesh(geometry, new THREE.MeshPhongMaterial({ color: config.colors.cloth }))
       mesh.rotateX(Math.PI / 2)
-      mesh.position.set(0, y, 0)
+      mesh.position.set(0, this.boardTopY + config.cushion.height - config.cushion.contactHeight / 2, 0)
+      this.mainScene.add.existing(mesh)
+      this.mainScene.physics.add.existing(mesh as any, { shape: 'convex', mass: 0 })
+      mesh.body.setFriction(config.material.cushion.friction)
+      mesh.body.setRestitution(config.material.cushion.restitution)
+
+      mesh.body.setCollisionFlags(1)
+      mesh.body.checkCollisions = true
+
+      mesh.name = `cushionRubber-${index}`
     })
   }
 
   createCushionWood() {
+    const cushionWood = this.#generateCushionWoodGeometries()
+    cushionWood.forEach((geometry, index) => {
+      const mesh = new ExtendedMesh(geometry, new THREE.MeshPhongMaterial({ color: config.colors.wood }))
+      mesh.rotateX(Math.PI / 2)
+      mesh.position.set(0, this.boardBottomY + (config.table.height + config.cushion.height) / 2, 0)
+      this.mainScene.add.existing(mesh)
+      mesh.name = `cushionWood-${index}`
+    })
+  }
+
+  createPocketSeals() {
+    const pocketSeals = this.#generatePocketSealGeometries()
+    pocketSeals.forEach((geometry, index) => {
+      const mesh = new ExtendedMesh(geometry, new THREE.MeshPhongMaterial({ color: config.colors.seals }))
+      mesh.rotateX(Math.PI / 2)
+      mesh.position.set(0, this.boardTopY + config.cushion.height / 2, 0)
+      this.mainScene.add.existing(mesh)
+      // this.mainScene.physics.add.existing(mesh as any, { shape: 'convex', mass: 0 })
+      // mesh.body.setFriction(config.material.cushion.friction)
+      // mesh.body.setRestitution(config.material.cushion.restitution)
+      mesh.name = `pocketSeal-${index}`
+    })
+  }
+
+  createTableBody() {
+    const tableBody = this.#generateTableBodyGeometries()
+    const mesh = new ExtendedMesh(tableBody, new THREE.MeshPhongMaterial({ color: config.colors.body }))
+    mesh.position.set(0, this.boardBottomY - config.table.body.depth / 2, 0)
+    this.mainScene.add.existing(mesh)
+    mesh.name = 'tableBody'
+  }
+
+  createTableLegs() {
+    const tableLegs = this.#generateTableLegsGeometries()
+    const mesh = new ExtendedMesh(tableLegs, new THREE.MeshPhongMaterial({ color: config.colors.leg }))
+    mesh.position.set(0, 0, 0)
+    this.mainScene.add.existing(mesh)
+    mesh.name = 'tableLegs'
+  }
+
+  createPockets() {
+    const {
+      table: {
+        height: tableHeight,
+      },
+      cornerPositions,
+      middlePositions,
+    } = config
+
+      ;[
+      ...cornerPositions,
+      ...middlePositions,
+    ].forEach((position, index) => {
+      const mesh = new Funnel(this.mainScene).setup({
+        position: new THREE.Vector3(position.x, -tableHeight / 2, position.y),
+        isRotate: [0, 3].includes(index),
+      })
+      mesh.name = `pocket-${index}`
+      this.mainScene.add.existing(mesh)
+    })
+  }
+
+  #generateCushionWoodGeometries() {
     const {
       cushion: {
         woodEndPoints,
         height,
       },
       table,
-      colors: {
-        wood,
-      },
     } = config
 
     const woodHeight = height + table.height
 
-    const y = -table.height + woodHeight / 2
-
-    woodEndPoints.forEach(([A, ...points]) => {
+    return woodEndPoints.map(([A, ...points]) => {
       const shape = new THREE.Shape()
       shape.moveTo(A.x, A.y)
       points.forEach(p => shape.lineTo(p.x, p.y))
@@ -103,36 +175,15 @@ export default class Table {
       }
       const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings)
       geometry.translate(0, 0, -woodHeight / 2)
-      const mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: wood }))
-      this.scene.add(mesh)
-      mesh.rotateX(Math.PI / 2)
-      mesh.position.set(0, y, 0)
+      return geometry
     })
   }
 
-  createPocketSeals() {
-    const {
-      cushion: {
-        height: cushionHeight,
-      },
-    } = config
-
-    const height = cushionHeight
-
-    this.pocketSealGeometries.forEach((geometry) => {
-      const mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0xE1E2DD }))
-      mesh.rotateX(Math.PI / 2)
-      mesh.position.set(0, height / 2, 0)
-      this.scene.add(mesh)
-    })
-  }
-
-  createTableBody() {
+  #generateTableBodyGeometries() {
     const {
       table: {
         width: tableWidth,
         depth: tableDepth,
-        height: tableHeight,
         leg: {
           width: legWidth,
         },
@@ -188,21 +239,13 @@ export default class Table {
       geometries.push(geo)
     }
 
-    const mesh = new THREE.Mesh(
-      BufferGeometryUtils.mergeGeometries(geometries, false),
-      new THREE.MeshPhysicalMaterial({ vertexColors: true, clearcoat: 0.5, clearcoatRoughness: 0.35 }),
-    )
-
-    mesh.position.set(0, -tableHeight - bodyDepth / 2, 0)
-    this.layout.scene.add(mesh)
+    return BufferGeometryUtils.mergeGeometries(geometries, false)
   }
 
-  // 创建桌脚
-  createTableLegs() {
+  #generateTableLegsGeometries() {
     const {
       table: {
         width: tableWidth,
-        height: tableHeight,
         depth: tableDepth,
         leg: {
           width: legWidth,
@@ -242,32 +285,7 @@ export default class Table {
       return geometry
     })
 
-    const mesh = new THREE.Mesh(
-      BufferGeometryUtils.mergeGeometries(geometries, false),
-      new THREE.MeshPhysicalMaterial({ vertexColors: true, clearcoat: 0.5, clearcoatRoughness: 0.35 }),
-    )
-    mesh.position.set(0, -tableHeight - legHeight, 0)
-    this.layout.scene.add(mesh)
-  }
-
-  createPockets() {
-    const {
-      table: {
-        height: tableHeight,
-      },
-      cornerPositions,
-      middlePositions,
-    } = config
-
-    ;[
-      ...cornerPositions,
-      ...middlePositions,
-    ].forEach((position, index) => {
-      new Funnel(this.layout).setupMesh({
-        position: new THREE.Vector3(position.x, -tableHeight / 2, position.y),
-        isRotate: [0, 3].includes(index),
-      })
-    })
+    return BufferGeometryUtils.mergeGeometries(geometries, false)
   }
 
   #createTableLeg() {
@@ -349,10 +367,12 @@ export default class Table {
   /** 生成库边橡胶条的几何形状 */
   #generateCushionGeometries() {
     const {
-      rubberTotalWidth,
-      rubberEndPoints,
-      contactHeight,
-    } = config.cushion
+      cushion: {
+        rubberTotalWidth,
+        rubberEndPoints,
+        contactHeight,
+      },
+    } = config
     const r = rubberTotalWidth
     return rubberEndPoints.map((points, index) => {
       const [A, B, C, D, E, F, G, H] = points
@@ -544,159 +564,6 @@ export default class Table {
     return geometry
   }
 }
-
-class TablePhysics {
-  world: CANNON.World
-
-  cushionGeometries: THREE.ExtrudeGeometry[]
-  pocketSealGeometries: THREE.ExtrudeGeometry[]
-  tableBoardGeometry: THREE.BufferGeometry
-  constructor(public layout: Layout, table: Table) {
-    this.world = layout.world
-
-    this.cushionGeometries = table.cushionGeometries
-    this.pocketSealGeometries = table.pocketSealGeometries
-    this.tableBoardGeometry = table.tableBoardGeometry
-  }
-
-  init() {
-    this.createTable()
-    // this.createPockets()
-    this.createCushion()
-    this.createPocketSeals()
-  }
-
-  createTable() {
-    const {
-      height, // y
-    } = config.table
-
-    const body = new CANNON.Body({
-      mass: 0,
-      shape: this.#threeToCannonTrimesh(this.tableBoardGeometry),
-      position: new CANNON.Vec3(0, -height / 2, 0),
-    })
-    body.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2)
-    body.material = this.layout.tableMaterial
-    this.world.addBody(body)
-  }
-
-  createPockets() {
-    const {
-      table: {
-        height: tableHeight,
-      },
-      cornerParams,
-      middleParams,
-
-      cornerPositions,
-      middlePositions,
-    } = config
-
-    const y = -tableHeight / 2
-
-    ;[...cornerPositions, ...middlePositions].forEach((position, index) => {
-      const r = index < 4 ? cornerParams.r : middleParams.r
-      const shape = new CANNON.Cylinder(
-        r,
-        r,
-        tableHeight,
-        32,
-      )
-      const body = new CANNON.Body({
-        mass: 0,
-        shape,
-        position: new CANNON.Vec3(position.x, y, position.y),
-      })
-      body.material = this.layout.tableMaterial
-
-      this.world.addBody(body)
-
-      ;(body as any).isTrigger = true
-      // @todo - 把 body 添加到 context 里面
-
-      // 集球区
-      const funnel = new Funnel(this.layout)
-      funnel.setupPhysics({
-        position: new THREE.Vector3(position.x, y, position.y),
-        isRotate: [0, 3].includes(index),
-      })
-    })
-  }
-
-  createCushion() {
-    const {
-      cushion: {
-        height: cushionHeight, // 台面到库边顶部高度
-        contactHeight,
-      },
-    } = config
-
-    const y = cushionHeight - contactHeight / 2
-
-    this.cushionGeometries.forEach((geometry) => {
-      const body = new CANNON.Body({
-        mass: 0,
-        shape: this.#threeToCannonTrimesh(geometry),
-        position: new CANNON.Vec3(0, y, 0),
-      })
-      body.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2)
-      body.material = this.layout.rubberMaterial
-
-      this.world.addBody(body)
-
-      ;(body as any).isRubber = true
-      // @todo - 把 body 添加到 context 里面
-    })
-  }
-
-  createPocketSeals() {
-    const {
-      cushion: {
-        height: cushionHeight,
-      },
-    } = config
-
-    const y = cushionHeight / 2
-
-    this.pocketSealGeometries.forEach((geometry) => {
-      const body = new CANNON.Body({
-        mass: 0,
-        shape: this.#threeToCannonTrimesh(geometry),
-        position: new CANNON.Vec3(0, y, 0),
-      })
-      body.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2)
-      body.material = this.layout.rubberMaterial
-
-      this.world.addBody(body)
-    })
-  }
-
-  #threeToCannonTrimesh(geometry: THREE.BufferGeometry) {
-    // 更新几何体缓存
-    geometry.computeBoundingBox()
-    geometry.computeBoundingSphere()
-    geometry.computeVertexNormals()
-    geometry = geometry.toNonIndexed() // 非索引模式
-
-    const position = geometry.attributes.position
-    const vertices = []
-    for (let i = 0; i < position.count; i++) {
-      vertices.push(position.getX(i), position.getY(i), position.getZ(i))
-    }
-
-    const indices = []
-    for (let i = 0; i < position.count; i += 3) {
-      indices.push(i, i + 1, i + 2)
-    }
-
-    const cannonTrimesh = new CANNON.Trimesh(
-      new Float32Array(vertices) as any,
-      new Uint16Array(indices) as any,
-    )
-    return cannonTrimesh
-  }
-}
 interface FunnelOptions {
   position: THREE.Vector3
   isRotate?: boolean
@@ -716,6 +583,7 @@ class Funnel {
   slantHeight: number
   baseWidth: number
   floorYOffset: number
+  angle = 4 * Math.PI / 180
 
   poleMaterial = new THREE.MeshPhysicalMaterial({
     color: 0x3170A6,
@@ -723,7 +591,7 @@ class Funnel {
     clearcoatRoughness: 0.35,
   })
 
-  constructor(private layout: Layout) {
+  constructor(private mainScene: MainScene) {
     const {
       cornerParams,
       ball: { radius: ballRadius },
@@ -733,7 +601,7 @@ class Funnel {
     this.topDiameter = cornerParams.r * 2
     this.bottomDiameter = ballRadius * 2 * 1.1
     this.funnelHeight = ballRadius * 2 * 1.5
-    this.bottomCatchHeight = ballRadius * 2 * 1.2
+    this.bottomCatchHeight = ballRadius * 2 * 1.4
     this.wallThickness = 0.002
 
     this.radiusDifference = (this.topDiameter - this.bottomDiameter) / 2
@@ -741,11 +609,12 @@ class Funnel {
     this.slantHeight = Math.sqrt(this.radiusDifference ** 2 + this.funnelHeight ** 2)
 
     this.baseWidth = ballRadius * 12
-    this.floorYOffset = this.baseWidth / 2 * Math.sin(2 * Math.PI / 180)
+    this.floorYOffset = this.baseWidth / 2 * Math.sin(this.angle)
   }
 
-  #addBoxShape(body: CANNON.Body, size: CANNON.Vec3, position: CANNON.Vec3, rotation = new CANNON.Quaternion()) {
-    body.addShape(new CANNON.Box(size), position, rotation)
+  setup(options: FunnelOptions) {
+    this.setupPhysics(options)
+    return this.setupMesh(options)
   }
 
   setupPhysics(options: FunnelOptions) {
@@ -761,37 +630,37 @@ class Funnel {
       floorYOffset,
     } = this
 
-    const funnelBody = new CANNON.Body({ mass: 0 })
+    const funnelBody = new THREE.Group()
 
     const directions = [
-      { axis: 'x', sign: 1, rotAxis: new CANNON.Vec3(0, 0, 1) },
-      { axis: 'x', sign: -1, rotAxis: new CANNON.Vec3(0, 0, 1) },
-      { axis: 'z', sign: 1, rotAxis: new CANNON.Vec3(1, 0, 0) },
-      { axis: 'z', sign: -1, rotAxis: new CANNON.Vec3(1, 0, 0) },
+      { axis: 'x', sign: 1, rotAxis: new THREE.Vector3(0, 0, 1) },
+      { axis: 'x', sign: -1, rotAxis: new THREE.Vector3(0, 0, 1) },
+      { axis: 'z', sign: 1, rotAxis: new THREE.Vector3(1, 0, 0) },
+      { axis: 'z', sign: -1, rotAxis: new THREE.Vector3(1, 0, 0) },
     ]
 
     directions.forEach(({ axis, sign, rotAxis }) => {
       const isXAxis = axis === 'x'
 
-      const sideHalfSize = new CANNON.Vec3(
+      const sideHalfSize = new THREE.Vector3(
         isXAxis ? wallThickness / 2 : topDiameter / 2,
         slantHeight / 2,
         isXAxis ? topDiameter / 2 : wallThickness / 2,
       )
 
-      const sidePosition = new CANNON.Vec3(
+      const sidePosition = new THREE.Vector3(
         isXAxis ? -sign * (topDiameter + bottomDiameter) / 4 : 0,
         funnelHeight / 2,
         isXAxis ? 0 : sign * (topDiameter + bottomDiameter) / 4,
       )
 
-      const sideRotation = new CANNON.Quaternion().setFromAxisAngle(rotAxis, sign * tiltAngle)
+      const sideRotation = new THREE.Quaternion().setFromAxisAngle(rotAxis, sign * tiltAngle)
       this.#addBoxShape(funnelBody, sideHalfSize, sidePosition, sideRotation)
 
       // 加底接球区
       if (!(axis === 'z' && sign === 1)) {
-        const bottomHalf = new CANNON.Vec3(bottomDiameter / 2, bottomCatchHeight / 2, wallThickness / 2)
-        const bottomPos = new CANNON.Vec3()
+        const bottomHalf = new THREE.Vector3(bottomDiameter / 2, bottomCatchHeight / 2, wallThickness / 2)
+        const bottomPos = new THREE.Vector3()
         bottomPos.y = -bottomCatchHeight / 2
 
         if (isXAxis) {
@@ -801,8 +670,8 @@ class Funnel {
           bottomPos.x = -sign * bottomDiameter / 2
         }
 
-        const bottomRot = new CANNON.Quaternion().setFromAxisAngle(
-          new CANNON.Vec3(0, 1, 0),
+        const bottomRot = new THREE.Quaternion().setFromAxisAngle(
+          new THREE.Vector3(0, 1, 0),
           sign * Math.PI / 2 * (isXAxis ? 0 : 1),
         )
 
@@ -810,46 +679,54 @@ class Funnel {
       }
     })
 
+    // 背板
+    this.#addBoxShape(
+      funnelBody,
+      new THREE.Vector3(bottomCatchHeight / 2, bottomCatchHeight / 2, wallThickness),
+      new THREE.Vector3(bottomCatchHeight / 2, -bottomCatchHeight / 2, 0),
+      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2),
+    )
+
     // 下部横向底板
     const baseHeight = bottomCatchHeight
-    const baseHalfSize = new CANNON.Vec3(baseWidth / 2, baseHeight / 2, wallThickness / 2)
+    const baseHalfSize = new THREE.Vector3(baseWidth / 2, baseHeight / 2, wallThickness / 2)
 
-    this.#addBoxShape(funnelBody, baseHalfSize, new CANNON.Vec3(bottomDiameter / 2 - baseWidth / 2, -baseHeight / 2, -bottomDiameter / 2))
-    this.#addBoxShape(funnelBody, baseHalfSize, new CANNON.Vec3(bottomDiameter / 2 - baseWidth / 2, -baseHeight / 2, bottomDiameter / 2))
+    this.#addBoxShape(funnelBody, baseHalfSize, new THREE.Vector3(bottomDiameter / 2 - baseWidth / 2, -baseHeight / 2, -bottomDiameter / 2))
+    this.#addBoxShape(funnelBody, baseHalfSize, new THREE.Vector3(bottomDiameter / 2 - baseWidth / 2, -baseHeight / 2, bottomDiameter / 2))
 
     // 倾斜底板
     const floorThickness = wallThickness
-    const floorRotation = new CANNON.Quaternion().setFromAxisAngle(
-      new CANNON.Vec3(0, 0, 1),
-      2 * Math.PI / 180,
+    const floorRotation = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 0, 1),
+      this.angle,
     )
 
     this.#addBoxShape(
       funnelBody,
-      new CANNON.Vec3(baseWidth / 2, floorThickness / 2, bottomDiameter / 2),
-      new CANNON.Vec3(bottomDiameter / 2 - baseWidth / 2, -baseHeight + floorYOffset, 0),
+      new THREE.Vector3(baseWidth / 2, floorThickness / 2, bottomDiameter / 2),
+      new THREE.Vector3(bottomDiameter / 2 - baseWidth / 2, -baseHeight + floorYOffset, 0),
       floorRotation,
     )
 
     // 顶板
     this.#addBoxShape(
       funnelBody,
-      new CANNON.Vec3((baseWidth - bottomDiameter) / 2, wallThickness / 2, bottomDiameter / 2),
-      new CANNON.Vec3(-(baseWidth - bottomDiameter) / 2 - bottomDiameter / 2, 0, 0),
+      new THREE.Vector3((baseWidth - bottomDiameter) / 2, wallThickness / 2, bottomDiameter / 2),
+      new THREE.Vector3(-(baseWidth - bottomDiameter) / 2 - bottomDiameter / 2, 0, 0),
       floorRotation,
     )
 
     // 后盖
     this.#addBoxShape(
       funnelBody,
-      new CANNON.Vec3(wallThickness / 2, baseHeight / 2, bottomDiameter / 2),
-      new CANNON.Vec3(-baseWidth + bottomDiameter / 2, -baseHeight / 2, 0),
+      new THREE.Vector3(wallThickness / 2, baseHeight / 2, bottomDiameter / 2),
+      new THREE.Vector3(-baseWidth + bottomDiameter / 2, -baseHeight / 2, 0),
     )
 
     const { x, y, z } = options.position
-    funnelBody.position.set(x, y - baseHeight, z)
-    funnelBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), options.isRotate ? Math.PI : 0)
-    this.layout.world.addBody(funnelBody)
+    funnelBody.position.set(x, y - baseHeight / 2 + config.table.leg.height, z)
+    funnelBody.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), options.isRotate ? Math.PI : 0)
+    this.mainScene.physics.add.existing(funnelBody as any, { mass: 0, margin: 0.0001 })
   }
 
   setupMesh(options: FunnelOptions) {
@@ -929,23 +806,35 @@ class Funnel {
     })
 
     const baseHeight = bottomCatchHeight
-    // 加圆环
-    ;[
-      { pos: new THREE.Vector3(0, 0, 0), rot: new THREE.Vector3(Math.PI / 2, 0, 0) },
-      { pos: new THREE.Vector3(-baseWidth / 3, -baseHeight / 2 - sideWallThickness, sideWallThickness), rot: new THREE.Vector3(0, Math.PI / 2, 0) },
-      { pos: new THREE.Vector3(-2 * baseWidth / 3, -baseHeight / 2 - sideWallThickness, sideWallThickness), rot: new THREE.Vector3(0, Math.PI / 2, 0) },
-    ].forEach(({ pos, rot }) => {
-      const torus = new THREE.TorusGeometry(bottomDiameter / 2, sideWallThickness, 128, 128)
-      const torusMesh = new THREE.Mesh(torus, poleMaterial)
-      torusMesh.position.copy(pos)
-      torusMesh.rotation.set(rot.x, rot.y, rot.z)
-      group.add(torusMesh)
-    })
+    // // 加圆环
+    // ;[
+    //   { pos: new THREE.Vector3(0, 0, 0), rot: new THREE.Vector3(Math.PI / 2, 0, 0) },
+    //   { pos: new THREE.Vector3(-baseWidth / 3, -baseHeight / 2 - sideWallThickness, sideWallThickness), rot: new THREE.Vector3(0, Math.PI / 2, 0) },
+    //   { pos: new THREE.Vector3(-2 * baseWidth / 3, -baseHeight / 2 - sideWallThickness, sideWallThickness), rot: new THREE.Vector3(0, Math.PI / 2, 0) },
+    // ].forEach(({ pos, rot }) => {
+    //   const torus = new THREE.TorusGeometry(bottomDiameter / 2, sideWallThickness, 128, 128)
+    //   const torusMesh = new THREE.Mesh(torus, poleMaterial)
+    //   torusMesh.position.copy(pos)
+    //   torusMesh.rotation.set(rot.x, rot.y, rot.z)
+    //   group.add(torusMesh)
+    // })
 
     const { x, y, z } = options.position
-    group.position.set(x, y - baseHeight, z)
+    group.position.set(x, y - baseHeight / 2 + config.table.leg.height, z)
     group.rotation.set(0, options.isRotate ? Math.PI : 0, 0)
-    this.layout.scene.add(group)
+    this.mainScene.add.existing(group)
+    return group
+  }
+
+  #addBoxShape(group: THREE.Group, size: THREE.Vector3, position: THREE.Vector3, quaternion = new THREE.Quaternion()) {
+    const box = this.mainScene.add.box({
+      width: size.x * 2,
+      height: size.y * 2,
+      depth: size.z * 2,
+    })
+    box.position.set(position.x, position.y, position.z)
+    box.quaternion.copy(quaternion)
+    group.add(box)
   }
 
   // 创建抗锯齿宽线漏斗

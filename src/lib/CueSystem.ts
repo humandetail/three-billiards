@@ -1,15 +1,18 @@
-import * as CANNON from 'cannon-es'
+import type MainScene from '../central-control/MainScene'
+import { ExtendedMesh } from 'enable3d'
+
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
-import { BilliardsStatus, emitter, EventTypes } from '../central-control'
+import { BilliardsStatus, emitter, EventTypes, setContext } from '../central-control'
 import config from '../config'
 import { getIntersectionPoints, setGeometryColor } from '../utils'
 
 class Cue {
   private config = config.cue
   private segments = 128
+
+  constructor() {}
 
   get jointRadius() {
     const {
@@ -55,7 +58,7 @@ class Cue {
     shaft.rotateX(Math.PI / 2)
     butt.rotateX(Math.PI / 2)
 
-    const cue = new THREE.Mesh(
+    const cue = new ExtendedMesh(
       BufferGeometryUtils.mergeGeometries(
         [tipHead, tipBody, ferrule, shaft, butt],
         false,
@@ -65,6 +68,8 @@ class Cue {
         side: THREE.DoubleSide,
       }),
     )
+
+    cue.name = 'cue'
 
     return cue
   }
@@ -204,10 +209,8 @@ export default class CueSystem {
   #reduceStep = 0
 
   constructor(
-    private renderer: THREE.WebGLRenderer,
-    private scene: THREE.Scene,
-    private ball: THREE.Mesh,
-    private ballBody: CANNON.Body,
+    private mainScene: MainScene,
+    private ball: ExtendedMesh,
     cameraOptions?: Partial<CameraOptions>,
   ) {
     this.camera = new THREE.PerspectiveCamera(
@@ -216,9 +219,8 @@ export default class CueSystem {
       cameraOptions?.near ?? 0.1,
       cameraOptions?.far ?? 1000,
     )
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement)
-
-    this.setup()
+    this.camera.name = 'cueCamera'
+    this.controls = new OrbitControls(this.camera, mainScene.renderer.domElement)
   }
 
   get cueBasePosition() {
@@ -266,14 +268,14 @@ export default class CueSystem {
     this.setCuePositionByForce(diff)
   }
 
-  private setup() {
+  init() {
     this.cue.rotation.x = -Math.PI
     this.camera.add(this.cue)
-    this.scene.add(this.camera)
-    this.renderer.render(this.scene, this.camera)
+    this.mainScene.scene.add(this.camera)
+    this.mainScene.renderer.render(this.mainScene.scene, this.camera)
 
-    this.scene.add(this.forceArrow)
-    this.scene.add(this.rayArrow)
+    this.mainScene.scene.add(this.forceArrow)
+    this.mainScene.scene.add(this.rayArrow)
 
     // this.cue.visible = false
     this.rayArrow.visible = false
@@ -295,7 +297,7 @@ export default class CueSystem {
   setCuePositionByForce(diff: number) {
     const direction = new THREE.Vector3(0, 0, 1) // 局部Z轴正方向
     direction.applyQuaternion(this.cue.quaternion) // 转换为世界坐标
-    console.log(diff)
+
     this.cue.position[diff > 0 ? 'add' : 'sub'](
       direction.multiplyScalar(-0.8 * Math.abs(diff) / this.maxForce),
     )
@@ -326,8 +328,7 @@ export default class CueSystem {
     if (this.currentForce === 0)
       return
 
-    // emitter.emit(EventTypes.cueStatus, 'shooting')
-    emitter.emit(EventTypes.status, BilliardsStatus.Shooting)
+    setContext('status', BilliardsStatus.Shooting)
 
     this.#hitForce = this.currentForce
     this.#reduceStep = this.currentForce / this.#shotDuration
@@ -352,27 +353,23 @@ export default class CueSystem {
   }
 
   private hitBall() {
-    //  1. 获取球杆看向的方向
     const direction = new THREE.Vector3()
     this.cue.getWorldDirection(direction)
 
-    // 2. 转换为Cannon.js向量并标准化
-    const forceDirection = new CANNON.Vec3(
+    const forceDirection = new THREE.Vector3(
       direction.x,
       direction.y,
       direction.z,
     )
 
-    // 3. 乘以力的大小（牛顿）
-    forceDirection.scale(this.#hitForce / 250, forceDirection)
+    forceDirection.multiplyScalar(this.#hitForce / 200)
 
     const applyPoint = getIntersectionPoints(this.cue, this.ball)
     if (!applyPoint) {
       return
     }
     const { x, y, z } = applyPoint
-    // this.ballBody.applyForce(forceDirection, new CANNON.Vec3(x, y, z))
-    this.ballBody.applyImpulse(forceDirection, new CANNON.Vec3(x, y, z))
+    this.ball.body.applyImpulse(forceDirection, new THREE.Vector3(x, y, z))
 
     // // 画出受力点
     // const mesh = new THREE.Mesh(
@@ -384,7 +381,7 @@ export default class CueSystem {
     // this.scene.add(mesh)
 
     // this.#hitForce = 0
-    emitter.emit(EventTypes.status, BilliardsStatus.ShotCompleted)
+    setContext('status', BilliardsStatus.ShotCompleted)
   }
 
   private onKeydown = (e: KeyboardEvent) => {

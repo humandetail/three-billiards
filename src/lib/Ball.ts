@@ -1,18 +1,13 @@
-import type Layout from './Layout'
-import * as CANNON from 'cannon-es'
+import type { ExtendedMesh } from 'enable3d'
+import type MainScene from '../central-control/MainScene'
 import * as THREE from 'three'
-import { getConfig, PARAMETERS } from '../config'
+import config from '../config'
 
 export default class Ball {
-  public tableTop = 0
-  config = getConfig()
+  private tableTop = config.table.leg.height + config.table.height
+  private ballRadius = config.ball.radius
 
-  mainBall!: THREE.Mesh
-  mainBallBody!: CANNON.Body
-
-  get ballRadius() {
-    return this.config.ball.radius
-  }
+  mainBall!: ExtendedMesh
 
   initialPositions = [
     { x: 0, z: 0 },
@@ -37,66 +32,70 @@ export default class Ball {
     { x: this.ballRadius * Math.sqrt(3), z: this.ballRadius }, // 3
   ]
 
-  ballMaterial = new CANNON.Material('ball')
-
-  constructor(public layout: Layout) {}
+  constructor(public mainScene: MainScene) {}
 
   init() {
-    this.makeBall(-this.config.table.width / 4, 0, 0)
+    this.makeBall(-config.table.width / 4, 0, 0)
+    // this.makeBall(-config.table.width / 2 + this.ballRadius * 2, config.table.depth / 2 - this.ballRadius * 2, 0)
     this.initialPositions.forEach((pos, index) => {
-      this.makeBall(pos.x + this.config.table.width / 4, pos.z, index + 1)
+      this.makeBall(pos.x + config.table.width / 4, pos.z, index + 1)
     })
   }
 
   makeBall(x: number, z: number, name = 0) {
-    const ballRadius = this.ballRadius
-    const ballGeometry = new THREE.SphereGeometry(ballRadius, 32, 32)
-    let material: THREE.MeshPhongMaterial
-    if (name !== 0) {
-      const loader = new THREE.TextureLoader()
-      const texture = loader.load(`/textures/balls/${name}.jpg`)
-      material = new THREE.MeshPhongMaterial({
-        map: texture,
-        specular: 0x111111,
-        shininess: 30,
-      })
-    }
-    else {
-      material = new THREE.MeshPhongMaterial({
-        color: 0xFFFFFF,
-        specular: 0x111111,
-        shininess: 30,
-      })
-    }
+    const { ballRadius } = this
+    const loader = new THREE.TextureLoader()
+    const texture = loader.load(`/textures/balls/${name}.jpg`)
 
-    const ball = new THREE.Mesh(ballGeometry, material)
-    ball.name = `ball-${name}`
-    ball.position.set(x, this.tableTop + ballRadius, z)
+    const ball = this.mainScene.add.sphere(
+      {
+        x,
+        y: this.tableTop + ballRadius,
+        z,
+        radius: ballRadius,
+      },
+      {
+        phong: name !== 0
+          ? {
+              map: texture,
+              specular: 0x111111,
+              shininess: 30,
+            }
+          : {
+              color: 0xFFFFFF,
+              specular: 0x111111,
+              shininess: 30,
+            },
+      },
+    )
 
     ball.castShadow = true
     ball.receiveShadow = true
 
-    this.layout.scene.add(ball)
-    this.layout.balls.push(ball)
+    this.mainScene.add.existing(ball)
+    this.mainScene.physics.add.existing(
+      ball,
+      {
+        shape: 'sphere',
+        radius: ballRadius,
+        mass: 0.165,
+      },
+    )
 
-    const ballBody = new CANNON.Body({
-      mass: 0.165, // kg
-      position: new CANNON.Vec3(ball.position.x, ball.position.y, ball.position.z),
-      shape: new CANNON.Sphere(ballRadius),
-      linearDamping: 0.2, // 模拟空气阻力+桌面摩擦
-      angularDamping: 0.15, // 模拟旋转衰减
-    })
-    ballBody.velocity.set(0, 0, 0)
-    ballBody.angularVelocity.set(0, 0, 0)
+    ball.body.setFriction(config.material.ball.friction)
+    ball.body.setRestitution(config.material.ball.restitution)
+    ball.body.setDamping(config.material.ball.damping.linear, config.material.ball.damping.angular) // 线性/角速度缓慢衰减（空气+桌面阻力）
+    ball.body.setCcdMotionThreshold(config.material.ball.ccdThreshold)
+    ball.body.setCcdSweptSphereRadius(ballRadius * config.material.ball.ccdSweptSphereRadiusScale)
 
-    ballBody.material = this.layout.ballMaterial
+    ball.body.checkCollisions = true
 
-    this.layout.world.addBody(ballBody)
-    this.layout.ballBodies.push(ballBody)
+    ball.name = `ball-${name}`
+
+    this.mainScene.setBall(ball)
 
     if (name === 0) {
       this.mainBall = ball
-      this.mainBallBody = ballBody
     }
 
     return ball

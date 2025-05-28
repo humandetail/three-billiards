@@ -5,14 +5,12 @@ import {
   PointHelper,
   RegulatorHelper,
 } from './helper'
-import Layout from './Layout'
 import Table from './Table'
 
 export {
   Ball,
   CueSystem,
   ForceHelper,
-  Layout,
   PointHelper,
   RegulatorHelper,
   Table,
