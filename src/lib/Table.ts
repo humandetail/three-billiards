@@ -38,6 +38,8 @@ export default class Table {
     const {
       cornerPositions,
       middlePositions,
+      cornerParams,
+      middleParams,
     } = config
 
     const names = ['top', 'right', 'bottom', 'left', 'middle-top', 'middle-bottom']
@@ -46,7 +48,8 @@ export default class Table {
       ...cornerPositions,
       ...middlePositions,
     ].forEach((position, index) => {
-      const trigger = new ExtendedMesh(new THREE.CylinderGeometry(config.cornerParams.r, config.cornerParams.r, config.table.height, 32), new THREE.MeshBasicMaterial({ color: 0x00FF00 }))
+      const r = (index < 4 ? cornerParams.r : middleParams.side) - 0.01
+      const trigger = new ExtendedMesh(new THREE.CylinderGeometry(r, r, config.table.height, 32), new THREE.MeshBasicMaterial({ color: 0x00FF00 }))
       trigger.position.set(position.x, this.boardTopY - config.table.height / 2, position.y)
       // this.mainScene.add.existing(trigger)
       this.mainScene.physics.add.existing(trigger as any, { shape: 'convex', mass: 0 })

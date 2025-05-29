@@ -305,7 +305,7 @@ export default class CueSystem {
   }
 
   resetCuePosition() {
-    this.cue.position.copy(this.ballPosition)
+    this.cue.position.copy(this.cueBasePosition)
   }
 
   setControlKey(key: ControlKey, val = false, isMicro = false) {
@@ -365,6 +365,7 @@ export default class CueSystem {
     forceDirection.multiplyScalar(this.#hitForce / 200)
 
     const applyPoint = getIntersectionPoints(this.cue, this.ball)
+
     if (!applyPoint) {
       return
     }

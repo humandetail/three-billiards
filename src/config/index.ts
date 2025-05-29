@@ -479,7 +479,7 @@ export function getConfig(scale = 1) {
          */
         damping: {
           linear: 0.5,
-          angular: 0.2,
+          angular: 0.6,
         },
         /**
          * 连续碰撞检测（CCD）阈值

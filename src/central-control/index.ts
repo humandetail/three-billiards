@@ -71,6 +71,10 @@ export async function setup() {
   // 场景初始化完毕
   mainScene.init()
 
+  // setTimeout(() => {
+  //   mainScene.setBallPosition(mainScene.mainBall!, { x: 0, z: 0 })
+  // }, 1000)
+
   emitter.on(EventTypes.point, (point) => {
     // 击球安全区是 2/3
     cueSystem.setCuePosition(

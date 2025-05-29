@@ -25,7 +25,7 @@ export interface BilliardsContext {
 const initialContext: BilliardsContext = {
   status: BilliardsStatus.Idle,
   speedThreshold: 0.1,
-  angularSpeedThreshold: 500,
+  angularSpeedThreshold: 10,
   checkStaticInterval: 100,
 }
 

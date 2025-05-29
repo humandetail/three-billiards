@@ -16,22 +16,24 @@ export default class MainScene extends Scene3D {
   ballY = config.table.leg.height + config.table.height + config.ball.radius
   mainBallInitialPosition = { x: -config.table.width / 4, z: 0 }
 
+  needUpdateNames = new Set<string>()
+
   async create() {
     await this.warpSpeed()
     this.camera.position.set(-2, 4, 0) // 从y轴直接看向000
     this.camera.lookAt(0, 0, 0)
 
-    // const hiddenNames = ['pocket', 'cushion', 'table', 'ball']
+    const hiddenNames = ['pocket', 'cushion', 'table', 'ball']
 
-    // this.scene.children.forEach((child) => {
-    //   if (hiddenNames.some(name => child.name.startsWith(name))) {
-    //     child.visible = false
-    //   }
-    // })
-    // // 展示物理体
-    // if (this.physics.debug) {
-    //   this.physics.debug.enable()
-    // }
+    this.scene.children.forEach((child) => {
+      if (hiddenNames.some(name => child.name.startsWith(name))) {
+        child.visible = false
+      }
+    })
+    // 展示物理体
+    if (this.physics.debug) {
+      this.physics.debug.enable()
+    }
   }
 
   get checkableBalls() {
@@ -48,11 +50,14 @@ export default class MainScene extends Scene3D {
       this.balls.forEach((ball) => {
         this.physics.add.collider(ball, pocket, (type) => {
           if (type === 'start') {
-            ball!.body.setVelocity(0, -1, 0)
+            // eslint-disable-next-line no-console
+            console.log(ball.name, '入袋', pocket.name, pocket)
+            // 强制入袋
+            this.setBallPosition(ball, { x: pocket.body.position.x, y: pocket.body.position.y, z: pocket.body.position.z })
+            ball.body.setVelocity(0, -1, 0)
+
             ;(ball as any).inPocket = true
             // @todo - 检测入球是否为已方球
-            // eslint-disable-next-line no-console
-            console.log(ball.name, '入袋')
           }
         })
       })
@@ -61,13 +66,15 @@ export default class MainScene extends Scene3D {
         this.physics.add.collider(pocket, this.mainBall, (type) => {
           if (type === 'start') {
             // this.mainBall!.body.setVelocity(0, -1, 0)
-            // 放置主球到合适位置
-            this.mainBall!.body.setVelocity(0, 0, 0)
-            this.mainBall!.body.setAngularVelocity(0, 0, 0)
+            // console.log('主球入袋')
+            this.setBallPosition(this.mainBall!, { x: pocket.body.position.x, y: pocket.body.position.y, z: pocket.body.position.z })
+            this.mainBall!.body.setVelocity(0, -1, 0)
             // @todo - 进入移球状态
             // setContext('status', BilliardsStatus.Moving)
 
-            this.mainBall!.body.setPosition(this.mainBallInitialPosition.x, this.ballY, this.mainBallInitialPosition.z)
+            setTimeout(() => {
+              this.setBallPosition(this.mainBall!, this.mainBallInitialPosition)
+            }, 0)
           }
         })
       }
@@ -90,8 +97,15 @@ export default class MainScene extends Scene3D {
     })
   }
 
-  setMainBallPosition(x: number, z: number) {
-    this.mainBall!.body.setPosition(x, this.ballY, z)
+  setBallPosition(ball: ExtendedMesh, { x, y, z }: { x: number, y?: number, z: number }) {
+    ball.body.setVelocity(0, 0, 0)
+    ball.body.setAngularVelocity(0, 0, 0)
+    ball.position.set(x, y ?? this.ballY, z)
+    ball.body.setCollisionFlags(2)
+    ball.body.needUpdate = true
+    setTimeout(() => {
+      this.needUpdateNames.add(ball.name)
+    }, 40)
   }
 
   setBall(ball: ExtendedMesh) {
@@ -149,9 +163,19 @@ export default class MainScene extends Scene3D {
   update(time: number, delta: number) {
     super.update(time, delta)
 
+    ;[...this.balls, this.mainBall!].forEach((ball) => {
+      if (this.needUpdateNames.has(ball.name)) {
+        ball.body.setCollisionFlags(0)
+        ball.body.needUpdate = true
+        if (ball.name === this.mainBall!.name && context.status === BilliardsStatus.Idle) {
+          this.cueSystem?.update()
+        }
+      }
+    })
+    this.needUpdateNames.clear()
+
     // 检测球是否都静止了
     // 不需要每帧检测，只需要在每次击球后检测
-    // console.log(context.status)
     if (context.status === BilliardsStatus.ShotCompleted) {
       this.#checkBallsStatic()
     }

@@ -89,6 +89,7 @@ export default class Ball {
     ball.body.setCcdSweptSphereRadius(ballRadius * config.material.ball.ccdSweptSphereRadiusScale)
 
     ball.body.checkCollisions = true
+    // ball.body.setCollisionFlags(2)
 
     ball.name = `ball-${name}`
 
