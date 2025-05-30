@@ -2,6 +2,7 @@ import Hammer from 'hammerjs'
 import { BilliardsStatus, context, emitter, EventTypes, setContext } from '../../central-control'
 import { createCanvas } from '../../utils'
 import FireButton from './FireButton'
+import ArrowButton from './ArrowButton'
 
 export default class ForceHelper {
   canvas: HTMLCanvasElement
@@ -44,6 +45,9 @@ export default class ForceHelper {
 
   #progress = 0
 
+  upBtn: ArrowButton
+  downBtn: ArrowButton
+
   constructor(el: string | HTMLElement, public maxForce = 500) {
     const oEl = typeof el === 'string'
       ? document.querySelector<HTMLElement>(el)
@@ -63,6 +67,13 @@ export default class ForceHelper {
     this.fontSize = Math.min(16, width * 0.8)
     this.btnRadius = Math.min(10, width * 0.6)
     oEl.appendChild(this.canvas)
+
+    this.upBtn = new ArrowButton('#btn-force-controller-up', Math.PI, () => {
+      this.progress -= 100 / this.maxForce * 0.01
+    })
+    this.downBtn = new ArrowButton('#btn-force-controller-down', 0, () => {
+      this.progress += 100 / this.maxForce * 0.01
+    })
 
     this.init()
   }
@@ -125,8 +136,6 @@ export default class ForceHelper {
     this.initScale()
     this.initEvent()
     this.draw()
-
-    this.drawButton()
   }
 
   initScale() {

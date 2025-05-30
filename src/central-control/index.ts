@@ -70,7 +70,8 @@ export async function setup() {
   // new RegulatorHelper('#vertical-regulator-helper', 'vertical')
 
   // new AngleDemodulator('#angle-demodulator')
-  new PointHelper('#point-controller-container')
+  // new PointHelper('#point-controller-container')
+  new ForceHelper('#force-controller-container')
 
   // // 场景初始化完毕
   // mainScene.init()
