@@ -1,15 +1,16 @@
 import Hammer from 'hammerjs'
 import { BilliardsStatus, context, emitter, EventTypes } from '../../central-control'
 import { createCanvas } from '../../utils'
+import Ball2D from './Ball2D'
 
 export interface PointHelperOptions {
-  ballRadius: number
+  radius: number
   targetRadius: number
   bgColor: string
   targetColor: string
   guideLineColor: string
 }
-export default class PointHelper {
+export default class PointHelper extends Ball2D {
   canvas: HTMLCanvasElement
   ctx: CanvasRenderingContext2D
 
@@ -27,8 +28,8 @@ export default class PointHelper {
 
   isDragging = false
 
-  setting: PointHelperOptions = {
-    ballRadius: Number.NaN,
+  options: PointHelperOptions = {
+    radius: 1,
     targetRadius: 4,
     bgColor: '#f1f1f1',
     targetColor: 'red',
@@ -45,10 +46,19 @@ export default class PointHelper {
     }
 
     const { width, height } = oEl.getBoundingClientRect()
+    const radius = options.radius || Math.floor(Math.min(width, height) * 0.9 / 2)
+    super({
+      radius,
+      bgColor: '#f1f1f1',
+      guideLineColor: '#ccc',
+    })
+
     this.width = width
     this.height = height
 
-    this.setting = Object.assign({}, this.setting, options)
+    this.options = Object.assign({}, this.options, options, {
+      radius,
+    })
 
     this.canvas = createCanvas(width, height)
     this.ctx = this.canvas.getContext('2d')!
@@ -56,9 +66,8 @@ export default class PointHelper {
     this.targetPosition.x = width / 2
     this.targetPosition.y = height / 2
 
-    this.setting.ballRadius = this.setting.ballRadius || Math.floor(Math.min(width, height) * 0.9 / 2)
-    this.targetRadius = Math.floor(Math.max(this.setting.ballRadius / 10, 4))
-    this.safeRadius = this.setting.ballRadius - this.targetRadius
+    this.targetRadius = Math.floor(Math.max(radius / 10, 4))
+    this.safeRadius = radius - this.targetRadius
 
     oEl.appendChild(this.canvas)
 
@@ -67,18 +76,11 @@ export default class PointHelper {
     this.draw()
   }
 
-  get center() {
+  getPosition(radius = this.options.radius) {
+    const { targetPosition, center } = this
     return {
-      x: this.width / 2,
-      y: this.height / 2,
-    }
-  }
-
-  getPosition(radius = this.setting.ballRadius) {
-    const { targetPosition, center, setting: { ballRadius } } = this
-    return {
-      x: radius * (targetPosition.x - center.x) / ballRadius,
-      y: radius * (targetPosition.y - center.y) / ballRadius,
+      x: radius * (targetPosition.x - center.x) / radius,
+      y: radius * (targetPosition.y - center.y) / radius,
     }
   }
 
@@ -131,152 +133,12 @@ export default class PointHelper {
   draw() {
     const { ctx, width, height } = this
     ctx.clearRect(0, 0, width, height)
+    this.setCenter(width / 2, height / 2)
+    super.draw(ctx)
 
-    this.drawBall()
-    this.drawLightEffect()
-
-    this.drawGuideLine()
     this.drawTarget()
 
-    this.drawDiff()
-  }
-
-  drawBall() {
-    const { ctx, center, setting: { ballRadius, bgColor } } = this
-    ctx.save()
-
-    ctx.beginPath()
-
-    ctx.shadowBlur = 10
-    ctx.shadowColor = '#0000000F'
-    ctx.shadowOffsetX = 5
-    ctx.shadowOffsetY = 5
-
-    ctx.arc(center.x, center.y, ballRadius, 0, Math.PI * 2)
-    ctx.strokeStyle = '#0000000F'
-    ctx.fillStyle = bgColor
-    ctx.fill()
-    ctx.stroke()
-
-    ctx.restore()
-  }
-
-  drawLightEffect() {
-    const { ctx, center, setting: { ballRadius } } = this
-
-    // 左上角一下开壳器
-    {
-      ctx.save()
-
-      const p1 = {
-        x: center.x - ballRadius * 0.6 * Math.cos(Math.PI / 4),
-        y: center.y - ballRadius * 0.6 * Math.sin(Math.PI / 4),
-      }
-
-      const cp = {
-        x: center.x - ballRadius * 0.75 * Math.cos(Math.PI / 4),
-        y: center.y - ballRadius * 0.75 * Math.sin(Math.PI / 4),
-      }
-
-      const p2 = {
-        x: center.x - ballRadius * 0.9 * Math.cos(Math.PI / 4 - Math.PI / 8),
-        y: center.y - ballRadius * 0.9 * Math.sin(Math.PI / 4 - Math.PI / 8),
-      }
-
-      const p3 = {
-        x: center.x - ballRadius * 0.9 * Math.cos(Math.PI / 4 + Math.PI / 8),
-        y: center.y - ballRadius * 0.9 * Math.sin(Math.PI / 4 + Math.PI / 8),
-      }
-
-      ctx.beginPath()
-      ctx.lineCap = 'round'
-      ctx.moveTo(p1.x, p1.y)
-      ctx.quadraticCurveTo(cp.x, cp.y, p2.x, p2.y)
-      ctx.quadraticCurveTo(
-        center.x - ballRadius * Math.cos(Math.PI / 4),
-        center.y - ballRadius * Math.cos(Math.PI / 4),
-        p3.x,
-        p3.y,
-      )
-      ctx.quadraticCurveTo(cp.x, cp.y, p1.x, p1.y)
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
-      ctx.fill()
-
-      ctx.restore()
-    }
-
-    // 下面来个半月牙
-    {
-      ctx.save()
-
-      const p1 = {
-        x: center.x - ballRadius * 0.8 * Math.cos(Math.PI / 4),
-        y: center.y + ballRadius * 0.75 * Math.cos(Math.PI / 4),
-      }
-
-      const p2 = {
-        x: center.x + ballRadius * 0.8 * Math.cos(Math.PI / 4),
-        y: center.y + ballRadius * 0.75 * Math.cos(Math.PI / 4),
-      }
-
-      ctx.beginPath()
-      ctx.lineCap = 'round'
-      ctx.moveTo(p1.x, p1.y)
-      ctx.quadraticCurveTo(center.x, center.y + ballRadius * 1.1, p2.x, p2.y)
-      ctx.quadraticCurveTo(center.x, center.y + ballRadius * 0.75, p1.x, p1.y)
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.75)'
-      ctx.fill()
-      // ctx.stroke()
-
-      ctx.restore()
-    }
-
-    // 右边再来个小曲线
-    {
-      ctx.save()
-
-      const p1 = {
-        x: center.x + ballRadius * 0.9 * Math.cos(Math.PI / 4),
-        y: center.y - ballRadius * 0.6 * Math.cos(Math.PI / 4),
-      }
-
-      const cp = {
-        x: center.x + ballRadius * Math.cos(Math.PI / 4 - Math.PI / 8),
-        y: center.y - ballRadius * Math.cos(Math.PI / 4 + Math.PI / 6),
-      }
-
-      const p2 = {
-        x: center.x + ballRadius * 0.9,
-        y: center.y,
-      }
-
-      ctx.beginPath()
-      ctx.moveTo(p1.x, p1.y)
-      ctx.quadraticCurveTo(cp.x, cp.y, p2.x, p2.y)
-      // ctx.lineTo(p2.x, p2.y)
-      ctx.lineWidth = 2
-      ctx.lineCap = 'round'
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'
-      ctx.stroke()
-
-      ctx.restore()
-    }
-  }
-
-  drawGuideLine() {
-    const { ctx, width, height, center, setting: { ballRadius } } = this
-    ctx.save()
-    const diffX = Math.ceil(width / 2 - ballRadius)
-    const diffY = Math.ceil(height / 2 - ballRadius)
-    ctx.beginPath()
-    ctx.moveTo(center.x, diffY)
-    ctx.lineTo(center.x, height - diffY)
-    ctx.moveTo(diffX, center.y)
-    ctx.lineTo(width - diffX, center.y)
-    ctx.strokeStyle = this.setting.guideLineColor
-    ctx.setLineDash([ballRadius / 10])
-    ctx.stroke()
-    ctx.restore()
+    // this.drawDiff()
   }
 
   drawTarget() {
@@ -284,7 +146,7 @@ export default class PointHelper {
     ctx.save()
     ctx.beginPath()
     ctx.arc(targetPosition.x, targetPosition.y, targetRadius, 0, Math.PI * 2)
-    ctx.fillStyle = this.setting.targetColor
+    ctx.fillStyle = this.options.targetColor
     ctx.fill()
     ctx.restore()
   }
@@ -297,7 +159,7 @@ export default class PointHelper {
     ctx.beginPath()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.font = `Bold ${this.setting.ballRadius * 0.3}px Arial`
+    ctx.font = `Bold ${this.options.radius * 0.3}px Arial`
     ctx.fillText(text, center.x, center.y)
     ctx.stroke()
     ctx.restore()
