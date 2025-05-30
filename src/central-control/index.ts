@@ -69,8 +69,8 @@ export async function setup() {
   // // eslint-disable-next-line no-new
   // new RegulatorHelper('#vertical-regulator-helper', 'vertical')
 
-  // eslint-disable-next-line no-new
-  new AngleDemodulator('#angle-demodulator')
+  // new AngleDemodulator('#angle-demodulator')
+  new PointHelper('#point-controller-container')
 
   // // 场景初始化完毕
   // mainScene.init()
