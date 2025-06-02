@@ -131,7 +131,9 @@ export async function setup() {
         pointHelper.resetTarget()
 
         if (context.inPocketBalls.has(mainScene.mainBall!)) {
-          mainScene.setBallPosition(mainScene.mainBall!, mainScene.mainBallInitialPosition)
+          setTimeout(() => {
+            mainScene.setBallPosition(mainScene.mainBall!, mainScene.mainBallInitialPosition)
+          }, 200)
         }
 
         if (context.inPocketBalls.size === 15) {

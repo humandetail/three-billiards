@@ -56,18 +56,23 @@ export default class Ball {
         radius: ballRadius,
       },
       {
-        phong: name !== 0
-          ? {
-              map: texture,
-              specular: 0x111111,
-              shininess: 30,
-            }
-          : {
-              color: 0xFFFFFF,
-              // map: mainBallTexture,
-              specular: 0x111111,
-              shininess: 30,
-            },
+        physical: {
+          map: texture,
+          clearcoat: 0.92,
+          clearcoatRoughness: 0.35,
+        },
+        // phong: name !== 0
+        //   ? {
+        //       map: texture,
+        //       specular: 0x111111,
+        //       shininess: 30,
+        //     }
+        //   : {
+        //       color: 0xFFFFFF,
+        //       // map: mainBallTexture,
+        //       specular: 0x111111,
+        //       shininess: 30,
+        //     },
       },
     )
 
