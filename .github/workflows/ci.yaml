@@ -1,48 +1,45 @@
-# workflow for deploying static content to GitHub Pages
-name: ci
+name: CI for GitHub Pages Deployment
 
 on:
-  # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow one concurrent deployment
 concurrency:
   group: "pages"
   cancel-in-progress: true
 
 jobs:
-  # Single deploy job since we're just deploying
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Checkout pnpm
-        uses: pnpm/action-setup@v2.0.1
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2.2.4
         with:
-          version: 7.13.4
-      - name: Build Core
-        run: pwd && pnpm i && pnpm run build
+          version: 8
+          
+      - name: Install dependencies and build
+        run: pnpm install && pnpm run build
+        
       - name: Setup Pages
-        uses: actions/configure-pages@v2
+        uses: actions/configure-pages@v3
+        
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v2
         with:
-          # Upload entire repository
-          path: './packages/dist'
+          path: './dist'
+          
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v2
