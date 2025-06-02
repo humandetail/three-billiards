@@ -71,6 +71,9 @@ export default class Table {
     tableBoard.body.setFriction(config.material.cloth.friction)
     tableBoard.body.setRestitution(config.material.cloth.restitution)
 
+    tableBoard.castShadow = true
+    tableBoard.receiveShadow = true
+
     tableBoard.name = 'tableBoard'
   }
 
@@ -87,6 +90,8 @@ export default class Table {
 
       mesh.body.setCollisionFlags(1)
       mesh.body.checkCollisions = true
+      mesh.castShadow = true
+      mesh.receiveShadow = true
 
       mesh.name = `cushionRubber-${index}`
     })
@@ -100,6 +105,8 @@ export default class Table {
       mesh.position.set(0, this.boardBottomY + (config.table.height + config.cushion.height) / 2, 0)
       this.mainScene.add.existing(mesh)
       mesh.name = `cushionWood-${index}`
+      mesh.castShadow = true
+      mesh.receiveShadow = true
     })
   }
 
@@ -114,6 +121,8 @@ export default class Table {
       // mesh.body.setFriction(config.material.cushion.friction)
       // mesh.body.setRestitution(config.material.cushion.restitution)
       mesh.name = `pocketSeal-${index}`
+      mesh.castShadow = true
+      mesh.receiveShadow = true
     })
   }
 
@@ -123,6 +132,8 @@ export default class Table {
     mesh.position.set(0, this.boardBottomY - config.table.body.depth / 2, 0)
     this.mainScene.add.existing(mesh)
     mesh.name = 'tableBody'
+    mesh.castShadow = true
+    mesh.receiveShadow = true
   }
 
   createTableLegs() {
@@ -131,13 +142,15 @@ export default class Table {
     mesh.position.set(0, 0, 0)
     this.mainScene.add.existing(mesh)
     mesh.name = 'tableLegs'
+    mesh.castShadow = true
+    mesh.receiveShadow = true
   }
 
   createPockets() {
     const {
-      table: {
-        height: tableHeight,
-      },
+      // table: {
+      //   height: tableHeight,
+      // },
       cornerPositions,
       middlePositions,
     } = config
@@ -147,11 +160,13 @@ export default class Table {
       ...middlePositions,
     ].forEach((position, index) => {
       const mesh = new Funnel(this.mainScene).setup({
-        position: new THREE.Vector3(position.x, -tableHeight / 2, position.y),
+        position: new THREE.Vector3(position.x, -0.01, position.y),
         isRotate: [0, 3].includes(index),
       })
       mesh.name = `pocket-${index}`
       this.mainScene.add.existing(mesh)
+      mesh.castShadow = true
+      mesh.receiveShadow = true
     })
   }
 
@@ -601,7 +616,7 @@ class Funnel {
     } = config
 
     // 几何参数
-    this.topDiameter = cornerParams.r * 2
+    this.topDiameter = cornerParams.r * 2.2
     this.bottomDiameter = ballRadius * 2 * 1.1
     this.funnelHeight = ballRadius * 2 * 1.5
     this.bottomCatchHeight = ballRadius * 2 * 1.4

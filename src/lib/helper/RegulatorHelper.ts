@@ -1,265 +1,256 @@
-import * as THREE from 'three'
-import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { BilliardsStatus, context, emitter, EventTypes } from '../../central-control'
-import { resizeRendererToDisplaySize } from '../../utils'
-import { createHollowRoundedBoxGeometry } from '../../utils/HollowRounedBox'
-
-export type RegulatorDirection = 'horizontal' | 'vertical'
+import { emitter, EventTypes } from '../../central-control'
+import { createCanvas } from '../../utils'
 
 export default class RegulatorHelper {
-  private parentEl!: HTMLElement
-  canvas!: HTMLCanvasElement
-  ctx!: CanvasRenderingContext2D
+  canvas: HTMLCanvasElement
+  ctx: CanvasRenderingContext2D
 
-  private width = 0
-  private height = 0
+  width: number
+  height: number
 
-  private renderer!: THREE.WebGLRenderer
-  private scene!: THREE.Scene
-  private camera!: THREE.PerspectiveCamera
-  private controls!: OrbitControls
-  private directionalLight!: THREE.DirectionalLight
-  private previousRotateAngle = 0
+  isDragging = false
+  lastX = 0
 
-  private renderRequested = false
+  #offset = {
+    top: 8,
+    bottom: 0,
+  }
 
-  hollowRoundedBox = new THREE.Group()
+  gap = 8
 
-  constructor(el: string | HTMLElement, public dir: RegulatorDirection = 'horizontal') {
+  constructor(el: string) {
     const oEl = typeof el === 'string'
       ? document.querySelector<HTMLElement>(el)
       : el
 
     if (!oEl || !('innerHTML' in oEl)) {
-      throw new Error('Invalid element provided')
+      throw new Error('Invalid element')
     }
 
-    this.parentEl = oEl
+    const { width, height } = oEl.getBoundingClientRect()
 
-    this.setup()
-    this.setupEvents()
+    this.width = Math.min(width * 0.8, 320)
+    this.height = Math.min(height * 0.8, 32)
+
+    this.canvas = createCanvas(this.width, this.height)
+    this.ctx = this.canvas.getContext('2d')!
+
+    oEl.appendChild(this.canvas)
+
+    this.initEvents()
+
+    this.animate()
+  }
+
+  get offsetTop() {
+    return this.#offset.top
+  }
+
+  set offsetTop(top: number) {
+    this.#offset.top = top
+    emitter.emit(EventTypes.direction, 'left')
+  }
+
+  get offsetBottom() {
+    return this.#offset.bottom
+  }
+
+  set offsetBottom(bottom: number) {
+    this.#offset.bottom = bottom
+    emitter.emit(EventTypes.direction, 'right')
+  }
+
+  initEvents() {
+    const { canvas } = this
+
+    const handleMove = (clientX: number) => {
+      if (clientX < this.lastX) {
+        // 左滑，上面刻度左移
+        let offsetTop = this.offsetTop - 2
+        if (offsetTop < 0) offsetTop += this.width
+        this.offsetTop = offsetTop
+      } else if (clientX > this.lastX) {
+        // 右滑，下面刻度右移
+        let offsetBottom = this.offsetBottom + 2
+        if (offsetBottom > this.width) offsetBottom -= this.width
+        this.offsetBottom = offsetBottom
+      }
+      this.lastX = clientX
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!this.isDragging) return
+      handleMove(e.clientX)
+    }
+
+    const handleMouseUp = () => {
+      this.isDragging = false
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      this.isDragging = true
+      this.lastX = e.clientX
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+    })
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!this.isDragging) return
+      if (e.touches.length !== 1) return
+      e.preventDefault()
+      handleMove(e.touches[0].clientX)
+    }
+
+    const handleTouchEnd = () => {
+      this.isDragging = false
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+    }
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        this.isDragging = true
+        this.lastX = e.touches[0].clientX
+        window.addEventListener('touchmove', handleTouchMove, { passive: false })
+        window.addEventListener('touchend', handleTouchEnd)
+      }
+    })
+  }
+
+  animate = () => {
     this.draw()
-    this.render()
+    requestAnimationFrame(this.animate)
   }
 
-  setup() {
-    const canvas = document.createElement('canvas')
-    this.parentEl.appendChild(canvas)
-    const { width, height } = this.parentEl.getBoundingClientRect()
-    this.width = Math.min(width * 0.8, 192)
-    this.height = Math.min(height * 0.8, 48)
-
-    if (this.dir === 'vertical') {
-      this.width = Math.min(width * 0.8, 48)
-      this.height = Math.min(height * 0.8, 192)
-    }
-
-    const renderer = this.renderer = new THREE.WebGLRenderer({ canvas, alpha: true, premultipliedAlpha: false })
-    const scene = this.scene = new THREE.Scene()
-    const camera = this.camera = new THREE.PerspectiveCamera(12, this.width / this.height, 0.1, 1000)
-
-    camera.position.set(0, 0, this.dir === 'horizontal' ? 14 : 52)
-    camera.lookAt(0, 0, 0)
-
-    scene.add(camera)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.setSize(this.width, this.height)
-    renderer.render(scene, camera)
-
-    const controls = this.controls = new OrbitControls(camera, renderer.domElement)
-    controls.rotateSpeed = 0.1
-    controls.enableZoom = false
-    controls.enablePan = true
-    controls.enableDamping = false
-
-    if (this.dir === 'horizontal') {
-      // 限制垂直旋转
-      controls.minPolarAngle = Math.PI / 2
-      controls.maxPolarAngle = Math.PI / 2
-    }
-    else {
-      // 限制水平旋转
-      controls.minAzimuthAngle = Math.PI / 2
-      controls.maxAzimuthAngle = Math.PI / 2
-
-      // 保存初始状态，用于 reset
-      controls.saveState()
-    }
-
-    const ambientLight = new THREE.AmbientLight(0x404040)
-    scene.add(ambientLight)
-
-    const directionalLight = this.directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.8)
-    directionalLight.position.set(0, 0, 50)
-    directionalLight.lookAt(0, 0, 0)
-    directionalLight.castShadow = true
-    directionalLight.shadow.mapSize.width = 1024
-    directionalLight.shadow.mapSize.height = 1024
-    scene.add(directionalLight)
-  }
-
-  setupEvents() {
-    const { controls, directionalLight, camera, previousRotateAngle } = this
-
-    const handleChange = () => {
-      this.requestRenderIfNotRequested()
-
-      directionalLight.position.copy(camera.position)
-
-      const currentRotateAngle = this.dir === 'horizontal'
-        ? controls.getAzimuthalAngle()
-        : controls.getPolarAngle()
-
-      if (this.dir === 'vertical') {
-        if (currentRotateAngle >= Math.PI - 0.01 || currentRotateAngle <= 0.01) {
-          controls.removeEventListener('change', handleChange)
-          controls.reset()
-          directionalLight.position.copy(camera.position)
-          controls.addEventListener('change', handleChange)
-        }
-      }
-
-      let delta = currentRotateAngle - previousRotateAngle
-      if (delta > Math.PI)
-        delta -= 2 * Math.PI
-      else if (delta < -Math.PI)
-        delta += 2 * Math.PI
-
-      if (context.status === BilliardsStatus.Idle) {
-        if (delta > 0) {
-          emitter.emit(EventTypes.direction, this.dir === 'horizontal' ? 'left' : 'up')
-        }
-        else if (delta < 0) {
-          emitter.emit(EventTypes.direction, this.dir === 'horizontal' ? 'right' : 'down')
-        }
-      }
-
-      this.previousRotateAngle = currentRotateAngle
-    }
-    controls.addEventListener('change', handleChange)
+  clear() {
+    const { ctx, width, height } = this
+    ctx.clearRect(0, 0, width, height)
   }
 
   draw() {
-    const { scene } = this
+    const { ctx, width, height } = this
+    this.clear()
 
-    const material = new THREE.MeshPhysicalMaterial({
-      color: 0x6B7B8B,
-      clearcoat: 0.92,
-      clearcoatRoughness: 0.35,
-    })
+    // 背景渐变和粒子
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, height)
+    bgGrad.addColorStop(0, '#0d0019')
+    bgGrad.addColorStop(1, '#1a004d')
+    ctx.fillStyle = bgGrad
+    ctx.fillRect(0, 0, width, height)
 
-    const teeth = 48
-    const radius = 4
-    const thickness = 1
-
-    const gearGroup = new THREE.Group()
-
-    // 轴
-    const axisGeometry = new THREE.CylinderGeometry(radius * 0.4, radius * 0.4, thickness * 2, 32)
-    const axisMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 })
-    const axisMesh = new THREE.Mesh(axisGeometry, axisMaterial)
-    axisMesh.rotation.x = Math.PI / 2 // 水平放置
-    gearGroup.add(axisMesh)
-
-    // 轮盘
-    const gearBodyGeometry = new THREE.CylinderGeometry(
-      radius,
-      radius,
-      thickness,
-      32,
-    )
-    const gearBody = new THREE.Mesh(gearBodyGeometry, material)
-    gearBody.rotation.x = Math.PI / 2 // 水平放置
-    gearGroup.add(gearBody)
-
-    // 齿
-    const toothShape = new THREE.Shape()
-    const toothThickness = 0.8
-
-    // 定义梯形路径（从齿根到齿顶）
-    toothShape.moveTo(-0.08, 0)
-    toothShape.lineTo(-0.25, toothThickness)
-    toothShape.lineTo(0.25, toothThickness)
-    toothShape.lineTo(0.08, 0)
-    toothShape.lineTo(-0.08, 0)
-
-    const extrudeSettings = {
-      depth: thickness,
-      bevelEnabled: false,
+    // 粒子粒子
+    ctx.save()
+    for (let i = 0; i < 30; i++) {
+      const px = Math.random() * width
+      const py = Math.random() * height
+      const r = Math.random() * 1.2
+      ctx.beginPath()
+      ctx.arc(px, py, r, 0, Math.PI * 2)
+      ctx.fillStyle = `rgba(${Math.floor(Math.random() * 255)}, 255, 255, ${Math.random() * 0.05})`
+      ctx.shadowColor = 'cyan'
+      ctx.shadowBlur = 8
+      ctx.fill()
     }
-    const toothGeometry = new THREE.ExtrudeGeometry(toothShape, extrudeSettings)
+    ctx.restore()
 
-    // 环形排列齿轮齿
-    const teethGeometries = []
-    const angleStep = (Math.PI * 2) / teeth
-    for (let i = 0; i < teeth; i++) {
-      const clonedGeo = toothGeometry.clone()
-      const angle = i * angleStep
-      const matrix = new THREE.Matrix4()
-        .makeRotationZ(angle + Math.PI / 2) // 先旋转
-        .setPosition(
-          Math.cos(angle) * (radius + 0.75),
-          Math.sin(angle) * (radius + 0.75),
-          -0.5,
-        )
+    // 动态发光中心线和涟漪
+    const time = performance.now() / 1000
+    ctx.save()
+    ctx.lineWidth = 4
+    const pulse = 0.6 + 0.4 * Math.sin(time * 6)
+    const centerGrad = ctx.createRadialGradient(width / 2, height / 2, 2, width / 2, height / 2, 20)
+    centerGrad.addColorStop(0, `rgba(0, 255, 255, ${pulse})`)
+    centerGrad.addColorStop(1, 'rgba(0, 255, 255, 0)')
+    ctx.strokeStyle = centerGrad
+    ctx.shadowColor = `rgba(0, 255, 255, ${pulse})`
+    ctx.shadowBlur = 16
+    ctx.beginPath()
+    ctx.moveTo(width / 2, 0)
+    ctx.lineTo(width / 2, height)
+    ctx.stroke()
+    ctx.restore()
 
-      clonedGeo.applyMatrix4(matrix)
-      teethGeometries.push(clonedGeo)
-    }
-    const mergedTeethGeometry = BufferGeometryUtils.mergeGeometries(teethGeometries)
-    const teethMesh = new THREE.Mesh(mergedTeethGeometry, material)
-    gearGroup.add(teethMesh)
-    scene.add(gearGroup)
-    if (this.dir === 'horizontal') {
-      gearGroup.rotation.x = Math.PI / 2 // 水平放置
-    }
+    // 中心涟漪
+    ctx.save()
+    const rippleTime = Math.sin(performance.now() / 200) * 5 + 10
+    const rippleGrad = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, rippleTime)
+    rippleGrad.addColorStop(0, 'rgba(0,255,255,0.4)')
+    rippleGrad.addColorStop(1, 'rgba(0,255,255,0)')
+    ctx.fillStyle = rippleGrad
+    ctx.fillRect(0, 0, width, height)
+    ctx.restore()
 
-    // 绘制方通
-    {
-      const geometry = createHollowRoundedBoxGeometry({
-        width: radius * 2 + toothThickness * 2 + 0.6,
-        height: thickness + 1.6,
-        thickness: 0.3,
-        radius: 0.4,
-        depth: 3,
-        segments: 8,
-      })
-      const mesh = new THREE.Mesh(geometry, material)
-      if (this.dir === 'vertical') {
-        // mesh.rotation.x = Math.PI / 2
-        // mesh.rotation.y = Math.PI / 2
-        mesh.rotation.x = Math.PI
-        mesh.rotation.y = Math.PI
-        mesh.rotation.z = Math.PI / 2
-      }
+    // 上下刻度
+    this.drawTicks('top', time)
+    this.drawTicks('bottom', time)
 
-      this.hollowRoundedBox.add(mesh)
-      scene.add(this.hollowRoundedBox)
-    }
+    // // 横向扫描光斑
+    // ctx.save()
+    // const scanX = (performance.now() / 5) % width
+    // const scanGrad = ctx.createRadialGradient(scanX, height / 2, 0, scanX, height / 2, 40)
+    // scanGrad.addColorStop(0, 'rgba(255,255,255,0.25)')
+    // scanGrad.addColorStop(0.5, 'rgba(0,255,255,0.1)')
+    // scanGrad.addColorStop(1, 'rgba(0,0,0,0)')
+    // ctx.fillStyle = scanGrad
+    // ctx.fillRect(0, 0, width, height)
+    // ctx.restore()
   }
 
-  render() {
-    this.renderRequested = false
+  drawTicks(position: 'top' | 'bottom', time: number) {
+    const { ctx, gap, width, height, offsetTop, offsetBottom } = this
 
-    if (resizeRendererToDisplaySize(this.renderer)) {
-      const canvas = this.renderer.domElement
-      this.camera.aspect = canvas.clientWidth / canvas.clientHeight
-      this.camera.updateProjectionMatrix()
+    const tickHeight = height / 2 - 6
+    const yBase = position === 'top' ? 0 : height
+
+    ctx.save()
+    ctx.lineCap = 'round'
+
+    const directionBias = position === 'top' ? 1 : -1
+
+    const drawLine = (x: number, isMajor: boolean) => {
+      ctx.beginPath()
+      ctx.moveTo(x, yBase)
+      const tickLen = isMajor ? tickHeight : tickHeight / 2
+      const tickEndY = position === 'top' ? yBase + tickLen : yBase - tickLen
+
+      const hue = ((x + directionBias * time * 80) / width) * 360
+      const color1 = `hsl(${hue % 360}, 100%, ${isMajor ? '70%' : '50%'})`
+      const color2 = `hsl(${(hue + 60) % 360}, 100%, ${isMajor ? '40%' : '30%'})`
+
+      const grad = ctx.createLinearGradient(x, yBase, x, tickEndY)
+      grad.addColorStop(0, color1)
+      grad.addColorStop(1, color2)
+
+      ctx.strokeStyle = grad
+      ctx.lineWidth = isMajor ? 3 : 1.5
+
+      ctx.shadowColor = color1
+      ctx.shadowBlur = isMajor ? 10 : 5
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 0
+
+      ctx.lineTo(x, tickEndY)
+      ctx.stroke()
     }
 
-    this.controls.update()
-
-    // 更新方通位置
-    this.hollowRoundedBox.quaternion.copy(this.camera.quaternion)
-
-    this.renderer.render(this.scene, this.camera)
-  }
-
-  requestRenderIfNotRequested() {
-    if (!this.renderRequested) {
-      this.renderRequested = true
-      requestAnimationFrame(() => this.render())
+    let x = position === 'top' ? offsetTop : offsetBottom
+    let count = 0
+    while (x <= width) {
+      drawLine(x, count % 5 === 0)
+      x += gap
+      count++
     }
+
+    x = position === 'top' ? offsetTop : offsetBottom
+    count = 0
+    while (x >= 0) {
+      drawLine(x, count % 5 === 0)
+      x -= gap
+      count++
+    }
+
+    ctx.restore()
   }
 }

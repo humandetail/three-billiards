@@ -1,9 +1,9 @@
 import type { ExtendedMesh } from 'enable3d'
 import type CueSystem from '../lib/CueSystem'
-import { Scene3D } from 'enable3d'
+import { Scene3D, THREE } from 'enable3d'
 import throttle from 'lodash.throttle'
 import config from '../config'
-import context, { BilliardsStatus, setContext } from './Context'
+import context, { addBallToPocket, BilliardsStatus, setContext } from './Context'
 
 export default class MainScene extends Scene3D {
   cueSystem?: CueSystem
@@ -20,24 +20,75 @@ export default class MainScene extends Scene3D {
 
   async create() {
     await this.warpSpeed()
+
     this.camera.position.set(-2, 4, 0) // 从y轴直接看向000
     this.camera.lookAt(0, 0, 0)
+    this.renderer.setPixelRatio(window.devicePixelRatio)
 
-    const hiddenNames = ['pocket', 'cushion', 'table', 'ball']
+    // 在场景初始化时启用阴影
+    this.renderer.shadowMap.enabled = true
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
-    this.scene.children.forEach((child) => {
-      if (hiddenNames.some(name => child.name.startsWith(name))) {
-        child.visible = false
-      }
-    })
-    // 展示物理体
-    if (this.physics.debug) {
-      this.physics.debug.enable()
-    }
+    this.setupLights()
+
+    // const hiddenNames = ['pocket', 'cushion', 'table', 'ball']
+
+    // this.scene.children.forEach((child) => {
+    //   if (hiddenNames.some(name => child.name.startsWith(name))) {
+    //     child.visible = false
+    //   }
+    // })
+    // // 展示物理体
+    // if (this.physics.debug) {
+    //   this.physics.debug.enable()
+    // }
   }
 
   get checkableBalls() {
     return this.balls.filter(ball => !(ball as any).inPocket)
+  }
+
+  setupLights() {
+    const { scene, lights } = this
+    // 1. 主光源 - 台球桌上方吊灯（聚光灯）
+    const spotLight = lights.spotLight({
+      color: 0xFFEE88,
+      intensity: 1.2,
+      distance: 0,
+      angle: Math.PI / 4,
+      penumbra: 0.3,
+      decay: 0.8,
+    })
+    spotLight.position.set(0, 8, 0)
+    spotLight.castShadow = true
+    spotLight.shadow.mapSize.width = 2048
+    spotLight.shadow.mapSize.height = 2048
+
+    // 聚光灯目标指向台球桌中心
+    const spotTarget = new THREE.Object3D()
+    spotTarget.position.set(0, 0, 0)
+    scene.add(spotTarget)
+    spotLight.target = spotTarget
+
+    // 2. 辅助光源 - 环境光（避免纯黑阴影）
+    const ambientLight = lights.ambientLight({ color: 0x333355, intensity: 0.3 })
+    scene.add(ambientLight)
+
+    // 3. 边缘补光 - 方向光（模拟环境反射）
+    const fillLight = lights.directionalLight({ color: 0x5577FF, intensity: 0.15 })
+    fillLight.position.set(5, 5, 5)
+    scene.add(fillLight)
+
+    // 4. 台球桌下方反射光（增强立体感）
+    const bounceLight = lights.rectAreaLight({ color: 0x4466AA, intensity: 0.1, width: 10, height: 10 })
+    bounceLight.position.set(0, 0.2, 0)
+    bounceLight.rotation.x = Math.PI // 光线向上照射
+    scene.add(bounceLight)
+
+    // 5. 台球特殊高光（增强球体质感）
+    const ballHighlight = lights.pointLight({ color: 0xFFFFFF, intensity: 0.5, distance: 4 })
+    ballHighlight.position.set(0, 3, 0)
+    scene.add(ballHighlight)
   }
 
   init() {
@@ -53,10 +104,12 @@ export default class MainScene extends Scene3D {
             // eslint-disable-next-line no-console
             console.log(ball.name, '入袋', pocket.name, pocket)
             // 强制入袋
-            this.setBallPosition(ball, { x: pocket.body.position.x, y: pocket.body.position.y, z: pocket.body.position.z })
+            this.setBallPosition(ball, { x: pocket.position.x, y: pocket.position.y - config.ball.radius, z: pocket.position.z })
             ball.body.setVelocity(0, -1, 0)
 
             ;(ball as any).inPocket = true
+            addBallToPocket(ball)
+
             // @todo - 检测入球是否为已方球
           }
         })
@@ -67,14 +120,16 @@ export default class MainScene extends Scene3D {
           if (type === 'start') {
             // this.mainBall!.body.setVelocity(0, -1, 0)
             // console.log('主球入袋')
-            this.setBallPosition(this.mainBall!, { x: pocket.body.position.x, y: pocket.body.position.y, z: pocket.body.position.z })
+            this.setBallPosition(this.mainBall!, { x: pocket.position.x, y: pocket.position.y, z: pocket.position.z })
             this.mainBall!.body.setVelocity(0, -1, 0)
             // @todo - 进入移球状态
             // setContext('status', BilliardsStatus.Moving)
 
-            setTimeout(() => {
-              this.setBallPosition(this.mainBall!, this.mainBallInitialPosition)
-            }, 0)
+            addBallToPocket(this.mainBall!)
+
+            // setTimeout(() => {
+            //   this.setBallPosition(this.mainBall!, this.mainBallInitialPosition)
+            // }, 0)
           }
         })
       }

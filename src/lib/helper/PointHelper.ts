@@ -37,11 +37,11 @@ export default class PointHelper extends Ball2D {
     guideLineColor: '#ccc',
   }
 
-  upBtn: ArrowButton
-  downBtn: ArrowButton
-  leftBtn: ArrowButton
-  rightBtn: ArrowButton
-  resetBtn: HTMLElement
+  upBtn?: ArrowButton
+  downBtn?: ArrowButton
+  leftBtn?: ArrowButton
+  rightBtn?: ArrowButton
+  resetBtn?: HTMLElement
 
   constructor(el: string | HTMLElement, options: Partial<PointHelperOptions> = {}) {
     const oEl = typeof el === 'string'
@@ -76,19 +76,21 @@ export default class PointHelper extends Ball2D {
     this.targetRadius = Math.floor(Math.max(radius / 10, 4))
     this.safeRadius = radius - this.targetRadius
 
-    this.upBtn = new ArrowButton('#btn-point-controller-up', Math.PI, () => {
-      this.updateTargetPosition(this.targetPosition.x, this.targetPosition.y - 0.1)
-    })
-    this.downBtn = new ArrowButton('#btn-point-controller-down', 0, () => {
-      this.updateTargetPosition(this.targetPosition.x, this.targetPosition.y + 0.1)
-    })
-    this.leftBtn = new ArrowButton('#btn-point-controller-left', Math.PI / 2, () => {
-      this.updateTargetPosition(this.targetPosition.x - 0.1, this.targetPosition.y)
-    })
-    this.rightBtn = new ArrowButton('#btn-point-controller-right', -Math.PI / 2, () => {
-      this.updateTargetPosition(this.targetPosition.x + 0.1, this.targetPosition.y)
-    })
-    this.resetBtn = document.querySelector<HTMLElement>('#btn-point-controller-reset')!
+    if (context.status === BilliardsStatus.Advanced) {
+      this.upBtn = new ArrowButton('#btn-point-controller-up', Math.PI, () => {
+        this.updateTargetPosition(this.targetPosition.x, this.targetPosition.y - 0.1)
+      })
+      this.downBtn = new ArrowButton('#btn-point-controller-down', 0, () => {
+        this.updateTargetPosition(this.targetPosition.x, this.targetPosition.y + 0.1)
+      })
+      this.leftBtn = new ArrowButton('#btn-point-controller-left', Math.PI / 2, () => {
+        this.updateTargetPosition(this.targetPosition.x - 0.1, this.targetPosition.y)
+      })
+      this.rightBtn = new ArrowButton('#btn-point-controller-right', -Math.PI / 2, () => {
+        this.updateTargetPosition(this.targetPosition.x + 0.1, this.targetPosition.y)
+      })
+      this.resetBtn = document.querySelector<HTMLElement>('#btn-point-controller-reset')!
+    }
 
     oEl.appendChild(this.canvas)
 
@@ -149,9 +151,13 @@ export default class PointHelper extends Ball2D {
       this.isDragging = false
       document.body.style.cursor = 'default'
     })
-    this.resetBtn.addEventListener('click', () => {
-      this.updateTargetPosition(this.center.x, this.center.y)
-    })
+    if (context.status === BilliardsStatus.Advanced) {
+      if (this.resetBtn) {
+        this.resetBtn.addEventListener('click', () => {
+          this.updateTargetPosition(this.center.x, this.center.y)
+        })
+      }
+    }
   }
 
   draw() {

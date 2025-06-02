@@ -46,6 +46,7 @@ export default class Ball {
     const { ballRadius } = this
     const loader = new THREE.TextureLoader()
     const texture = loader.load(`/textures/balls/${name}.jpg`)
+    // const mainBallTexture = loader.load('/textures/balls/sprite.png')
 
     const ball = this.mainScene.add.sphere(
       {
@@ -63,6 +64,7 @@ export default class Ball {
             }
           : {
               color: 0xFFFFFF,
+              // map: mainBallTexture,
               specular: 0x111111,
               shininess: 30,
             },
@@ -90,6 +92,9 @@ export default class Ball {
 
     ball.body.checkCollisions = true
     // ball.body.setCollisionFlags(2)
+
+    ball.castShadow = true
+    ball.receiveShadow = true
 
     ball.name = `ball-${name}`
 

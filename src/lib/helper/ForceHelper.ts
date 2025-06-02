@@ -1,8 +1,8 @@
 import Hammer from 'hammerjs'
 import { BilliardsStatus, context, emitter, EventTypes, setContext } from '../../central-control'
 import { createCanvas } from '../../utils'
-import FireButton from './FireButton'
 import ArrowButton from './ArrowButton'
+import FireButton from './FireButton'
 
 export default class ForceHelper {
   canvas: HTMLCanvasElement
@@ -45,8 +45,8 @@ export default class ForceHelper {
 
   #progress = 0
 
-  upBtn: ArrowButton
-  downBtn: ArrowButton
+  upBtn?: ArrowButton
+  downBtn?: ArrowButton
 
   constructor(el: string | HTMLElement, public maxForce = 500) {
     const oEl = typeof el === 'string'
@@ -68,12 +68,14 @@ export default class ForceHelper {
     this.btnRadius = Math.min(10, width * 0.6)
     oEl.appendChild(this.canvas)
 
-    this.upBtn = new ArrowButton('#btn-force-controller-up', Math.PI, () => {
-      this.progress -= 100 / this.maxForce * 0.01
-    })
-    this.downBtn = new ArrowButton('#btn-force-controller-down', 0, () => {
-      this.progress += 100 / this.maxForce * 0.01
-    })
+    if (context.status === BilliardsStatus.Advanced) {
+      this.upBtn = new ArrowButton('#btn-force-controller-up', Math.PI, () => {
+        this.progress -= 100 / this.maxForce * 0.01
+      })
+      this.downBtn = new ArrowButton('#btn-force-controller-down', 0, () => {
+        this.progress += 100 / this.maxForce * 0.01
+      })
+    }
 
     this.init()
   }
@@ -122,8 +124,8 @@ export default class ForceHelper {
 
   set progress(value: number) {
     this.#progress = Math.min(Math.max(0, value), 1)
-    if (context.status === BilliardsStatus.Idle) {
-      emitter.emit(EventTypes.force, Math.round(this.#progress * this.maxForce))
+    if ([BilliardsStatus.Idle, BilliardsStatus.Staging].includes(context.status)) {
+      setContext('force', Math.round(this.#progress * this.maxForce))
     }
     this.draw()
   }
@@ -158,6 +160,7 @@ export default class ForceHelper {
     const { height, barSize: { height: barHeight } } = this
     const rect = this.canvas.getBoundingClientRect()
     const setProgress = (e: HammerInput) => {
+      console.log('setProgress', context.status)
       if ([BilliardsStatus.Idle, BilliardsStatus.Staging].includes(context.status)) {
         this.progress = (e.center.y - rect.top - (height - barHeight) / 2) / barHeight
         setContext('status', BilliardsStatus.Staging)

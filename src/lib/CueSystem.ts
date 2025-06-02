@@ -4,7 +4,7 @@ import { ExtendedMesh } from 'enable3d'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
-import { BilliardsStatus, emitter, EventTypes, setContext } from '../central-control'
+import { BilliardsStatus, context, emitter, EventTypes, setContext } from '../central-control'
 import config from '../config'
 import { getIntersectionPoints, setGeometryColor } from '../utils'
 
@@ -175,7 +175,7 @@ export default class CueSystem {
   private forceArrow = new THREE.ArrowHelper(
     new THREE.Vector3(), // 方向
     new THREE.Vector3(), // 位置
-    0.3,
+    1.5,
     '#ff0000', // 箭头颜色
   )
 
@@ -232,7 +232,8 @@ export default class CueSystem {
   }
 
   get ballPosition() {
-    return this.ball.position
+    return this.ball.getWorldPosition(new THREE.Vector3())
+    // return this.ball.position
   }
 
   /** 球杆末端到主球球心的距离 */
@@ -299,7 +300,7 @@ export default class CueSystem {
     direction.applyQuaternion(this.cue.quaternion) // 转换为世界坐标
 
     this.cue.position[diff > 0 ? 'add' : 'sub'](
-      direction.multiplyScalar(-0.8 * Math.abs(diff) / this.maxForce),
+      direction.multiplyScalar(-0.2 * Math.abs(diff) / this.maxForce),
     )
     return this
   }
@@ -325,6 +326,7 @@ export default class CueSystem {
   }
 
   hit() {
+    console.log('hit', this.currentForce, context.force)
     if (this.currentForce === 0)
       return
 
@@ -362,7 +364,7 @@ export default class CueSystem {
       direction.z,
     )
 
-    forceDirection.multiplyScalar(this.#hitForce / 200)
+    forceDirection.multiplyScalar(this.#hitForce / 400)
 
     const applyPoint = getIntersectionPoints(this.cue, this.ball)
 
