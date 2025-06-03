@@ -3,7 +3,8 @@ import type { BilliardsContext } from './Context'
 import mitt from 'mitt'
 
 export enum EventTypes {
-  point = 'point',
+  targetPoint = 'targetPoint',
+  angle = 'angle',
   force = 'force',
   direction = 'direction',
 
@@ -13,8 +14,9 @@ export enum EventTypes {
 }
 
 const emitter = mitt<{
-  [EventTypes.point]: Point
+  [EventTypes.targetPoint]: Point
   [EventTypes.force]: number
+  [EventTypes.angle]: number
   [EventTypes.direction]: 'up' | 'down' | 'right' | 'left'
   [EventTypes.status]: BilliardsContext['status']
 }>()

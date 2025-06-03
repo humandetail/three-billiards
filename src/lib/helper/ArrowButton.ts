@@ -120,4 +120,12 @@ export default class ArrowButton {
 
     ctx.restore()
   }
+
+  show() {
+    this.canvas.style.visibility = 'visible'
+  }
+
+  hide() {
+    this.canvas.style.visibility = 'hidden'
+  }
 }

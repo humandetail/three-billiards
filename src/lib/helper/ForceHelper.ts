@@ -2,9 +2,9 @@ import Hammer from 'hammerjs'
 import { BilliardsStatus, context, emitter, EventTypes, setContext } from '../../central-control'
 import { createCanvas } from '../../utils'
 import ArrowButton from './ArrowButton'
-import FireButton from './FireButton'
+import Helper from './Helper'
 
-export default class ForceHelper {
+export default class ForceHelper extends Helper {
   canvas: HTMLCanvasElement
   ctx: CanvasRenderingContext2D
 
@@ -45,9 +45,6 @@ export default class ForceHelper {
 
   #progress = 0
 
-  upBtn?: ArrowButton
-  downBtn?: ArrowButton
-
   constructor(el: string | HTMLElement, public maxForce = 500) {
     const oEl = typeof el === 'string'
       ? document.querySelector<HTMLElement>(el)
@@ -56,6 +53,7 @@ export default class ForceHelper {
     if (!oEl || !('innerHTML' in oEl)) {
       throw new Error('Invalid element')
     }
+    super()
 
     const { width, height } = oEl.getBoundingClientRect()
     this.width = width
@@ -68,14 +66,22 @@ export default class ForceHelper {
     this.btnRadius = Math.min(10, width * 0.6)
     oEl.appendChild(this.canvas)
 
-    if (context.status === BilliardsStatus.Advanced) {
-      this.upBtn = new ArrowButton('#btn-force-controller-up', Math.PI, () => {
-        this.progress -= 100 / this.maxForce * 0.01
-      })
-      this.downBtn = new ArrowButton('#btn-force-controller-down', 0, () => {
-        this.progress += 100 / this.maxForce * 0.01
-      })
-    }
+    const oUpBtn = document.createElement('canvas')
+    oUpBtn.className = 'btn btn-plus'
+
+    const oDownBtn = document.createElement('canvas')
+    oDownBtn.className = 'btn btn-minus'
+    oEl.appendChild(oUpBtn)
+    oEl.appendChild(oDownBtn)
+
+    this.btns.add(new ArrowButton(oUpBtn, Math.PI, () => {
+      this.progress -= 100 / this.maxForce * 0.01
+    }))
+    this.btns.add(new ArrowButton(oDownBtn, 0, () => {
+      this.progress += 100 / this.maxForce * 0.01
+    }))
+
+    this.hideBtns()
 
     this.init()
   }
@@ -124,9 +130,12 @@ export default class ForceHelper {
 
   set progress(value: number) {
     this.#progress = Math.min(Math.max(0, value), 1)
-    if ([BilliardsStatus.Idle, BilliardsStatus.Staging].includes(context.status)) {
-      setContext('force', Math.round(this.#progress * this.maxForce))
-    }
+    // if ([BilliardsStatus.Idle, BilliardsStatus.Staging].includes(context.status)) {
+    //   setContext('force', Math.round(this.#progress * this.maxForce))
+    // }
+
+    // setContext('force', Math.round(this.#progress * this.maxForce))
+    setContext('force', this.#progress)
     this.draw()
   }
 
@@ -160,11 +169,13 @@ export default class ForceHelper {
     const { height, barSize: { height: barHeight } } = this
     const rect = this.canvas.getBoundingClientRect()
     const setProgress = (e: HammerInput) => {
-      console.log('setProgress', context.status)
-      if ([BilliardsStatus.Idle, BilliardsStatus.Staging].includes(context.status)) {
-        this.progress = (e.center.y - rect.top - (height - barHeight) / 2) / barHeight
-        setContext('status', BilliardsStatus.Staging)
-      }
+      // console.log('setProgress', context.status)
+      // if ([BilliardsStatus.Idle, BilliardsStatus.Staging].includes(context.status)) {
+      //   this.progress = (e.center.y - rect.top - (height - barHeight) / 2) / barHeight
+      //   setContext('status', BilliardsStatus.Staging)
+      // }
+
+      this.progress = (e.center.y - rect.top - (height - barHeight) / 2) / barHeight
     }
     // hm.on('press', (e) => {
     //   setProgress(e)
@@ -182,10 +193,6 @@ export default class ForceHelper {
     hm.on('panmove', setProgress)
     hm.on('panend', (e) => {
       setProgress(e)
-      if (this.currentForce < 100) {
-        // @todo - 进入高级控制模式
-        // return
-      }
       if (context.status === BilliardsStatus.Staging) {
         setContext('status', BilliardsStatus.Release)
       }
@@ -218,17 +225,17 @@ export default class ForceHelper {
   }
 
   drawForceText() {
-    const { ctx, width, componentGap, progress, gradientColors, fontSize } = this
+    const { ctx, width, componentGap, progress, gradientColors, fontSize, barSize } = this
 
     const fontColor = gradientColors[Math.floor((gradientColors.length - 1) * progress)]
 
     ctx.save()
-    ctx.translate(width / 2, componentGap + fontSize / 2)
+    ctx.translate(width / 2, barSize.start - componentGap - fontSize / 2)
 
     ctx.fillStyle = '#fff'
     this.setFont(fontSize)
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 1; i++) {
       ctx.beginPath()
       ctx.shadowBlur = 1
       ctx.shadowColor = fontColor
@@ -238,22 +245,6 @@ export default class ForceHelper {
     }
 
     ctx.restore()
-  }
-
-  drawButton() {
-    const { width, barSize, btnRadius, componentGap } = this
-
-    const size = (btnRadius + componentGap) * 2 / devicePixelRatio
-    for (let i = 0; i < 2; i++) {
-      const particleSystem = new FireButton(i === 0 ? 'ice' : 'fire', size, size, btnRadius / devicePixelRatio)
-
-      this.canvas.parentElement!.appendChild(particleSystem.canvas)
-      particleSystem.canvas.style.cssText = `
-        position: absolute;
-        left: ${width / 2 - btnRadius - componentGap}px;
-        top: ${(i === 0 ? barSize.start - (componentGap + btnRadius) * 2 : barSize.end)}px;
-      `
-    }
   }
 
   drawBarBody() {

@@ -37,109 +37,113 @@ async function loadPhysics() {
 }
 
 export async function setup() {
-  const mainScene = await loadPhysics()
+  // const mainScene = await loadPhysics()
 
-  const container = document.querySelector('#main') as HTMLElement
-  container.appendChild(mainScene.renderer.domElement)
-  const handleResize = () => {
-    mainScene.renderer.setSize(container.clientWidth, container.clientHeight)
-    if ((mainScene.camera as any)?.aspect) {
-      ;(mainScene.camera as any).aspect = container.clientWidth / container.clientHeight
-    }
-    ;(mainScene.camera as any).updateProjectionMatrix()
-  }
-  handleResize()
-  window.addEventListener('resize', handleResize)
+  // const container = document.querySelector('#main') as HTMLElement
+  // container.appendChild(mainScene.renderer.domElement)
+  // const handleResize = () => {
+  //   mainScene.renderer.setSize(container.clientWidth, container.clientHeight)
+  //   if ((mainScene.camera as any)?.aspect) {
+  //     ;(mainScene.camera as any).aspect = container.clientWidth / container.clientHeight
+  //   }
+  //   ;(mainScene.camera as any).updateProjectionMatrix()
+  // }
+  // handleResize()
+  // window.addEventListener('resize', handleResize)
 
-  const table = new Table(mainScene)
-  table.init()
+  // const table = new Table(mainScene)
+  // table.init()
 
-  const ball = new Ball(mainScene)
-  ball.init()
+  // const ball = new Ball(mainScene)
+  // ball.init()
 
-  const cueSystem = new CueSystem(mainScene, ball.mainBall)
-  cueSystem.init()
+  // const cueSystem = new CueSystem(mainScene, ball.mainBall)
+  // cueSystem.init()
 
-  mainScene.setCueSystem(cueSystem)
+  // mainScene.setCueSystem(cueSystem)
 
   const pointHelper = new PointHelper('#point-helper')
   const forceHelper = new ForceHelper('#force-helper')
-  // eslint-disable-next-line no-new
-  new RegulatorHelper('#horizontal-regulator-helper')
+  const angleHelper = new AngleDemodulator('#angle-helper')
 
-  new AngleDemodulator('#angle-demodulator')
-  new PointHelper('#point-controller-container')
-  new ForceHelper('#force-controller-container')
+  // new RegulatorHelper('#horizontal-regulator-helper')
 
-  new RegulatorHelper('#horizontal-regulator-helper')
+  const releaseBtn = document.querySelector<HTMLElement>('#btn-release')!
 
-  // 场景初始化完毕
-  mainScene.init()
+  // // 场景初始化完毕
+  // mainScene.init()
 
   // setTimeout(() => {
   //   mainScene.setBallPosition(mainScene.mainBall!, { x: 0, z: 0 })
   // }, 1000)
 
-  emitter.on(EventTypes.point, (point) => {
-    // 击球安全区是 2/3
-    cueSystem.setCuePosition(
-      (2 / 3) * config.ball.radius * point.x,
-      (2 / 3) * config.ball.radius * point.y,
-      0,
-    )
-  })
+  // emitter.on(EventTypes.point, (point) => {
+  //   // 击球安全区是 2/3
+  //   cueSystem.setCuePosition(
+  //     (2 / 3) * config.ball.radius * point.x,
+  //     (2 / 3) * config.ball.radius * point.y,
+  //     0,
+  //   )
+  // })
   emitter.on(EventTypes.force, (force) => {
-    cueSystem.currentForce = force
-  })
-  emitter.on(EventTypes.direction, (direction) => {
-    switch (direction) {
-      case 'up':
-        cueSystem.setControlKey('ArrowUp', true, true)
-        break
-      case 'down':
-        cueSystem.setControlKey('ArrowDown', true, true)
-        break
-      case 'right':
-        cueSystem.setControlKey('ArrowRight', true, true)
-        break
-      case 'left':
-        cueSystem.setControlKey('ArrowLeft', true, true)
-        break
+    // cueSystem.currentForce = force
+    if (force > 0) {
+      releaseBtn.style.visibility = 'visible'
+    }
+    else {
+      releaseBtn.style.visibility = 'hidden'
     }
   })
+  // emitter.on(EventTypes.direction, (direction) => {
+  //   switch (direction) {
+  //     case 'up':
+  //       cueSystem.setControlKey('ArrowUp', true, true)
+  //       break
+  //     case 'down':
+  //       cueSystem.setControlKey('ArrowDown', true, true)
+  //       break
+  //     case 'right':
+  //       cueSystem.setControlKey('ArrowRight', true, true)
+  //       break
+  //     case 'left':
+  //       cueSystem.setControlKey('ArrowLeft', true, true)
+  //       break
+  //   }
+  // })
 
-  emitter.on(EventTypes.status, (status) => {
-    switch (status) {
-      case BilliardsStatus.Staging:
-        break
+  // emitter.on(EventTypes.status, (status) => {
+  //   switch (status) {
+  //     case BilliardsStatus.Staging:
+  //       break
 
-      case BilliardsStatus.Release:
-        cueSystem.hit()
-        break
+  //     case BilliardsStatus.Release:
+  //       // cueSystem.hit()
+  //       break
 
-      case BilliardsStatus.Shooting:
-        break
+  //     case BilliardsStatus.Shooting:
+  //       break
 
-      case BilliardsStatus.ShotCompleted:
-        cueSystem.hide()
-        break
+  //     case BilliardsStatus.ShotCompleted:
+  //       // cueSystem.hide()
+  //       break
 
-      case BilliardsStatus.Idle:
-      default:
-        cueSystem.show()
-        forceHelper.progress = 0
-        pointHelper.resetTarget()
+  //     case BilliardsStatus.Idle:
+  //     default:
+  //       // cueSystem.show()
+  //       forceHelper.progress = 0
+  //       pointHelper.resetTarget()
+  //       releaseBtn.style.visibility = 'hidden'
 
-        if (context.inPocketBalls.has(mainScene.mainBall!)) {
-          mainScene.setBallPosition(mainScene.mainBall!, mainScene.mainBallInitialPosition)
-        }
+  //       if (context.inPocketBalls.has(mainScene.mainBall!)) {
+  //         mainScene.setBallPosition(mainScene.mainBall!, mainScene.mainBallInitialPosition)
+  //       }
 
-        if (context.inPocketBalls.size === 15) {
-          // 游戏结束
-          // eslint-disable-next-line no-alert
-          alert('游戏结束')
-        }
-        break
-    }
-  })
+  //       if (context.inPocketBalls.size === 15) {
+  //         // 游戏结束
+  //         // eslint-disable-next-line no-alert
+  //         alert('游戏结束')
+  //       }
+  //       break
+  //   }
+  // })
 }

@@ -1,8 +1,9 @@
 import Hammer from 'hammerjs'
-import { BilliardsStatus, context, emitter, EventTypes } from '../../central-control'
+import { BilliardsStatus, context, emitter, EventTypes, setContext } from '../../central-control'
 import { createCanvas } from '../../utils'
 import ArrowButton from './ArrowButton'
 import Ball2D from './Ball2D'
+import Helper from './Helper'
 
 export interface PointHelperOptions {
   radius: number
@@ -11,6 +12,7 @@ export interface PointHelperOptions {
   targetColor: string
   guideLineColor: string
 }
+
 export default class PointHelper extends Ball2D {
   canvas: HTMLCanvasElement
   ctx: CanvasRenderingContext2D
@@ -37,11 +39,7 @@ export default class PointHelper extends Ball2D {
     guideLineColor: '#ccc',
   }
 
-  upBtn?: ArrowButton
-  downBtn?: ArrowButton
-  leftBtn?: ArrowButton
-  rightBtn?: ArrowButton
-  resetBtn?: HTMLElement
+  resetBtn: HTMLElement
 
   constructor(el: string | HTMLElement, options: Partial<PointHelperOptions> = {}) {
     const oEl = typeof el === 'string'
@@ -52,7 +50,11 @@ export default class PointHelper extends Ball2D {
       throw new Error('Invalid element')
     }
 
-    const { width, height } = oEl.getBoundingClientRect()
+    let { width, height } = oEl.getBoundingClientRect()
+    if (!width || !height) {
+      width = 108
+      height = 108
+    }
     const radius = options.radius || Math.floor(Math.min(width, height) * 0.6 / 2)
     super({
       radius,
@@ -76,23 +78,47 @@ export default class PointHelper extends Ball2D {
     this.targetRadius = Math.floor(Math.max(radius / 10, 4))
     this.safeRadius = radius - this.targetRadius
 
-    if (context.status === BilliardsStatus.Advanced) {
-      this.upBtn = new ArrowButton('#btn-point-controller-up', Math.PI, () => {
-        this.updateTargetPosition(this.targetPosition.x, this.targetPosition.y - 0.1)
-      })
-      this.downBtn = new ArrowButton('#btn-point-controller-down', 0, () => {
-        this.updateTargetPosition(this.targetPosition.x, this.targetPosition.y + 0.1)
-      })
-      this.leftBtn = new ArrowButton('#btn-point-controller-left', Math.PI / 2, () => {
-        this.updateTargetPosition(this.targetPosition.x - 0.1, this.targetPosition.y)
-      })
-      this.rightBtn = new ArrowButton('#btn-point-controller-right', -Math.PI / 2, () => {
-        this.updateTargetPosition(this.targetPosition.x + 0.1, this.targetPosition.y)
-      })
-      this.resetBtn = document.querySelector<HTMLElement>('#btn-point-controller-reset')!
-    }
-
     oEl.appendChild(this.canvas)
+    const oResetBtn = this.resetBtn = document.createElement('div')
+    oResetBtn.className = 'btn btn-reset'
+    oResetBtn.innerHTML = '重置'
+
+    const oUpBtn = document.createElement('canvas')
+    oUpBtn.className = 'btn btn-up'
+
+    const oRightBtn = document.createElement('canvas')
+    oRightBtn.className = 'btn btn-right'
+
+    const oDownBtn = document.createElement('canvas')
+    oDownBtn.className = 'btn btn-down'
+
+    const oLeftBtn = document.createElement('canvas')
+    oLeftBtn.className = 'btn btn-left'
+
+    oEl.appendChild(oResetBtn)
+    oEl.appendChild(oUpBtn)
+    oEl.appendChild(oRightBtn)
+    oEl.appendChild(oDownBtn)
+    oEl.appendChild(oLeftBtn)
+
+    const helper = new Helper()
+
+    helper.btns.add(new ArrowButton(oUpBtn, Math.PI, () => {
+      this.updateTargetPosition(this.targetPosition.x, this.targetPosition.y - 0.1)
+    }))
+    helper.btns.add(new ArrowButton(oDownBtn, 0, () => {
+      this.updateTargetPosition(this.targetPosition.x, this.targetPosition.y + 0.1)
+    }))
+    helper.btns.add(new ArrowButton(oLeftBtn, Math.PI / 2, () => {
+      this.updateTargetPosition(this.targetPosition.x - 0.1, this.targetPosition.y)
+    }))
+    helper.btns.add(new ArrowButton(oRightBtn, -Math.PI / 2, () => {
+      this.updateTargetPosition(this.targetPosition.x + 0.1, this.targetPosition.y)
+    }))
+    helper.btns.add(oResetBtn)
+    helper.hideBtns()
+
+    // this.hideBtns()
 
     this.initEvent()
 
@@ -115,6 +141,10 @@ export default class PointHelper extends Ball2D {
     hm.get('press').set({ time: 0 })
 
     hm.on('press', (e) => {
+      if (!context.isAdvanced()) {
+        setContext('status', BilliardsStatus.Advanced)
+        return
+      }
       const rect = canvas.getBoundingClientRect()
       const x = e.center.x - rect.left
       const y = e.center.y - rect.top
@@ -122,6 +152,9 @@ export default class PointHelper extends Ball2D {
     })
 
     hm.on('panstart', (e) => {
+      console.log(context.isAdvanced())
+      if (!context.isAdvanced())
+        return
       const rect = canvas.getBoundingClientRect()
       const x = e.center.x - rect.left
       const y = e.center.y - rect.top
@@ -151,13 +184,11 @@ export default class PointHelper extends Ball2D {
       this.isDragging = false
       document.body.style.cursor = 'default'
     })
-    if (context.status === BilliardsStatus.Advanced) {
-      if (this.resetBtn) {
-        this.resetBtn.addEventListener('click', () => {
-          this.updateTargetPosition(this.center.x, this.center.y)
-        })
-      }
-    }
+    this.resetBtn.addEventListener('click', () => {
+      if (!context.isAdvanced())
+        return
+      this.updateTargetPosition(this.center.x, this.center.y)
+    })
   }
 
   draw() {
@@ -168,7 +199,9 @@ export default class PointHelper extends Ball2D {
 
     this.drawTarget()
 
-    this.drawDiff()
+    if (context.isAdvanced()) {
+      this.drawPos()
+    }
   }
 
   drawTarget() {
@@ -181,7 +214,7 @@ export default class PointHelper extends Ball2D {
     ctx.restore()
   }
 
-  drawDiff() {
+  drawPos() {
     const { ctx, targetPosition, center, safeRadius } = this
     const text = `(${((targetPosition.x - center.x) / safeRadius * 50).toFixed(1)}, ${((center.y - targetPosition.y) / safeRadius * 50).toFixed(1)})`
 
@@ -189,9 +222,9 @@ export default class PointHelper extends Ball2D {
     ctx.beginPath()
     ctx.textAlign = 'right'
     ctx.textBaseline = 'top'
-    ctx.font = `Bold 14px Arial`
+    ctx.font = `Bold 12px Arial`
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
-    ctx.fillText(text, this.width - 8, 8)
+    ctx.fillText(text, this.width * 0.99, this.width * 0.01)
     ctx.stroke()
     ctx.restore()
   }
@@ -232,13 +265,12 @@ export default class PointHelper extends Ball2D {
     }
 
     const p = this.getPosition()
-    if (context.status === BilliardsStatus.Idle) {
-      emitter.emit(EventTypes.point, {
-        x: p.x / this.safeRadius,
-        y: -1 * p.y / this.safeRadius,
-      })
-      this.draw()
-    }
+    // @todo - 状态控制
+    setContext('targetPoint', {
+      x: p.x / this.safeRadius,
+      y: -1 * p.y / this.safeRadius,
+    })
+    this.draw()
   }
 
   resetTarget() {

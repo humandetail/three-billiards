@@ -28,6 +28,13 @@ export interface BilliardsContext {
   inPocketBalls: Set<ExtendedMesh>
   /** 出杆力度 */
   force: number
+  targetPoint: Point
+  angle: number
+
+  /** 安全击杆区 */
+  safePercent: number
+
+  isAdvanced: () => boolean
 }
 
 const initialContext: BilliardsContext = {
@@ -37,6 +44,13 @@ const initialContext: BilliardsContext = {
   checkStaticInterval: 100,
   inPocketBalls: new Set(),
   force: 0,
+  targetPoint: { x: 0, y: 0 },
+  angle: 0,
+  safePercent: 2 / 3,
+
+  isAdvanced() {
+    return this.status === BilliardsStatus.Advanced
+  },
 }
 
 const context: BilliardsContext = {
@@ -46,11 +60,22 @@ const context: BilliardsContext = {
 export function setContext<T extends keyof BilliardsContext>(key: T, value: BilliardsContext[T]) {
   context[key] = value
 
-  if (key === 'status') {
-    emitter.emit(EventTypes.status, value as BilliardsStatus)
-  } else if (key === 'force') {
-    context.force = value as number
-    emitter.emit(EventTypes.force, value as number)
+  switch (key) {
+    case 'status':
+      emitter.emit(EventTypes.status, value as BilliardsStatus)
+      break
+    case 'force':
+      context.force = value as number
+      emitter.emit(EventTypes.force, value as number)
+      break
+    case 'targetPoint':
+      context.targetPoint = value as Point
+      emitter.emit(EventTypes.targetPoint, value as Point)
+      break
+    case 'angle':
+      context.angle = value as number
+      emitter.emit(EventTypes.angle, value as number)
+      break
   }
 }
 
