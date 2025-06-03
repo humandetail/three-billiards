@@ -104,8 +104,8 @@ export default class MainScene extends Scene3D {
             // eslint-disable-next-line no-console
             console.log(ball.name, '入袋', pocket.name, pocket)
             // 强制入袋
-            this.setBallPosition(ball, { x: pocket.position.x, y: pocket.position.y - config.ball.radius, z: pocket.position.z })
-            ball.body.setVelocity(0, -1, 0)
+            this.setBallPosition(ball, { x: pocket.position.x, y: pocket.position.y - config.ball.radius * 2, z: pocket.position.z })
+            // ball.body.setVelocity(0, -1, 0)
 
             ;(ball as any).inPocket = true
             addBallToPocket(ball)
@@ -120,8 +120,8 @@ export default class MainScene extends Scene3D {
           if (type === 'start') {
             // this.mainBall!.body.setVelocity(0, -1, 0)
             // console.log('主球入袋')
-            this.setBallPosition(this.mainBall!, { x: pocket.position.x, y: pocket.position.y, z: pocket.position.z })
-            this.mainBall!.body.setVelocity(0, -1, 0)
+            this.setBallPosition(this.mainBall!, { x: pocket.position.x, y: pocket.position.y - config.ball.radius * 2, z: pocket.position.z })
+            // this.mainBall!.body.setVelocity(0, -1, 0)
             // @todo - 进入移球状态
             // setContext('status', BilliardsStatus.Moving)
 
@@ -221,6 +221,8 @@ export default class MainScene extends Scene3D {
     ;[...this.balls, this.mainBall!].forEach((ball) => {
       if (this.needUpdateNames.has(ball.name)) {
         ball.body.setCollisionFlags(0)
+        ball.body.setVelocity(0, 0, 0)
+        ball.body.setAngularVelocity(0, 0, 0)
         ball.body.needUpdate = true
         if (ball.name === this.mainBall!.name && context.status === BilliardsStatus.Idle) {
           this.cueSystem?.update()

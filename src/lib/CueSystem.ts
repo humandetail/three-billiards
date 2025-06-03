@@ -364,7 +364,7 @@ export default class CueSystem {
       direction.z,
     )
 
-    forceDirection.multiplyScalar(this.#hitForce / 400)
+    forceDirection.multiplyScalar(this.#hitForce / 450)
 
     const applyPoint = getIntersectionPoints(this.cue, this.ball)
 

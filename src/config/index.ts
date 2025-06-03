@@ -478,8 +478,8 @@ export function getConfig(scale = 1) {
          * 线性/角速度缓慢衰减（空气+桌面阻力）
          */
         damping: {
-          linear: 0.5,
-          angular: 0.6,
+          linear: 0.4,
+          angular: 0.65,
         },
         /**
          * 连续碰撞检测（CCD）阈值
