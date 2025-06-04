@@ -51,20 +51,28 @@ canvas {
       width: min(64px, 10vw);
 
       &.right-side {
-        .point-helper {
-          position: relative;
-          width: 100%;
-          height: 100px;
+        // .point-helper {
+        //   position: relative;
+        //   width: 100%;
+        //   height: 100px;
 
-          canvas {
-            height: 100%;
-          }
-        }
+        //   canvas {
+        //     height: 100%;
+        //   }
+        // }
         
-        .force-helper {
-          position: relative;
-          width: 100%;
-          height: 300px;
+        // .force-helper {
+        //   position: relative;
+        //   width: 100%;
+        //   height: 300px;
+        // }
+
+        .helper {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          
         }
       }
     }
@@ -97,7 +105,7 @@ canvas {
   }
 }
 
-// .billiards { opacity: 1; }
+// .billiards { opacity: 0.1; }
 // .header,
 // .footer {
 //   display: none;
@@ -117,12 +125,17 @@ canvas {
 
 .accurate-regulator-modal {
   display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
   position: fixed;
   left: 0;
   top: 0;
+  z-index: 8;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: rgba(0, 0, 0, 0.7);
 
   .controller-container {
     position: relative;
@@ -146,94 +159,30 @@ canvas {
     overflow: hidden;
     border: 1px solid rgba(78, 204, 163, 0.2);
 
-    .btn {
-      width: 20px;
-      height: 20px;
-    }
 
-    &.point-controller {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-
-      .point-controller-container {
-        width: 100%;
-        height: 100%;
-      }
+    .angle-controller {
+      position: absolute;
+      right: 100px;
+      top: 0;
+      z-index: 9;
+      width: 108px;
+      height: 108px;
 
       .btn {
-        position: absolute;
-        width: 24;
-        height: 24;
-      }
-
-      .btn-up {
-        left: 50%;
-        top: 8px;
-        transform: translate(-50%, 0);
-      }
-      .btn-down {
-        left: 50%;
-        bottom: 8px;
-        transform: translate(-50%, 0);
-      }
-      .btn-left {
-        left: 8px;
-        top: 50%;
-        transform: translate(0, -50%);
-      }
-      .btn-right {
-        right: 8px;
-        top: 50%;
-        transform: translate(0, -50%);
-      }
-
-      .btn-reset {
-        position: absolute;
-        left: 8px;
-        top: 8px;
-        width: 48px;
-        height: 24px;
-        font-size: 14px;
-        line-height: 24px;
-        text-align: center;
-        background-color: rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
-        color: #fff;
-        user-select: none;
-        transition: background-color 0.3s ease;
-        cursor: pointer;
-
-        &:hover {
-          background-color: rgba(255, 255, 255, 0.2);
-        }
+        width: 10%;
+        aspect-ratio: 1 / 1;
       }
     }
 
     &.force-controller {
-      width: 48px;
-      height: 420px;
-
-      .force-controller-container {
-        width: 100%;
-        height: 100%;
-      }
-
-      .btn {
-        position: absolute;
-
-        &.btn-up {
-          left: 50%;
-          top: 24px;
-          transform: translate(-50%, 0);
-        }
-
-        &.btn-down {
-          left: 50%;
-          bottom: 0;
-          transform: translate(-50%, 0);
-        }
-      }
+      all: unset;
+      position: absolute;
+      right: 0;
+      top: 50%;
+      z-index: 9;
+      width: 64px;
+      height: 320px;
+      transform: translate(0, -50%);
     }
   }
 }
@@ -246,6 +195,7 @@ canvas {
   position: fixed;
   right: 16px;
   bottom: 16px;
+  z-index: 9;
   width: 64px;
   height: 64px;
   font-size: 16px;
@@ -281,13 +231,14 @@ canvas {
 }
 
 .point-helper {
-  position: absolute;
-  z-index: 9;
+  // position: absolute;
+  // z-index: 9;
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 108px;
-  height: 108px;
+  position: relative;
+  width: 64px;
+  height: 64px;
 
   .point-controller-container {
     width: 100%;
@@ -344,26 +295,10 @@ canvas {
   }
 }
 
-.angle-helper {
-  position: absolute;
-  right: 100px;
-  top: 0;
-  z-index: 9;
-  width: 108px;
-  height: 108px;
-
-  .btn {
-    width: 10%;
-    aspect-ratio: 1 / 1;
-  }
-}
-
 .force-helper {
-  position: absolute;
-  right: 200px;
-  top: 0;
-  width: 48px;
-  height: 420px;
+  position: relative;
+  width: 64px;
+  height: 320px;
 
   .btn {
     position: absolute;

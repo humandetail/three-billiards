@@ -5,6 +5,7 @@ import ArrowButton from './ArrowButton'
 import Helper from './Helper'
 
 export default class ForceHelper extends Helper {
+  el: HTMLElement
   canvas: HTMLCanvasElement
   ctx: CanvasRenderingContext2D
 
@@ -82,6 +83,8 @@ export default class ForceHelper extends Helper {
     }))
 
     this.hideBtns()
+
+    this.el = oEl
 
     this.init()
   }
@@ -162,6 +165,8 @@ export default class ForceHelper extends Helper {
   }
 
   initEvent() {
+    this.el.addEventListener('click', e => e.stopPropagation())
+
     const hm = new Hammer(this.canvas)
     hm.get('pan').set({ threshold: 0, direction: Hammer.DIRECTION_ALL })
     // hm.get('press').set({ time: 200 }).requireFailure(hm.get('pan'))

@@ -68,7 +68,20 @@ export function createCanvas(width = 400, height = 300, canvas?: HTMLCanvasEleme
   c.width = Math.floor(dpr * width)
   c.height = Math.floor(dpr * height)
 
-  c.getContext('2d')!.scale(dpr, dpr)
+  const ctx = c.getContext('2d')!
+  ctx.save()
+  ctx.scale(dpr, dpr)
+
+  ;(c as any).handleResize = (w: number, h: number) => {
+    ctx.restore()
+    c.style.width = `${w}px`
+    c.style.height = `${h}px`
+
+    c.width = Math.floor(dpr * w)
+    c.height = Math.floor(dpr * h)
+    ctx.save()
+    ctx.scale(dpr, dpr)
+  }
 
   return c
 }

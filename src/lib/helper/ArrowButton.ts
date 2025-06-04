@@ -19,7 +19,12 @@ export default class ArrowButton {
       throw new Error('Invalid element')
     }
 
-    const { width, height } = oEl.getBoundingClientRect()
+    let { width, height } = oEl.getBoundingClientRect()
+
+    if (!width || !height) {
+      width = 20
+      height = 20
+    }
 
     this.width = width
     this.height = height
@@ -40,6 +45,13 @@ export default class ArrowButton {
     return Math.min(this.width, this.height)
   }
 
+  handleResize(width: number, height: number) {
+    ;(this.canvas as any).handleResize(width, height)
+    this.width = width
+    this.height = height
+    this.draw()
+  }
+
   init() {
     this.initEvents()
     this.draw()
@@ -47,6 +59,8 @@ export default class ArrowButton {
 
   initEvents() {
     const { canvas } = this
+    canvas.addEventListener('click', e => e.stopPropagation())
+
     canvas.addEventListener('mouseenter', () => {
       this.hover = true
       document.body.style.cursor = 'pointer'

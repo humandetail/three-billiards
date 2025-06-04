@@ -1,10 +1,12 @@
-import { BilliardsStatus, context, emitter, EventTypes } from '../../central-control'
+import { BilliardsStatus, context, emitter, EventTypes, setContext } from '../../central-control'
 import { toRadians } from '../../config'
 import { createCanvas } from '../../utils'
 import ArrowButton from './ArrowButton'
 import Ball2D from './Ball2D'
 
 export default class AngleDemodulator extends Ball2D {
+  el: HTMLElement
+
   #angle = 0
   width = 0
   height = 0
@@ -28,7 +30,11 @@ export default class AngleDemodulator extends Ball2D {
       throw new Error('Invalid element')
     }
 
-    const { width, height } = oEl.getBoundingClientRect()
+    let { width, height } = oEl.getBoundingClientRect()
+    if (!width || !height) {
+      width = 200
+      height = 200
+    }
     const padding = Math.min(width, height) * 0.1
 
     const ballRadius = padding * 1.5
@@ -80,6 +86,9 @@ export default class AngleDemodulator extends Ball2D {
     this.minusBtn = new ArrowButton(oMinusBtn, 0, () => {
       this.angle -= 1
     })
+
+    this.el = oEl
+
     this.init()
   }
 
@@ -90,10 +99,16 @@ export default class AngleDemodulator extends Ball2D {
   set angle(value: number) {
     this.#angle = Math.max(0, Math.min(90, value))
     this.draw()
+    setContext('angle', this.angle)
   }
 
   get angleRadian() {
     return toRadians(this.angle)
+  }
+
+  handleResize() {
+    this.plusBtn.handleResize(this.padding, this.padding)
+    this.minusBtn.handleResize(this.padding, this.padding)
   }
 
   init() {
@@ -112,7 +127,7 @@ export default class AngleDemodulator extends Ball2D {
 
   initEvents() {
     const { canvas } = this
-    // 鼠标事件处理
+    canvas.addEventListener('click', e => e.stopPropagation())
 
     const handleMove = (e: MouseEvent | TouchEvent) => {
       e.preventDefault()
@@ -121,7 +136,8 @@ export default class AngleDemodulator extends Ball2D {
       }
     }
 
-    const handleUp = () => {
+    const handleUp = (e: MouseEvent | TouchEvent) => {
+      e.stopPropagation()
       this.isDragging = false
       document.removeEventListener('mousemove', handleMove)
       document.removeEventListener('mouseup', handleUp)
@@ -129,6 +145,7 @@ export default class AngleDemodulator extends Ball2D {
     }
 
     canvas.addEventListener('mousedown', (e) => {
+      e.stopPropagation()
       this.isDragging = true
       this.angle = this.#getAngleFromMouse(e)
 
@@ -142,6 +159,7 @@ export default class AngleDemodulator extends Ball2D {
     // 触摸事件处理
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault()
+      e.stopPropagation()
       this.isDragging = true
       this.angle = this.#getAngleFromMouse(e.touches[0])
 

@@ -7,13 +7,13 @@
   </head>
   <body>
     <div id="app">
-      <div class="point-helper controller-container" id="point-helper">
+      <!-- <div class="point-helper controller-container" id="point-helper">
       </div>
       <div class="angle-helper controller-container" id="angle-helper">
       </div>
 
       <div class="force-helper helper-container">
-      </div>
+      </div> -->
 
       <div class="billiards">
         <header class="header"></header>
@@ -29,7 +29,7 @@
           </main>
 
           <aside class="aside right-side">
-            <div class="helper">
+            <div class="helper" id="right-side-helper">
               <div class="point-helper" id="point-helper"></div>
               <div class="force-helper" id="force-helper"></div>
             </div>
@@ -43,13 +43,10 @@
         </footer>
       </div>
 
-      <div class="accurate-regulator-modal">
-        <div class="point-controller controller-container">
-        </div>
-        <div class="angle-demodulator controller-container" id="angle-demodulator">
-        </div>
-        <div class="force-controller controller-container">
-        </div>
+      <div class="accurate-regulator-modal" id="accurate-regulator-modal">
+        <div class="angle-controller controller-container" id="angle-controller"></div>
+        <div class="point-controller controller-container" id="point-controller"></div>
+        <div class="force-controller controller-container" id="force-controller"></div>
       </div>
 
       <div class="btn-release" id="btn-release">出杆</div>

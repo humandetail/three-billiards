@@ -18,6 +18,7 @@ export enum BilliardsStatus {
 
 export interface BilliardsContext {
   status: BilliardsStatus
+  prevStatus: BilliardsStatus
   /** 球静止的阈值 */
   speedThreshold: number
   /** 球静止的角速度阈值 */
@@ -39,6 +40,7 @@ export interface BilliardsContext {
 
 const initialContext: BilliardsContext = {
   status: BilliardsStatus.Idle,
+  prevStatus: BilliardsStatus.Idle,
   speedThreshold: 0.1,
   angularSpeedThreshold: 10,
   checkStaticInterval: 100,
@@ -58,22 +60,23 @@ const context: BilliardsContext = {
 }
 
 export function setContext<T extends keyof BilliardsContext>(key: T, value: BilliardsContext[T]) {
+  if (key === 'status') {
+    context.prevStatus = context.status
+  }
   context[key] = value
 
   switch (key) {
     case 'status':
+      console.log('status', value)
       emitter.emit(EventTypes.status, value as BilliardsStatus)
       break
     case 'force':
-      context.force = value as number
       emitter.emit(EventTypes.force, value as number)
       break
     case 'targetPoint':
-      context.targetPoint = value as Point
       emitter.emit(EventTypes.targetPoint, value as Point)
       break
     case 'angle':
-      context.angle = value as number
       emitter.emit(EventTypes.angle, value as number)
       break
   }

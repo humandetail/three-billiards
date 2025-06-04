@@ -14,6 +14,7 @@ export interface PointHelperOptions {
 }
 
 export default class PointHelper extends Ball2D {
+  el: HTMLElement
   canvas: HTMLCanvasElement
   ctx: CanvasRenderingContext2D
 
@@ -40,6 +41,8 @@ export default class PointHelper extends Ball2D {
   }
 
   resetBtn: HTMLElement
+
+  helper: Helper
 
   constructor(el: string | HTMLElement, options: Partial<PointHelperOptions> = {}) {
     const oEl = typeof el === 'string'
@@ -118,11 +121,45 @@ export default class PointHelper extends Ball2D {
     helper.btns.add(oResetBtn)
     helper.hideBtns()
 
-    // this.hideBtns()
+    this.el = oEl
+    this.helper = helper
 
     this.initEvent()
 
     this.draw()
+  }
+
+  handleResize(width: number, height: number) {
+    const { width: prevWidth, height: prevHeight } = this
+
+    ;(this.canvas as any).handleResize(width, height)
+
+    const radius = Math.floor(Math.min(width, height) * 0.6 / 2)
+    this.width = width
+    this.height = height
+
+    this.el.style.width = `${width}px`
+    this.el.style.height = `${height}px`
+
+    this.options.radius = radius
+
+    this.setRadius(radius)
+
+    this.targetPosition.x = this.targetPosition.x * (width / prevWidth)
+    this.targetPosition.y = this.targetPosition.y * (height / prevHeight)
+
+    this.targetRadius = Math.floor(Math.max(radius / 10, 4))
+    this.safeRadius = radius - this.targetRadius
+
+    this.helper.btns.forEach((btn) => {
+      if (btn instanceof ArrowButton) {
+        btn.handleResize(width * 0.1, width * 0.1)
+      }
+    })
+
+    setTimeout(() => {
+      this.draw()
+    })
   }
 
   getPosition(radius = this.options.radius) {
@@ -134,28 +171,29 @@ export default class PointHelper extends Ball2D {
   }
 
   initEvent() {
-    const { canvas } = this
-
-    const hm = new Hammer(canvas)
+    const hm = new Hammer(this.canvas)
     hm.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 0 })
     hm.get('press').set({ time: 0 })
+
+    this.canvas.addEventListener('click', e => e.stopPropagation())
 
     hm.on('press', (e) => {
       if (!context.isAdvanced()) {
         setContext('status', BilliardsStatus.Advanced)
+        this.draw()
         return
       }
-      const rect = canvas.getBoundingClientRect()
+      const rect = this.canvas.getBoundingClientRect()
+
       const x = e.center.x - rect.left
       const y = e.center.y - rect.top
       this.updateTargetPosition(x, y)
     })
 
     hm.on('panstart', (e) => {
-      console.log(context.isAdvanced())
       if (!context.isAdvanced())
         return
-      const rect = canvas.getBoundingClientRect()
+      const rect = this.canvas.getBoundingClientRect()
       const x = e.center.x - rect.left
       const y = e.center.y - rect.top
 
@@ -167,7 +205,7 @@ export default class PointHelper extends Ball2D {
 
     hm.on('panmove', (e) => {
       if (this.isDragging) {
-        const rect = canvas.getBoundingClientRect()
+        const rect = this.canvas.getBoundingClientRect()
         const x = e.center.x - rect.left
         const y = e.center.y - rect.top
 
@@ -189,18 +227,28 @@ export default class PointHelper extends Ball2D {
         return
       this.updateTargetPosition(this.center.x, this.center.y)
     })
+
+    emitter.on(EventTypes.angle, () => {
+      this.draw()
+    })
   }
 
   draw() {
     const { ctx, width, height } = this
     ctx.clearRect(0, 0, width, height)
     this.setCenter(width / 2, height / 2)
+
+    console.log(1, this)
+
     super.draw(ctx)
 
     this.drawTarget()
 
     if (context.isAdvanced()) {
       this.drawPos()
+    }
+    else {
+      this.drawAngle()
     }
   }
 
@@ -215,7 +263,7 @@ export default class PointHelper extends Ball2D {
   }
 
   drawPos() {
-    const { ctx, targetPosition, center, safeRadius } = this
+    const { ctx, targetPosition, center, safeRadius, width } = this
     const text = `(${((targetPosition.x - center.x) / safeRadius * 50).toFixed(1)}, ${((center.y - targetPosition.y) / safeRadius * 50).toFixed(1)})`
 
     ctx.save()
@@ -224,16 +272,29 @@ export default class PointHelper extends Ball2D {
     ctx.textBaseline = 'top'
     ctx.font = `Bold 12px Arial`
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
-    ctx.fillText(text, this.width * 0.99, this.width * 0.01)
+    ctx.fillText(text, width * 0.99, width * 0.01)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  drawAngle() {
+    const { ctx, width, height } = this
+
+    ctx.save()
+    ctx.beginPath()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = `Bold 10px Arial`
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+    ctx.fillText(`${context.angle}°`, width / 2, height * 0.1)
     ctx.stroke()
     ctx.restore()
   }
 
   isTargetClicked(x: number, y: number) {
-    const { targetPosition, targetRadius } = this
-    const distance = Math.sqrt((x - targetPosition.x) ** 2 + (y - targetPosition.y) ** 2)
+    const distance = Math.sqrt((x - this.targetPosition.x) ** 2 + (y - this.targetPosition.y) ** 2)
 
-    return distance <= targetRadius * 2
+    return distance <= this.targetRadius * 2
   }
 
   // 更新点位置
@@ -265,7 +326,6 @@ export default class PointHelper extends Ball2D {
     }
 
     const p = this.getPosition()
-    // @todo - 状态控制
     setContext('targetPoint', {
       x: p.x / this.safeRadius,
       y: -1 * p.y / this.safeRadius,
