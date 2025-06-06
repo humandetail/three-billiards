@@ -67,7 +67,6 @@ export function setContext<T extends keyof BilliardsContext>(key: T, value: Bill
 
   switch (key) {
     case 'status':
-      console.log('status', value)
       emitter.emit(EventTypes.status, value as BilliardsStatus)
       break
     case 'force':

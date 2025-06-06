@@ -473,13 +473,13 @@ export function getConfig(scale = 1) {
          * - 0.95 表示碰撞后保留 95% 速度（高弹性）
          * - 影响碰撞后的反弹力度
          */
-        restitution: 0.95,
+        restitution: 0.85,
         /**
          * 线性/角速度缓慢衰减（空气+桌面阻力）
          */
         damping: {
-          linear: 0.4,
-          angular: 0.65,
+          linear: 0.15,
+          angular: 0.25,
         },
         /**
          * 连续碰撞检测（CCD）阈值

@@ -2,13 +2,12 @@ import type MainScene from '../central-control/MainScene'
 import { ExtendedMesh } from 'enable3d'
 
 import * as THREE from 'three'
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
 import { BilliardsStatus, context, emitter, EventTypes, setContext } from '../central-control'
-import config from '../config'
+import config, { toRadians } from '../config'
 import { getIntersectionPoints, setGeometryColor } from '../utils'
 
-class Cue {
+export class Cue {
   private config = config.cue
   private segments = 128
 
@@ -35,34 +34,38 @@ class Cue {
         ferruleLength,
         shaftLength,
         buttLength,
-        poleLength,
       },
     } = this
-
-    const halfPoleLength = poleLength / 2
 
     const [tipHead, tipBody] = this.createTip()
     const ferrule = this.createFerrule()
     const shaft = this.createShaft()
     const butt = this.createButt()
 
-    tipHead.applyMatrix4(new THREE.Matrix4().makeTranslation(0, halfPoleLength - tipHeadLength / 2, 0))
-    tipBody.applyMatrix4(new THREE.Matrix4().makeTranslation(0, halfPoleLength - tipHeadLength - tipBodyLength / 2, 0))
-    ferrule.applyMatrix4(new THREE.Matrix4().makeTranslation(0, halfPoleLength - tipHeadLength - tipBodyLength - ferruleLength / 2, 0))
-    shaft.applyMatrix4(new THREE.Matrix4().makeTranslation(0, halfPoleLength - tipHeadLength - tipBodyLength - ferruleLength - shaftLength / 2, 0))
-    butt.applyMatrix4(new THREE.Matrix4().makeTranslation(0, halfPoleLength - tipHeadLength - tipBodyLength - ferruleLength - shaftLength - buttLength / 2, 0))
+    let currentOffset = 0
 
-    tipHead.rotateX(Math.PI / 2)
-    tipBody.rotateX(Math.PI / 2)
-    ferrule.rotateX(Math.PI / 2)
-    shaft.rotateX(Math.PI / 2)
-    butt.rotateX(Math.PI / 2)
+    tipHead.applyMatrix4(new THREE.Matrix4().makeTranslation(0, currentOffset - tipHeadLength / 2, 0))
+    currentOffset -= tipHeadLength
 
+    tipBody.applyMatrix4(new THREE.Matrix4().makeTranslation(0, currentOffset - tipBodyLength / 2, 0))
+    currentOffset -= tipBodyLength
+
+    ferrule.applyMatrix4(new THREE.Matrix4().makeTranslation(0, currentOffset - ferruleLength / 2, 0))
+    currentOffset -= ferruleLength
+
+    shaft.applyMatrix4(new THREE.Matrix4().makeTranslation(0, currentOffset - shaftLength / 2, 0))
+    currentOffset -= shaftLength
+
+    butt.applyMatrix4(new THREE.Matrix4().makeTranslation(0, currentOffset - buttLength / 2, 0))
+
+    const geometry = BufferGeometryUtils.mergeGeometries(
+      [tipHead, tipBody, ferrule, shaft, butt],
+      false,
+    )
+
+    geometry.rotateX(Math.PI / 2)
     const cue = new ExtendedMesh(
-      BufferGeometryUtils.mergeGeometries(
-        [tipHead, tipBody, ferrule, shaft, butt],
-        false,
-      ),
+      geometry,
       new THREE.MeshPhongMaterial({
         vertexColors: true,
         side: THREE.DoubleSide,
@@ -161,7 +164,6 @@ export type ControlKey =
 
 export default class CueSystem {
   camera: THREE.PerspectiveCamera
-  controls: OrbitControls
 
   private cue = new Cue().createCue()
 
@@ -169,6 +171,10 @@ export default class CueSystem {
   private phi = Math.PI / 2
   /** 水平角度 (0到2π) */
   private theta = Math.PI
+
+  impulseDirection = new THREE.Vector3()
+  contactPoint = new THREE.Vector3()
+
   private ballRadius = config.ball.radius
 
   /** 力的方向 */
@@ -187,18 +193,8 @@ export default class CueSystem {
     '#0000ff', // 箭头颜色
   )
 
-  // #rotationSpeed = 0.005
-  #rotationSpeed = 0.1
-
-  keys = new Map<ControlKey, boolean>([
-    ['ArrowUp', false],
-    ['ArrowRight', false],
-    ['ArrowDown', false],
-    ['ArrowLeft', false],
-  ])
-
   /** 最大击球力度 */
-  private maxForce = 500
+  maxForce = 500
   /** 当前拉杆对应的力度 */
   #currentForce = 0
   /** 当前击球的力度 */
@@ -220,7 +216,7 @@ export default class CueSystem {
       cameraOptions?.far ?? 1000,
     )
     this.camera.name = 'cueCamera'
-    this.controls = new OrbitControls(this.camera, mainScene.renderer.domElement)
+    this.cue.add(this.camera)
   }
 
   get cueBasePosition() {
@@ -241,83 +237,83 @@ export default class CueSystem {
     return 1.2 * this.ballRadius
   }
 
-  /** 相机到主球球心的距离 */
-  get cameraDistance() {
-    return config.cue.poleLength / 2 + this.ballOffset
-  }
-
-  get cameraMinY() {
-    return this.ballPosition.y + this.ballRadius
-  }
-
-  /** 相机旋转（移动）速度 */
-  get rotationSpeed() {
-    return this.#rotationSpeed
-  }
-
-  set rotationSpeed(speed) {
-    this.#rotationSpeed = speed
-  }
-
   get currentForce() {
     return this.#currentForce
   }
 
   set currentForce(force) {
-    const diff = force - this.#currentForce
-    this.#currentForce = force
-    this.setCuePositionByForce(diff)
+    // const diff = force - this.#currentForce
+    // this.#currentForce = force
+    this.update()
   }
 
   init() {
-    this.cue.rotation.x = -Math.PI
-    this.camera.add(this.cue)
-    this.mainScene.scene.add(this.camera)
-    this.mainScene.renderer.render(this.mainScene.scene, this.camera)
-
-    this.mainScene.scene.add(this.forceArrow)
-    this.mainScene.scene.add(this.rayArrow)
-
     // this.cue.visible = false
     this.rayArrow.visible = false
 
     this.cue.position.copy(this.cueBasePosition)
-    this.updateCameraPosition()
 
     this.setupEvents()
   }
 
   private setupEvents() {
-    document.addEventListener('keydown', this.onKeydown)
+    window.addEventListener('click', (event) => {
+      // 1. 将鼠标点击屏幕坐标转换为归一化设备坐标(NDC)
+      const mouse = new THREE.Vector2()
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+
+      // 2. 设置 raycaster
+      const raycaster = new THREE.Raycaster()
+      raycaster.setFromCamera(mouse, this.camera)
+
+      // 3. 定义球所在水平面（比如 y=ballRadius 平面）
+      const planeY = new THREE.Plane(new THREE.Vector3(0, 1, 0), config.ball.radius)
+
+      // 4. 计算射线与平面交点
+      const intersectPoint = new THREE.Vector3()
+      const intersects = raycaster.ray.intersectPlane(planeY, intersectPoint)
+
+      if (intersects) {
+        // 5. 计算相对于球心的方向向量
+        const dir = this.ball.getWorldPosition(new THREE.Vector3()).clone().sub(intersectPoint)
+
+        // 6. 计算 theta（绕Y轴水平角度，单位：度）
+        // Math.atan2(z, x) 返回的是弧度
+        let newTheta = Math.atan2(dir.z, dir.x) * (180 / Math.PI)
+        // 你可以调整角度范围，比如保持 0-360
+        if (newTheta < 0)
+          newTheta += 360
+
+        // 7. 更新 theta，重新设置杆子位置
+        this.theta = newTheta
+        this.update()
+      }
+    })
   }
 
-  setCuePosition(x = 0, y = 0, z = 0) {
-    this.cue.position.set(x, y, z)
+  setCueAngle(phi: number) {
+    this.phi = phi
+    this.update()
   }
 
-  setCuePositionByForce(diff: number) {
-    const direction = new THREE.Vector3(0, 0, 1) // 局部Z轴正方向
-    direction.applyQuaternion(this.cue.quaternion) // 转换为世界坐标
-
-    this.cue.position[diff > 0 ? 'add' : 'sub'](
-      direction.multiplyScalar(-0.2 * Math.abs(diff) / this.maxForce),
-    )
-    return this
+  setCueTheta(theta: number) {
+    this.theta = theta
+    this.update()
   }
+
+  // setCuePositionByForce(diff: number) {
+  //   const direction = new THREE.Vector3(0, 0, 1) // 局部Z轴正方向
+  //   direction.applyQuaternion(this.cue.quaternion) // 转换为世界坐标
+
+  //   this.cue.position[diff > 0 ? 'add' : 'sub'](
+  //     direction.multiplyScalar(-0.2 * Math.abs(diff) / this.maxForce),
+  //   )
+  //   return this
+  // }
 
   resetCuePosition() {
     this.cue.position.copy(this.cueBasePosition)
-  }
-
-  setControlKey(key: ControlKey, val = false, isMicro = false) {
-    this.keys.set(key, val)
-    if (isMicro) {
-      this.rotationSpeed = 0.001
-    }
-    else {
-      this.rotationSpeed = 0.1
-    }
-    return this
   }
 
   setMaxForce(force: number) {
@@ -326,7 +322,6 @@ export default class CueSystem {
   }
 
   hit() {
-    console.log('hit', this.currentForce, context.force)
     if (this.currentForce === 0)
       return
 
@@ -355,56 +350,31 @@ export default class CueSystem {
   }
 
   private hitBall() {
-    const direction = new THREE.Vector3()
-    this.cue.getWorldDirection(direction)
-
-    const forceDirection = new THREE.Vector3(
-      direction.x,
-      direction.y,
-      direction.z,
-    )
-
-    forceDirection.multiplyScalar(this.#hitForce / 450)
-
-    const applyPoint = getIntersectionPoints(this.cue, this.ball)
-
-    if (!applyPoint) {
+    const { cue, ball } = this
+    const contactPoint = getIntersectionPoints(cue, ball)
+    if (!contactPoint) {
+      // throw new Error('未命中球体，cue 方向可能对准错了')
       return
     }
-    const { x, y, z } = applyPoint
-    this.ball.body.applyImpulse(forceDirection, new THREE.Vector3(x, y, z))
 
-    // // 画出受力点
-    // const mesh = new THREE.Mesh(
-    //   new THREE.SphereGeometry(0.002, 128, 128),
-    //   new THREE.MeshPhongMaterial({ color: 'purple' }),
+    // // 显示冲量方向
+    // const arrow = new THREE.ArrowHelper(cue.getWorldDirection(new THREE.Vector3()).clone(), cue.getWorldPosition(new THREE.Vector3()).clone(), 1, 'purple')
+    // this.mainScene.add(arrow)
+
+    // // 显示作用点
+    // const marker = new THREE.Mesh(
+    //   new THREE.SphereGeometry(0.003),
+    //   new THREE.MeshBasicMaterial({ color: 0xFF0000 }),
     // )
-    // // mesh.position.copy(applyPoint)
-    // mesh.position.set(x, y, z)
-    // this.scene.add(mesh)
+    // marker.position.copy(contactPoint)
+    // scene.add(marker)
 
-    // this.#hitForce = 0
+    const impulseDirection = this.impulseDirection.clone().multiplyScalar(this.#hitForce / 450)
+
+    const { x, y, z } = contactPoint
+    this.ball.body.applyImpulse(impulseDirection, new THREE.Vector3(x, y, z))
+
     setContext('status', BilliardsStatus.ShotCompleted)
-  }
-
-  private onKeydown = (e: KeyboardEvent) => {
-    this.resetKeys()
-    switch (e.code) {
-      case 'ArrowUp':
-      case 'ArrowRight':
-      case 'ArrowDown':
-      case 'ArrowLeft':
-        this.setControlKey(e.code, true, false)
-        break
-      case 'Space':
-        break
-    }
-  }
-
-  resetKeys() {
-    for (const key of this.keys.keys()) {
-      this.keys.set(key, false)
-    }
   }
 
   hide() {
@@ -419,71 +389,74 @@ export default class CueSystem {
     this.forceArrow.visible = true
   }
 
-  private updateCameraPosition() {
-    const {
-      phi,
-      theta,
-      ballPosition,
-      cameraDistance,
-      cameraMinY,
-      camera,
-    } = this
+  /**
+   * 设置杆子的位置
+   * @param cue 杆子
+   * @param ball 球
+   * @param ballRadius 球半径
+   * @param force 力
+   * @param phi 杆子与 Z 轴的夹角
+   * @param theta 杆子与 X 轴的夹角
+   * @param offset 偏移量 targetPoint.y * safePercent
+   */
+  private setPosition(cue: THREE.Mesh, ball: THREE.Mesh, ballRadius: number, force: number, phi: number, theta: number, offset: number) {
+    const distance = ballRadius * 1.3 + force
 
-    // 计算原始相机位置
-    const rawX = ballPosition.x + cameraDistance * Math.sin(phi) * Math.cos(theta)
-    const rawY = ballPosition.y + cameraDistance * Math.cos(phi)
-    const rawZ = ballPosition.z + cameraDistance * Math.sin(phi) * Math.sin(theta)
+    const thetaRad = THREE.MathUtils.degToRad(theta)
+    const phiRad = THREE.MathUtils.degToRad(90 - phi)
 
-    // 调整Y坐标确保不低于最小高度
-    const adjustedY = Math.max(cameraMinY, rawY)
+    const ballPosition = ball.getWorldPosition(new THREE.Vector3()).clone()
 
-    // 如果Y坐标被调整，则需要重新计算XZ位置以保持距离
-    if (adjustedY > rawY) {
-      // 计算新的phi角度来保持 cameraDistance 单位距离
-      const newPhi = Math.acos((adjustedY - ballPosition.y) / cameraDistance)
-      this.phi = newPhi
+    // 杆子指向方向向量 v
+    const dx = Math.sin(phiRad) * Math.cos(thetaRad)
+    const dy = Math.cos(phiRad)
+    const dz = Math.sin(phiRad) * Math.sin(thetaRad)
+    const v = new THREE.Vector3(dx, dy, dz).normalize()
 
-      // 重新计算XZ位置
-      const newX = ballPosition.x + cameraDistance * Math.sin(newPhi) * Math.cos(theta)
-      const newZ = ballPosition.z + cameraDistance * Math.sin(newPhi) * Math.sin(theta)
+    // y 轴方向
+    const globalY = new THREE.Vector3(0, 1, 0)
 
-      camera.position.set(newX, adjustedY, newZ)
+    // 计算切面 z 轴方向 (在垂直v的平面上)
+    let zAxis = globalY.clone().sub(v.clone().multiplyScalar(globalY.dot(v)))
+    if (zAxis.lengthSq() < 1e-6) {
+      zAxis = new THREE.Vector3(1, 0, 0).sub(v.clone().multiplyScalar(v.dot(new THREE.Vector3(1, 0, 0))))
     }
-    else {
-      camera.position.set(rawX, rawY, rawZ)
-    }
+    zAxis.normalize()
 
-    camera.lookAt(ballPosition)
+    // 计算点 B
+    const B = ballPosition.add(zAxis.clone().multiplyScalar(ballRadius * offset))
+
+    // 计算杆子中心点 A
+    const A = B.clone().add(v.clone().multiplyScalar(distance))
+    cue.position.copy(A)
+
+    // 设置杆子方向，使Z轴指向杆子方向（杆头朝向球心方向）
+    const defaultDir = new THREE.Vector3(0, 0, 1)
+    const direction = v.clone().negate()
+    const quaternion = new THREE.Quaternion().setFromUnitVectors(defaultDir, direction)
+    cue.quaternion.copy(quaternion)
+
+    this.impulseDirection.copy(direction)
+
+    // const contactPoint = getIntersectionPoints(cue, ball)
+    // if (!contactPoint) {
+    //   throw new Error('未命中球体，cue 方向可能对准错了')
+    // }
+
+    // // 显示冲量方向
+    // const arrow = new THREE.ArrowHelper(cue.getWorldDirection(new THREE.Vector3()).clone(), cue.getWorldPosition(new THREE.Vector3()).clone(), 1, 'purple')
+    // scene.add(arrow)
+
+    // // 显示作用点
+    // const marker = new THREE.Mesh(
+    //   new THREE.SphereGeometry(0.003),
+    //   new THREE.MeshBasicMaterial({ color: 0xFF0000 }),
+    // )
+    // marker.position.copy(contactPoint)
+    // scene.add(marker)
   }
 
   update() {
-    this.controls.update()
-
-    // 处理键盘输入
-    if (this.keys.get('ArrowUp')) {
-      this.phi = Math.max(0, this.phi - this.rotationSpeed)
-      // this.phi = 0
-    }
-    if (this.keys.get('ArrowDown')) {
-      this.phi = Math.min(Math.PI, this.phi + this.rotationSpeed)
-      // this.phi = Math.PI
-    }
-    if (this.keys.get('ArrowRight')) {
-      this.theta -= this.rotationSpeed
-    }
-    if (this.keys.get('ArrowLeft')) {
-      this.theta += this.rotationSpeed
-    }
-    this.resetKeys()
-
-    this.updateCameraPosition()
-
-    // 更新力的方向
-    this.forceArrow.setDirection(this.camera.getWorldDirection(new THREE.Vector3()).normalize())
-    this.forceArrow.position.copy(this.ballPosition)
-
-    // // 更新球杆指向
-    this.rayArrow.setDirection(this.cue.getWorldDirection(new THREE.Vector3()).normalize())
-    this.rayArrow.position.copy(this.cue.getWorldPosition(new THREE.Vector3()))
+    this.setPosition(this.cue, this.ball, this.ballRadius, this.currentForce, this.phi, this.theta, 0.2)
   }
 }

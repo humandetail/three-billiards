@@ -1,5 +1,5 @@
 import type { BilliardsContext } from './Context'
-import { PhysicsLoader, Project } from 'enable3d'
+import { PhysicsLoader, Project, THREE } from 'enable3d'
 
 import config from '../config'
 import {
@@ -66,18 +66,19 @@ export async function setup() {
   const forceHelper = new ForceHelper('#force-helper')
   const angleHelper = new AngleDemodulator('#angle-controller')
 
+  // eslint-disable-next-line no-new
   new RegulatorHelper('#horizontal-regulator-helper')
 
   const releaseBtn = document.querySelector<HTMLElement>('#btn-release')!
 
-  releaseBtn.addEventListener('click', e => {
+  releaseBtn.addEventListener('click', (e) => {
     e.stopPropagation()
     // @todo - 击球
   })
 
   const oAccurateRegulatorModal = document.querySelector<HTMLElement>('#accurate-regulator-modal')!
 
-  oAccurateRegulatorModal.addEventListener('click', () => {
+  oAccurateRegulatorModal.addEventListener('click', (e) => {
     setContext('status', BilliardsStatus.Idle)
   })
 
@@ -92,12 +93,17 @@ export async function setup() {
     // 击球安全区是 2/3
     cueSystem.setCuePosition(
       context.safePercent * config.ball.radius * point.x,
-      context.safePercent * config.ball.radius * point.y,
+      -context.safePercent * config.ball.radius * point.y,
       0,
     )
   })
+
+  emitter.on(EventTypes.angle, (angle) => {
+    cueSystem.setCueAngle(Math.abs(angle - 90))
+  })
+
   emitter.on(EventTypes.force, (force) => {
-    cueSystem.currentForce = force
+    cueSystem.currentForce = force * cueSystem.maxForce
     if (force > 0) {
       releaseBtn.style.visibility = 'visible'
     }
@@ -156,18 +162,17 @@ export async function setup() {
         break
 
       case BilliardsStatus.Release:
-        // cueSystem.hit()
+        cueSystem.hit()
         break
 
       case BilliardsStatus.Shooting:
         break
 
       case BilliardsStatus.ShotCompleted:
-        // cueSystem.hide()
+        cueSystem.hide()
         break
 
       case BilliardsStatus.Advanced:
-        console.log('1')
         moveHelper()
         break
 
@@ -175,8 +180,9 @@ export async function setup() {
       default:
         if (context.prevStatus === BilliardsStatus.Advanced) {
           moveHelper()
+          return
         }
-        // cueSystem.show()
+        cueSystem.show()
         forceHelper.progress = 0
         pointHelper.resetTarget()
         releaseBtn.style.visibility = 'hidden'
@@ -194,3 +200,18 @@ export async function setup() {
     }
   })
 }
+
+// export async function setup() {
+//   const mainScene = await loadPhysics()
+//   const container = document.querySelector('#main') as HTMLElement
+//   container.appendChild(mainScene.renderer.domElement)
+//   const handleResize = () => {
+//     mainScene.renderer.setSize(container.clientWidth, container.clientHeight)
+//     if ((mainScene.camera as any)?.aspect) {
+//       ;(mainScene.camera as any).aspect = container.clientWidth / container.clientHeight
+//     }
+//     ;(mainScene.camera as any).updateProjectionMatrix()
+//   }
+//   handleResize()
+//   window.addEventListener('resize', handleResize)
+// }

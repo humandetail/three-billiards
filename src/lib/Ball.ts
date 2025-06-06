@@ -10,26 +10,26 @@ export default class Ball {
   mainBall!: ExtendedMesh
 
   initialPositions = [
-    { x: 0, z: 0 },
+    // { x: 0, z: 0 },
 
-    // r * √3（等边三角形高度）
-    { x: this.ballRadius * 4 * Math.sqrt(3), z: -this.ballRadius * 4 },
-    { x: this.ballRadius * 4 * Math.sqrt(3), z: this.ballRadius * 4 },
+    // // r * √3（等边三角形高度）
+    // { x: this.ballRadius * 4 * Math.sqrt(3), z: -this.ballRadius * 4 },
+    // { x: this.ballRadius * 4 * Math.sqrt(3), z: this.ballRadius * 4 },
 
-    { x: this.ballRadius * 2 * Math.sqrt(3), z: -this.ballRadius * 2 }, // 4
-    { x: this.ballRadius * 3 * Math.sqrt(3), z: -this.ballRadius }, // 8
-    { x: this.ballRadius * 2 * Math.sqrt(3), z: this.ballRadius * 2 },
+    // { x: this.ballRadius * 2 * Math.sqrt(3), z: -this.ballRadius * 2 }, // 4
+    // { x: this.ballRadius * 3 * Math.sqrt(3), z: -this.ballRadius }, // 8
+    // { x: this.ballRadius * 2 * Math.sqrt(3), z: this.ballRadius * 2 },
 
-    { x: this.ballRadius * 3 * Math.sqrt(3), z: -this.ballRadius * 3 },
-    { x: this.ballRadius * 2 * Math.sqrt(3), z: 0 },
-    { x: this.ballRadius * 3 * Math.sqrt(3), z: this.ballRadius },
-    { x: this.ballRadius * 3 * Math.sqrt(3), z: this.ballRadius * 3 },
+    // { x: this.ballRadius * 3 * Math.sqrt(3), z: -this.ballRadius * 3 },
+    // { x: this.ballRadius * 2 * Math.sqrt(3), z: 0 },
+    // { x: this.ballRadius * 3 * Math.sqrt(3), z: this.ballRadius },
+    // { x: this.ballRadius * 3 * Math.sqrt(3), z: this.ballRadius * 3 },
 
-    { x: this.ballRadius * Math.sqrt(3), z: -this.ballRadius }, // 2
-    { x: this.ballRadius * 4 * Math.sqrt(3), z: -this.ballRadius * 2 },
-    { x: this.ballRadius * 4 * Math.sqrt(3), z: 0 },
-    { x: this.ballRadius * 4 * Math.sqrt(3), z: this.ballRadius * 2 },
-    { x: this.ballRadius * Math.sqrt(3), z: this.ballRadius }, // 3
+    // { x: this.ballRadius * Math.sqrt(3), z: -this.ballRadius }, // 2
+    // { x: this.ballRadius * 4 * Math.sqrt(3), z: -this.ballRadius * 2 },
+    // { x: this.ballRadius * 4 * Math.sqrt(3), z: 0 },
+    // { x: this.ballRadius * 4 * Math.sqrt(3), z: this.ballRadius * 2 },
+    // { x: this.ballRadius * Math.sqrt(3), z: this.ballRadius }, // 3
   ]
 
   constructor(public mainScene: MainScene) {}
@@ -54,6 +54,8 @@ export default class Ball {
         y: this.tableTop + ballRadius,
         z,
         radius: ballRadius,
+        widthSegments: 128,
+        heightSegments: 128,
       },
       {
         physical: {
@@ -94,6 +96,7 @@ export default class Ball {
     ball.body.setDamping(config.material.ball.damping.linear, config.material.ball.damping.angular) // 线性/角速度缓慢衰减（空气+桌面阻力）
     ball.body.setCcdMotionThreshold(config.material.ball.ccdThreshold)
     ball.body.setCcdSweptSphereRadius(ballRadius * config.material.ball.ccdSweptSphereRadiusScale)
+    ball.body.ammo.setRollingFriction(config.material.ball.friction)
 
     ball.body.checkCollisions = true
     // ball.body.setCollisionFlags(2)

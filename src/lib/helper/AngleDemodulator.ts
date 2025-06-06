@@ -241,7 +241,7 @@ export default class AngleDemodulator extends Ball2D {
 
     ctx.save()
 
-    const L = targetPoint.y * ballRadius * safePercent
+    const L = -targetPoint.y * ballRadius * safePercent
     const mergeX = L * Math.sin(toRadians(-angle))
     const mergeY = -L * Math.cos(toRadians(-angle))
     ctx.translate(center.x + mergeX, center.y + mergeY)

@@ -22,16 +22,16 @@ export default class Table {
   constructor(public mainScene: MainScene) {}
 
   init() {
-    this.createTableBoard()
-    this.createCushionRubbers()
-    this.createCushionWood()
-    this.createPocketSeals()
-    this.createTableBody()
-    this.createTableLegs()
-    this.createPockets()
+    // this.createTableBoard()
+    // this.createCushionRubbers()
+    // this.createCushionWood()
+    // this.createPocketSeals()
+    // this.createTableBody()
+    // this.createTableLegs()
+    // this.createPockets()
 
-    // 触发器
-    this.createTrigger()
+    // // 触发器
+    // this.createTrigger()
   }
 
   createTrigger() {
@@ -70,6 +70,7 @@ export default class Table {
     this.mainScene.physics.add.existing(tableBoard as any, { shape: 'convex', mass: 0 })
     tableBoard.body.setFriction(config.material.cloth.friction)
     tableBoard.body.setRestitution(config.material.cloth.restitution)
+    tableBoard.body.ammo.setRollingFriction(config.material.cloth.friction)
 
     tableBoard.castShadow = true
     tableBoard.receiveShadow = true
@@ -87,6 +88,7 @@ export default class Table {
       this.mainScene.physics.add.existing(mesh as any, { shape: 'convex', mass: 0 })
       mesh.body.setFriction(config.material.cushion.friction)
       mesh.body.setRestitution(config.material.cushion.restitution)
+      mesh.body.ammo.setRollingFriction(config.material.cushion.friction)
 
       mesh.body.setCollisionFlags(1)
       mesh.body.checkCollisions = true
