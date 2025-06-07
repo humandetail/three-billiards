@@ -31,13 +31,13 @@ export default class MainScene extends Scene3D {
 
     this.setupLights()
 
-    const hiddenNames = ['pocket', 'cushion', 'table'/** , 'ball' */]
+    // const hiddenNames = ['pocket', 'cushion', 'table'/** , 'ball' */]
 
-    this.scene.children.forEach((child) => {
-      if (hiddenNames.some(name => child.name.startsWith(name))) {
-        child.visible = false
-      }
-    })
+    // this.scene.children.forEach((child) => {
+    //   if (hiddenNames.some(name => child.name.startsWith(name))) {
+    //     child.visible = false
+    //   }
+    // })
     // // 展示物理体
     // if (this.physics.debug) {
     //   this.physics.debug.enable()

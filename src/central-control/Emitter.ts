@@ -6,9 +6,11 @@ type ForcePercent = number
 
 export enum EventTypes {
   targetPoint = 'targetPoint',
-  angle = 'angle',
+  // angle = 'angle',
+  phi = 'phi',
+  theta = 'theta',
   force = 'force',
-  direction = 'direction',
+  // direction = 'direction',
 
   hit = 'hit',
 
@@ -18,8 +20,10 @@ export enum EventTypes {
 const emitter = mitt<{
   [EventTypes.targetPoint]: Point
   [EventTypes.force]: ForcePercent
-  [EventTypes.angle]: number
-  [EventTypes.direction]: 'up' | 'down' | 'right' | 'left'
+  // [EventTypes.angle]: number
+  // [EventTypes.direction]: 'up' | 'down' | 'right' | 'left'
+  [EventTypes.phi]: number
+  [EventTypes.theta]: number
   [EventTypes.status]: BilliardsContext['status']
 }>()
 

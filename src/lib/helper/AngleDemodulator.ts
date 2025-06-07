@@ -7,7 +7,6 @@ import Ball2D from './Ball2D'
 export default class AngleDemodulator extends Ball2D {
   el: HTMLElement
 
-  #angle = 0
   width = 0
   height = 0
   padding = 0
@@ -93,13 +92,13 @@ export default class AngleDemodulator extends Ball2D {
   }
 
   get angle() {
-    return this.#angle
+    return context.phi
   }
 
   set angle(value: number) {
-    this.#angle = Math.max(0, Math.min(90, value))
+    const angle = Math.max(0, Math.min(90, value))
+    setContext('phi', angle)
     this.draw()
-    setContext('angle', this.angle)
   }
 
   get angleRadian() {
@@ -146,6 +145,8 @@ export default class AngleDemodulator extends Ball2D {
 
     canvas.addEventListener('mousedown', (e) => {
       e.stopPropagation()
+      if (!context.canIControl())
+        return
       this.isDragging = true
       this.angle = this.#getAngleFromMouse(e)
 
@@ -160,6 +161,8 @@ export default class AngleDemodulator extends Ball2D {
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault()
       e.stopPropagation()
+      if (!context.canIControl())
+        return
       this.isDragging = true
       this.angle = this.#getAngleFromMouse(e.touches[0])
 

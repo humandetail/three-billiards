@@ -473,12 +473,12 @@ export function getConfig(scale = 1) {
          * - 0.95 表示碰撞后保留 95% 速度（高弹性）
          * - 影响碰撞后的反弹力度
          */
-        restitution: 0.85,
+        restitution: 0.95,
         /**
          * 线性/角速度缓慢衰减（空气+桌面阻力）
          */
         damping: {
-          linear: 0.15,
+          linear: 0.25,
           angular: 0.25,
         },
         /**

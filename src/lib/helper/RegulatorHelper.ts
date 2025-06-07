@@ -1,4 +1,4 @@
-import { emitter, EventTypes } from '../../central-control'
+import { context, setContext } from '../../central-control'
 import { createCanvas } from '../../utils'
 
 export default class RegulatorHelper {
@@ -48,7 +48,7 @@ export default class RegulatorHelper {
 
   set offsetTop(top: number) {
     this.#offset.top = top
-    emitter.emit(EventTypes.direction, 'left')
+    setContext('theta', context.theta + 0.1)
   }
 
   get offsetBottom() {
@@ -57,7 +57,7 @@ export default class RegulatorHelper {
 
   set offsetBottom(bottom: number) {
     this.#offset.bottom = bottom
-    emitter.emit(EventTypes.direction, 'right')
+    setContext('theta', context.theta - 0.1)
   }
 
   initEvents() {
@@ -67,19 +67,23 @@ export default class RegulatorHelper {
       if (clientX < this.lastX) {
         // 左滑，上面刻度左移
         let offsetTop = this.offsetTop - 2
-        if (offsetTop < 0) offsetTop += this.width
+        if (offsetTop < 0)
+          offsetTop += this.width
         this.offsetTop = offsetTop
-      } else if (clientX > this.lastX) {
+      }
+      else if (clientX > this.lastX) {
         // 右滑，下面刻度右移
         let offsetBottom = this.offsetBottom + 2
-        if (offsetBottom > this.width) offsetBottom -= this.width
+        if (offsetBottom > this.width)
+          offsetBottom -= this.width
         this.offsetBottom = offsetBottom
       }
       this.lastX = clientX
     }
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!this.isDragging) return
+      if (!this.isDragging)
+        return
       handleMove(e.clientX)
     }
 
@@ -90,6 +94,9 @@ export default class RegulatorHelper {
     }
 
     canvas.addEventListener('mousedown', (e) => {
+      e.stopPropagation()
+      if (!context.canIControl())
+        return
       this.isDragging = true
       this.lastX = e.clientX
       window.addEventListener('mousemove', handleMouseMove)
@@ -97,8 +104,10 @@ export default class RegulatorHelper {
     })
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!this.isDragging) return
-      if (e.touches.length !== 1) return
+      if (!this.isDragging)
+        return
+      if (e.touches.length !== 1)
+        return
       e.preventDefault()
       handleMove(e.touches[0].clientX)
     }
@@ -110,6 +119,9 @@ export default class RegulatorHelper {
     }
 
     canvas.addEventListener('touchstart', (e) => {
+      e.stopPropagation()
+      if (!context.canIControl())
+        return
       if (e.touches.length === 1) {
         this.isDragging = true
         this.lastX = e.touches[0].clientX

@@ -1,5 +1,5 @@
 import Hammer from 'hammerjs'
-import { BilliardsStatus, context, emitter, EventTypes, setContext } from '../../central-control'
+import { BilliardsStatus, context, setContext } from '../../central-control'
 import { createCanvas } from '../../utils'
 import ArrowButton from './ArrowButton'
 import Helper from './Helper'
@@ -174,23 +174,12 @@ export default class ForceHelper extends Helper {
     const { height, barSize: { height: barHeight } } = this
     const rect = this.canvas.getBoundingClientRect()
     const setProgress = (e: HammerInput) => {
-      // console.log('setProgress', context.status)
-      // if ([BilliardsStatus.Idle, BilliardsStatus.Staging].includes(context.status)) {
-      //   this.progress = (e.center.y - rect.top - (height - barHeight) / 2) / barHeight
-      //   setContext('status', BilliardsStatus.Staging)
-      // }
+      e.srcEvent.stopPropagation()
+      if (!context.canIControl())
+        return
 
       this.progress = (e.center.y - rect.top - (height - barHeight) / 2) / barHeight
     }
-    // hm.on('press', (e) => {
-    //   setProgress(e)
-    //   console.log(this.currentForce)
-    //   if (this.currentForce < 100) {
-    //     // @todo - 进入高级控制模式
-    //     // return
-    //   }
-    //   setContext('status', BilliardsStatus.Release)
-    // })
 
     hm.on('panstart', () => {
       this.draw()

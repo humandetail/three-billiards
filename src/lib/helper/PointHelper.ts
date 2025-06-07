@@ -1,6 +1,6 @@
 import type { Point } from '../../utils'
 import Hammer from 'hammerjs'
-import { BilliardsStatus, context, emitter, EventTypes, setContext } from '../../central-control'
+import { BilliardsStatus, context, setContext } from '../../central-control'
 import { createCanvas } from '../../utils'
 import ArrowButton from './ArrowButton'
 import Ball2D from './Ball2D'
@@ -181,7 +181,7 @@ export default class PointHelper extends Ball2D {
 
     hm.on('press', (e) => {
       e.srcEvent.stopPropagation()
-      if (!context.isAdvanced()) {
+      if (!context.isAdvanced() && context.canIControl()) {
         setContext('status', BilliardsStatus.Advanced)
         this.draw()
         return
@@ -234,10 +234,6 @@ export default class PointHelper extends Ball2D {
       if (!context.isAdvanced())
         return
       this.updateTargetPosition(this.center.x, this.center.y)
-    })
-
-    emitter.on(EventTypes.angle, () => {
-      this.draw()
     })
   }
 
@@ -296,7 +292,7 @@ export default class PointHelper extends Ball2D {
     ctx.textBaseline = 'middle'
     ctx.font = `Bold 10px Arial`
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
-    ctx.fillText(`${context.angle}°`, width / 2, height * 0.1)
+    ctx.fillText(`${context.phi}°`, width / 2, height * 0.1)
     ctx.stroke()
     ctx.restore()
   }
@@ -313,6 +309,10 @@ export default class PointHelper extends Ball2D {
    * @param y 目标点 y 坐标
    */
   updateTargetPosition(x: number, y: number) {
+    if (!context.canIControl()) {
+      console.warn('当前状态不允许设置目标点')
+      return
+    }
     const { width, height, safeRadius } = this
     const cx = width / 2
     const cy = height / 2

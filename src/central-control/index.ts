@@ -1,7 +1,6 @@
 import type { BilliardsContext } from './Context'
-import { PhysicsLoader, Project, THREE } from 'enable3d'
+import { PhysicsLoader, Project } from 'enable3d'
 
-import config from '../config'
 import {
   Ball,
   CueSystem,
@@ -59,6 +58,7 @@ export async function setup() {
 
   const cueSystem = new CueSystem(mainScene, ball.mainBall)
   cueSystem.init()
+  cueSystem.update()
 
   mainScene.setCueSystem(cueSystem)
 
@@ -73,58 +73,34 @@ export async function setup() {
 
   releaseBtn.addEventListener('click', (e) => {
     e.stopPropagation()
-    // @todo - 击球
+    cueSystem.hit()
   })
 
   const oAccurateRegulatorModal = document.querySelector<HTMLElement>('#accurate-regulator-modal')!
 
-  oAccurateRegulatorModal.addEventListener('click', (e) => {
+  oAccurateRegulatorModal.addEventListener('click', () => {
     setContext('status', BilliardsStatus.Idle)
   })
 
   // 场景初始化完毕
   mainScene.init()
 
-  // setTimeout(() => {
-  //   mainScene.setBallPosition(mainScene.mainBall!, { x: 0, z: 0 })
-  // }, 1000)
-
-  emitter.on(EventTypes.targetPoint, (point) => {
-    // 击球安全区是 2/3
-    cueSystem.setCuePosition(
-      context.safePercent * config.ball.radius * point.x,
-      -context.safePercent * config.ball.radius * point.y,
-      0,
-    )
+  emitter.on(EventTypes.targetPoint, () => {
+    cueSystem.update()
   })
 
-  emitter.on(EventTypes.angle, (angle) => {
-    cueSystem.setCueAngle(Math.abs(angle - 90))
+  emitter.on(EventTypes.phi, () => {
+    cueSystem.update()
+    pointHelper.draw()
   })
 
   emitter.on(EventTypes.force, (force) => {
-    cueSystem.currentForce = force * cueSystem.maxForce
+    cueSystem.update()
     if (force > 0) {
       releaseBtn.style.visibility = 'visible'
     }
     else {
       releaseBtn.style.visibility = 'hidden'
-    }
-  })
-  emitter.on(EventTypes.direction, (direction) => {
-    switch (direction) {
-      case 'up':
-        cueSystem.setControlKey('ArrowUp', true, true)
-        break
-      case 'down':
-        cueSystem.setControlKey('ArrowDown', true, true)
-        break
-      case 'right':
-        cueSystem.setControlKey('ArrowRight', true, true)
-        break
-      case 'left':
-        cueSystem.setControlKey('ArrowLeft', true, true)
-        break
     }
   })
 
@@ -156,7 +132,6 @@ export async function setup() {
   }
 
   emitter.on(EventTypes.status, (status) => {
-    console.log('status', status)
     switch (status) {
       case BilliardsStatus.Staging:
         break

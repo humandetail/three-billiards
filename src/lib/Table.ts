@@ -22,16 +22,16 @@ export default class Table {
   constructor(public mainScene: MainScene) {}
 
   init() {
-    // this.createTableBoard()
-    // this.createCushionRubbers()
-    // this.createCushionWood()
-    // this.createPocketSeals()
-    // this.createTableBody()
-    // this.createTableLegs()
-    // this.createPockets()
+    this.createTableBoard()
+    this.createCushionRubbers()
+    this.createCushionWood()
+    this.createPocketSeals()
+    this.createTableBody()
+    this.createTableLegs()
+    this.createPockets()
 
-    // // 触发器
-    // this.createTrigger()
+    // 触发器
+    this.createTrigger()
   }
 
   createTrigger() {
@@ -162,7 +162,7 @@ export default class Table {
       ...middlePositions,
     ].forEach((position, index) => {
       const mesh = new Funnel(this.mainScene).setup({
-        position: new THREE.Vector3(position.x, -0.01, position.y),
+        position: new THREE.Vector3(position.x, -0.02, position.y),
         isRotate: [0, 3].includes(index),
       })
       mesh.name = `pocket-${index}`
@@ -770,7 +770,6 @@ class Funnel {
       funnelHeight,
       32,
       4,
-      0.003,
       0xE9ECF1,
     )
     cylinderMesh.position.set(0, 0, 0)
@@ -858,7 +857,7 @@ class Funnel {
   }
 
   // 创建抗锯齿宽线漏斗
-  #createLineFunnel(topRadius: number, baseRadius: number, height: number, baseSegments: number, layers: number, lineWidth: number, color: number) {
+  #createLineFunnel(topRadius: number, baseRadius: number, height: number, baseSegments: number, layers: number, color: number) {
     const points = []
     const layerHeights = []
     for (let i = 0; i <= layers; i++) {

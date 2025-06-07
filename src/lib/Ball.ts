@@ -10,26 +10,26 @@ export default class Ball {
   mainBall!: ExtendedMesh
 
   initialPositions = [
-    // { x: 0, z: 0 },
+    { x: 0, z: 0 },
 
-    // // r * √3（等边三角形高度）
-    // { x: this.ballRadius * 4 * Math.sqrt(3), z: -this.ballRadius * 4 },
-    // { x: this.ballRadius * 4 * Math.sqrt(3), z: this.ballRadius * 4 },
+    // r * √3（等边三角形高度）
+    { x: this.ballRadius * 4 * Math.sqrt(3), z: -this.ballRadius * 4 },
+    { x: this.ballRadius * 4 * Math.sqrt(3), z: this.ballRadius * 4 },
 
-    // { x: this.ballRadius * 2 * Math.sqrt(3), z: -this.ballRadius * 2 }, // 4
-    // { x: this.ballRadius * 3 * Math.sqrt(3), z: -this.ballRadius }, // 8
-    // { x: this.ballRadius * 2 * Math.sqrt(3), z: this.ballRadius * 2 },
+    { x: this.ballRadius * 2 * Math.sqrt(3), z: -this.ballRadius * 2 }, // 4
+    { x: this.ballRadius * 3 * Math.sqrt(3), z: -this.ballRadius }, // 8
+    { x: this.ballRadius * 2 * Math.sqrt(3), z: this.ballRadius * 2 },
 
-    // { x: this.ballRadius * 3 * Math.sqrt(3), z: -this.ballRadius * 3 },
-    // { x: this.ballRadius * 2 * Math.sqrt(3), z: 0 },
-    // { x: this.ballRadius * 3 * Math.sqrt(3), z: this.ballRadius },
-    // { x: this.ballRadius * 3 * Math.sqrt(3), z: this.ballRadius * 3 },
+    { x: this.ballRadius * 3 * Math.sqrt(3), z: -this.ballRadius * 3 },
+    { x: this.ballRadius * 2 * Math.sqrt(3), z: 0 },
+    { x: this.ballRadius * 3 * Math.sqrt(3), z: this.ballRadius },
+    { x: this.ballRadius * 3 * Math.sqrt(3), z: this.ballRadius * 3 },
 
-    // { x: this.ballRadius * Math.sqrt(3), z: -this.ballRadius }, // 2
-    // { x: this.ballRadius * 4 * Math.sqrt(3), z: -this.ballRadius * 2 },
-    // { x: this.ballRadius * 4 * Math.sqrt(3), z: 0 },
-    // { x: this.ballRadius * 4 * Math.sqrt(3), z: this.ballRadius * 2 },
-    // { x: this.ballRadius * Math.sqrt(3), z: this.ballRadius }, // 3
+    { x: this.ballRadius * Math.sqrt(3), z: -this.ballRadius }, // 2
+    { x: this.ballRadius * 4 * Math.sqrt(3), z: -this.ballRadius * 2 },
+    { x: this.ballRadius * 4 * Math.sqrt(3), z: 0 },
+    { x: this.ballRadius * 4 * Math.sqrt(3), z: this.ballRadius * 2 },
+    { x: this.ballRadius * Math.sqrt(3), z: this.ballRadius }, // 3
   ]
 
   constructor(public mainScene: MainScene) {}

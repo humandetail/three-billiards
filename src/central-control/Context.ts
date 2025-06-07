@@ -30,12 +30,21 @@ export interface BilliardsContext {
   /** 出杆力度 */
   force: number
   targetPoint: Point
-  angle: number
+  // angle: number
+
+  phi: number
+  theta: number
 
   /** 安全击杆区 */
   safePercent: number
 
   isAdvanced: () => boolean
+  /**
+   * 是否可以设置
+   * 1. 轮到当前玩家击球
+   * 2. 状态为 Idle 或 Advanced
+   */
+  canIControl: () => boolean
 }
 
 const initialContext: BilliardsContext = {
@@ -47,11 +56,16 @@ const initialContext: BilliardsContext = {
   inPocketBalls: new Set(),
   force: 0,
   targetPoint: { x: 0, y: 0 },
-  angle: 0,
+  theta: 180,
+  phi: 0,
   safePercent: 2 / 3,
 
   isAdvanced() {
     return this.status === BilliardsStatus.Advanced
+  },
+
+  canIControl() {
+    return [BilliardsStatus.Idle, BilliardsStatus.Advanced].includes(this.status)
   },
 }
 
@@ -75,8 +89,11 @@ export function setContext<T extends keyof BilliardsContext>(key: T, value: Bill
     case 'targetPoint':
       emitter.emit(EventTypes.targetPoint, value as Point)
       break
-    case 'angle':
-      emitter.emit(EventTypes.angle, value as number)
+    case 'phi':
+      emitter.emit(EventTypes.phi, value as number)
+      break
+    case 'theta':
+      emitter.emit(EventTypes.theta, value as number)
       break
   }
 }
