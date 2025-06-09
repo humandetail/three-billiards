@@ -162,7 +162,7 @@ export default class Table {
       ...middlePositions,
     ].forEach((position, index) => {
       const mesh = new Funnel(this.mainScene).setup({
-        position: new THREE.Vector3(position.x, -0.02, position.y),
+        position: new THREE.Vector3(position.x, -0.0015, position.y),
         isRotate: [0, 3].includes(index),
       })
       mesh.name = `pocket-${index}`
@@ -603,12 +603,13 @@ class Funnel {
   slantHeight: number
   baseWidth: number
   floorYOffset: number
-  angle = 4 * Math.PI / 180
+  angle = 2 * Math.PI / 180
 
   poleMaterial = new THREE.MeshPhysicalMaterial({
     color: 0x3170A6,
     clearcoat: 0.92,
     clearcoatRoughness: 0.35,
+    side: THREE.DoubleSide,
   })
 
   constructor(private mainScene: MainScene) {
@@ -639,73 +640,70 @@ class Funnel {
 
   setupPhysics(options: FunnelOptions) {
     const {
-      topDiameter,
       bottomDiameter,
-      funnelHeight,
       bottomCatchHeight,
       wallThickness,
-      tiltAngle,
-      slantHeight,
       baseWidth,
       floorYOffset,
+      angle,
     } = this
 
     const funnelBody = new THREE.Group()
 
-    const directions = [
-      { axis: 'x', sign: 1, rotAxis: new THREE.Vector3(0, 0, 1) },
-      { axis: 'x', sign: -1, rotAxis: new THREE.Vector3(0, 0, 1) },
-      { axis: 'z', sign: 1, rotAxis: new THREE.Vector3(1, 0, 0) },
-      { axis: 'z', sign: -1, rotAxis: new THREE.Vector3(1, 0, 0) },
-    ]
+    // const directions = [
+    //   { axis: 'x', sign: 1, rotAxis: new THREE.Vector3(0, 0, 1) },
+    //   { axis: 'x', sign: -1, rotAxis: new THREE.Vector3(0, 0, 1) },
+    //   { axis: 'z', sign: 1, rotAxis: new THREE.Vector3(1, 0, 0) },
+    //   { axis: 'z', sign: -1, rotAxis: new THREE.Vector3(1, 0, 0) },
+    // ]
 
-    directions.forEach(({ axis, sign, rotAxis }) => {
-      const isXAxis = axis === 'x'
+    // directions.forEach(({ axis, sign, rotAxis }) => {
+    //   const isXAxis = axis === 'x'
 
-      const sideHalfSize = new THREE.Vector3(
-        isXAxis ? wallThickness / 2 : topDiameter / 2,
-        slantHeight / 2,
-        isXAxis ? topDiameter / 2 : wallThickness / 2,
-      )
+    //   const sideHalfSize = new THREE.Vector3(
+    //     isXAxis ? wallThickness / 2 : topDiameter / 2,
+    //     slantHeight / 2,
+    //     isXAxis ? topDiameter / 2 : wallThickness / 2,
+    //   )
 
-      const sidePosition = new THREE.Vector3(
-        isXAxis ? -sign * (topDiameter + bottomDiameter) / 4 : 0,
-        funnelHeight / 2,
-        isXAxis ? 0 : sign * (topDiameter + bottomDiameter) / 4,
-      )
+    //   const sidePosition = new THREE.Vector3(
+    //     isXAxis ? -sign * (topDiameter + bottomDiameter) / 4 : 0,
+    //     funnelHeight / 2,
+    //     isXAxis ? 0 : sign * (topDiameter + bottomDiameter) / 4,
+    //   )
 
-      const sideRotation = new THREE.Quaternion().setFromAxisAngle(rotAxis, sign * tiltAngle)
-      this.#addBoxShape(funnelBody, sideHalfSize, sidePosition, sideRotation)
+    //   const sideRotation = new THREE.Quaternion().setFromAxisAngle(rotAxis, sign * tiltAngle)
+    //   this.#addBoxShape(funnelBody, sideHalfSize, sidePosition, sideRotation)
 
-      // 加底接球区
-      if (!(axis === 'z' && sign === 1)) {
-        const bottomHalf = new THREE.Vector3(bottomDiameter / 2, bottomCatchHeight / 2, wallThickness / 2)
-        const bottomPos = new THREE.Vector3()
-        bottomPos.y = -bottomCatchHeight / 2
+    //   // 加底接球区
+    //   if (!(axis === 'z' && sign === 1)) {
+    //     const bottomHalf = new THREE.Vector3(bottomDiameter / 2, bottomCatchHeight / 2, wallThickness / 2)
+    //     const bottomPos = new THREE.Vector3()
+    //     bottomPos.y = -bottomCatchHeight / 2
 
-        if (isXAxis) {
-          bottomPos.z = sign * bottomDiameter / 2
-        }
-        else {
-          bottomPos.x = -sign * bottomDiameter / 2
-        }
+    //     if (isXAxis) {
+    //       bottomPos.z = sign * bottomDiameter / 2
+    //     }
+    //     else {
+    //       bottomPos.x = -sign * bottomDiameter / 2
+    //     }
 
-        const bottomRot = new THREE.Quaternion().setFromAxisAngle(
-          new THREE.Vector3(0, 1, 0),
-          sign * Math.PI / 2 * (isXAxis ? 0 : 1),
-        )
+    //     const bottomRot = new THREE.Quaternion().setFromAxisAngle(
+    //       new THREE.Vector3(0, 1, 0),
+    //       sign * Math.PI / 2 * (isXAxis ? 0 : 1),
+    //     )
 
-        this.#addBoxShape(funnelBody, bottomHalf, bottomPos, bottomRot)
-      }
-    })
+    //     this.#addBoxShape(funnelBody, bottomHalf, bottomPos, bottomRot)
+    //   }
+    // })
 
     // 背板
-    this.#addBoxShape(
-      funnelBody,
-      new THREE.Vector3(bottomCatchHeight / 2, bottomCatchHeight / 2, wallThickness),
-      new THREE.Vector3(bottomCatchHeight / 2, -bottomCatchHeight / 2, 0),
-      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2),
-    )
+    // this.#addBoxShape(
+    //   funnelBody,
+    //   new THREE.Vector3(bottomCatchHeight / 2, bottomCatchHeight / 2, wallThickness),
+    //   new THREE.Vector3(bottomCatchHeight / 2, -bottomCatchHeight / 2, 0),
+    //   new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2),
+    // )
 
     // 下部横向底板
     const baseHeight = bottomCatchHeight
@@ -718,7 +716,7 @@ class Funnel {
     const floorThickness = wallThickness
     const floorRotation = new THREE.Quaternion().setFromAxisAngle(
       new THREE.Vector3(0, 0, 1),
-      this.angle,
+      angle,
     )
 
     this.#addBoxShape(
@@ -741,6 +739,7 @@ class Funnel {
       funnelBody,
       new THREE.Vector3(wallThickness / 2, baseHeight / 2, bottomDiameter / 2),
       new THREE.Vector3(-baseWidth + bottomDiameter / 2, -baseHeight / 2, 0),
+      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -angle),
     )
 
     const { x, y, z } = options.position
@@ -760,8 +759,6 @@ class Funnel {
       poleMaterial,
     } = this
 
-    const ballRadius = config.ball.radius
-
     const group = new THREE.Group()
 
     const cylinderMesh = this.#createLineFunnel(
@@ -780,31 +777,33 @@ class Funnel {
     const sideHeight = bottomCatchHeight
     const tiltOffset = floorYOffset
 
+    const Y = sideHeight - tiltOffset - tiltOffset
+
     const rightSideWallPoints = [
-      [0, sideHeight],
-      [baseWidth, sideHeight + tiltOffset],
-      [baseWidth, -funnelHeight - tiltOffset],
-      [baseWidth - sideWallThickness, -funnelHeight - tiltOffset],
-      [baseWidth - sideWallThickness, sideHeight + tiltOffset - sideWallThickness],
-      [sideWallThickness, sideHeight - sideWallThickness],
+      [0, Y + sideWallThickness],
+      [baseWidth + sideWallThickness, Y + sideWallThickness + tiltOffset],
+      [baseWidth + sideWallThickness, Y + sideWallThickness + tiltOffset - bottomDiameter],
+      [baseWidth, Y + sideWallThickness + tiltOffset - bottomDiameter],
+      [baseWidth, Y + tiltOffset],
+      [sideWallThickness, Y],
       [sideWallThickness, 0],
     ]
 
-    const leftSideWallXOffset = baseWidth - bottomDiameter / 2
+    const X = -bottomDiameter / 2
     const leftSideWallPoints = [
-      [0, sideHeight],
-      [leftSideWallXOffset, sideHeight + tiltOffset],
-      [leftSideWallXOffset, -sideHeight - tiltOffset], // 注意 -funnelHeight 延长到入口处
-      [leftSideWallXOffset - sideWallThickness, -sideHeight - tiltOffset],
-      [leftSideWallXOffset - sideWallThickness, sideHeight + tiltOffset - sideWallThickness],
-      [sideWallThickness, sideHeight - sideWallThickness],
+      [0, Y + sideWallThickness],
+      [X + baseWidth + sideWallThickness, Y + sideWallThickness + tiltOffset],
+      [X + baseWidth + sideWallThickness, Y + sideWallThickness + tiltOffset - bottomDiameter * 0.6],
+      [X + baseWidth, Y + sideWallThickness + tiltOffset - bottomDiameter * 0.6],
+      [X + baseWidth, Y + tiltOffset],
+      [sideWallThickness, Y],
       [sideWallThickness, 0],
     ]
 
     const sideWalls = [
-      { points: rightSideWallPoints, position: new THREE.Vector3(bottomDiameter / 2, 0, 0) },
-      { points: leftSideWallPoints, position: new THREE.Vector3(0, ballRadius / 2, bottomDiameter / 2) },
-      { points: leftSideWallPoints, position: new THREE.Vector3(0, ballRadius / 2, -bottomDiameter / 2) },
+      { points: rightSideWallPoints, position: new THREE.Vector3(bottomDiameter / 2, 0, -sideWallThickness) },
+      { points: leftSideWallPoints, position: new THREE.Vector3(0, 0, bottomDiameter / 2 - sideWallThickness) },
+      { points: leftSideWallPoints, position: new THREE.Vector3(0, 0, -bottomDiameter / 2 - sideWallThickness) },
     ]
 
     sideWalls.forEach(({ points, position }) => {
@@ -825,18 +824,16 @@ class Funnel {
     })
 
     const baseHeight = bottomCatchHeight
-    // // 加圆环
-    // ;[
-    //   { pos: new THREE.Vector3(0, 0, 0), rot: new THREE.Vector3(Math.PI / 2, 0, 0) },
-    //   { pos: new THREE.Vector3(-baseWidth / 3, -baseHeight / 2 - sideWallThickness, sideWallThickness), rot: new THREE.Vector3(0, Math.PI / 2, 0) },
-    //   { pos: new THREE.Vector3(-2 * baseWidth / 3, -baseHeight / 2 - sideWallThickness, sideWallThickness), rot: new THREE.Vector3(0, Math.PI / 2, 0) },
-    // ].forEach(({ pos, rot }) => {
-    //   const torus = new THREE.TorusGeometry(bottomDiameter / 2, sideWallThickness, 128, 128)
-    //   const torusMesh = new THREE.Mesh(torus, poleMaterial)
-    //   torusMesh.position.copy(pos)
-    //   torusMesh.rotation.set(rot.x, rot.y, rot.z)
-    //   group.add(torusMesh)
-    // })
+    // 加圆环
+    ;[
+      { pos: new THREE.Vector3(-baseWidth + bottomDiameter / 2 - sideWallThickness, -baseHeight / 2 - sideWallThickness, 0), rot: new THREE.Vector3(0, Math.PI / 2, 0) },
+    ].forEach(({ pos, rot }) => {
+      const torus = new THREE.TorusGeometry(bottomDiameter / 2, sideWallThickness, 128, 128)
+      const torusMesh = new THREE.Mesh(torus, poleMaterial)
+      torusMesh.position.copy(pos)
+      torusMesh.rotation.set(rot.x, rot.y, rot.z)
+      group.add(torusMesh)
+    })
 
     const { x, y, z } = options.position
     group.position.set(x, y - baseHeight / 2 + config.table.leg.height, z)

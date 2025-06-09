@@ -10,7 +10,7 @@ export default class Ball {
 
   mainBall!: ExtendedMesh
 
-  initialPositions = [
+  initialPositions: Array<{ x: number, z: number }> = [
     { x: 0, z: 0 },
 
     // r * √3（等边三角形高度）
@@ -88,7 +88,8 @@ export default class Ball {
       {
         shape: 'sphere',
         radius: ballRadius,
-        mass: 0.165,
+        // mass: 0.165,
+        mass: 0,
       },
     )
 
