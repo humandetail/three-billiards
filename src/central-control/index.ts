@@ -1,5 +1,5 @@
 import type { BilliardsContext } from './Context'
-import { PhysicsLoader, Project } from 'enable3d'
+import { PhysicsLoader, Project, THREE } from 'enable3d'
 
 import {
   Ball,
@@ -173,6 +173,34 @@ export async function setup() {
           alert('游戏结束')
         }
         break
+    }
+  })
+
+  window.addEventListener('click', (event) => {
+    const mainBall = mainScene.mainBall!
+
+    // 将鼠标点击屏幕坐标转换为归一化设备坐标(NDC)
+    const mouse = new THREE.Vector2()
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+
+    // 设置 raycaster
+    const raycaster = new THREE.Raycaster()
+    raycaster.setFromCamera(mouse, mainScene.camera)
+
+    const intersectedObjects = raycaster.intersectObjects(mainScene.scene.children.filter(child => ['pocket', 'cushion', 'table', 'ball'].some(type => child.name.startsWith(type))))
+
+    if (intersectedObjects.length) {
+      // 计算相对于球心的方向向量
+      const dir = mainBall.getWorldPosition(new THREE.Vector3()).clone().sub(intersectedObjects[0].point)
+
+      // 计算 theta（绕Y轴水平角度，单位：度）
+      let newTheta = Math.atan2(dir.z, dir.x) * (180 / Math.PI)
+      if (newTheta < 0)
+        newTheta += 360
+
+      // 更新 theta，重新设置杆子位置
+      setContext('theta', newTheta)
     }
   })
 }

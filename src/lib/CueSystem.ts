@@ -239,39 +239,6 @@ export default class CueSystem {
   }
 
   private setupEvents() {
-    // window.addEventListener('click', (event) => {
-    //   // 1. 将鼠标点击屏幕坐标转换为归一化设备坐标(NDC)
-    //   const mouse = new THREE.Vector2()
-    //   mouse.x = (event.clientX / window.innerWidth) * 2 - 1
-    //   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
-
-    //   // 2. 设置 raycaster
-    //   const raycaster = new THREE.Raycaster()
-    //   raycaster.setFromCamera(mouse, this.camera)
-
-    //   // 3. 定义球所在水平面（桌面）
-    //   const planeY = new THREE.Plane(new THREE.Vector3(0, 1, 0), this.ball.getWorldPosition(new THREE.Vector3()).y - this.ballRadius)
-
-    //   // 4. 计算射线与平面交点
-    //   const intersectPoint = new THREE.Vector3()
-    //   const intersects = raycaster.ray.intersectPlane(planeY, intersectPoint)
-
-    //   if (intersects) {
-    //     // 5. 计算相对于球心的方向向量
-    //     const dir = this.ball.getWorldPosition(new THREE.Vector3()).clone().sub(intersectPoint)
-
-    //     // 6. 计算 theta（绕Y轴水平角度，单位：度）
-    //     // Math.atan2(z, x) 返回的是弧度
-    //     let newTheta = Math.atan2(dir.z, dir.x) * (180 / Math.PI)
-    //     // 你可以调整角度范围，比如保持 0-360
-    //     if (newTheta < 0)
-    //       newTheta += 360
-
-    //     // 7. 更新 theta，重新设置杆子位置
-    //     setContext('theta', newTheta)
-    //   }
-    // })
-
     // @todo 使用鼠标点击射线设置
     window.addEventListener('keydown', (e) => {
       if (!context.canIControl())
