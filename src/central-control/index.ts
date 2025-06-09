@@ -26,8 +26,9 @@ export {
 }
 
 async function loadPhysics() {
+  const appPath = import.meta.env.VITE_APP_PATHNAME
   return new Promise<MainScene>((resolve) => {
-    PhysicsLoader('/ammo', () => {
+    PhysicsLoader(`${appPath.replace(/\/$/, '')}/ammo`, () => {
       const project = new Project({ scenes: [MainScene] })
       const mainScene = project.scenes.values().next().value as MainScene
       resolve(mainScene)

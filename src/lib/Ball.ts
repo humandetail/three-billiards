@@ -2,6 +2,7 @@ import type { ExtendedMesh } from 'enable3d'
 import type MainScene from '../central-control/MainScene'
 import * as THREE from 'three'
 import config from '../config'
+import { getTexturePath } from '../utils'
 
 export default class Ball {
   private tableTop = config.table.leg.height + config.table.height
@@ -45,7 +46,7 @@ export default class Ball {
   makeBall(x: number, z: number, name = 0) {
     const { ballRadius } = this
     const loader = new THREE.TextureLoader()
-    const texture = loader.load(`/textures/balls/${name}.jpg`)
+    const texture = loader.load(getTexturePath(`balls/${name}.jpg`))
     // const mainBallTexture = loader.load('/textures/balls/sprite.png')
 
     const ball = this.mainScene.add.sphere(
