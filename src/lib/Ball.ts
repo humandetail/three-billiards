@@ -88,8 +88,7 @@ export default class Ball {
       {
         shape: 'sphere',
         radius: ballRadius,
-        // mass: 0.165,
-        mass: 0,
+        mass: 0.165,
       },
     )
 

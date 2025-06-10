@@ -129,14 +129,12 @@ export default class AngleDemodulator extends Ball2D {
     canvas.addEventListener('click', e => e.stopPropagation())
 
     const handleMove = (e: MouseEvent | TouchEvent) => {
-      e.preventDefault()
       if (this.isDragging) {
-        this.angle = this.#getAngleFromMouse(Object.hasOwn(e, 'touches') ? (e as TouchEvent).touches[0] : (e as MouseEvent))
+        this.angle = this.#getAngleFromMouse(e instanceof TouchEvent ? (e as TouchEvent).touches[0] : (e as MouseEvent))
       }
     }
 
-    const handleUp = (e: MouseEvent | TouchEvent) => {
-      e.stopPropagation()
+    const handleUp = () => {
       this.isDragging = false
       document.removeEventListener('mousemove', handleMove)
       document.removeEventListener('mouseup', handleUp)
@@ -144,7 +142,6 @@ export default class AngleDemodulator extends Ball2D {
     }
 
     canvas.addEventListener('mousedown', (e) => {
-      e.stopPropagation()
       if (!context.canIControl())
         return
       this.isDragging = true
@@ -159,8 +156,6 @@ export default class AngleDemodulator extends Ball2D {
 
     // 触摸事件处理
     canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault()
-      e.stopPropagation()
       if (!context.canIControl())
         return
       this.isDragging = true
@@ -328,6 +323,7 @@ export default class AngleDemodulator extends Ball2D {
     // 计算相对于圆心的角度
     const deltaX = mouseX - center.x
     const deltaY = center.y - mouseY // 反转Y轴
+
     let angle = Math.atan2(deltaY, deltaX)
 
     // 将角度限制在0到π/2范围内

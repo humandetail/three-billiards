@@ -48,25 +48,9 @@ canvas {
 
     .aside {
       position: relative;
-      width: min(64px, 10vw);
+      width: min(64px, 16vw);
 
       &.right-side {
-        // .point-helper {
-        //   position: relative;
-        //   width: 100%;
-        //   height: 100px;
-
-        //   canvas {
-        //     height: 100%;
-        //   }
-        // }
-        
-        // .force-helper {
-        //   position: relative;
-        //   width: 100%;
-        //   height: 300px;
-        // }
-
         .helper {
           display: flex;
           flex-direction: column;
@@ -108,7 +92,7 @@ canvas {
 // #app {
 //   display: none;
 // }
-// .billiards { opacity: 0.05; }
+// .billiards { opacity: 0.1; }
 // .header,
 // .footer {
 //   display: none;
@@ -144,9 +128,6 @@ canvas {
     position: relative;
     width: 200px;
     height: 200px;
-    // display: flex;
-    // justify-content: flex-start;
-    // align-items: flex-end;
 
     /* 水平线和垂直线网格 */
     background-image:
@@ -234,8 +215,6 @@ canvas {
 }
 
 .point-helper {
-  // position: absolute;
-  // z-index: 9;
   display: flex;
   justify-content: center;
   align-items: center;

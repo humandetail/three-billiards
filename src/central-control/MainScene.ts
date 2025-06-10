@@ -38,10 +38,10 @@ export default class MainScene extends Scene3D {
     //     child.visible = false
     //   }
     // })
-    // 展示物理体
-    if (this.physics.debug) {
-      this.physics.debug.enable()
-    }
+    // // 展示物理体
+    // if (this.physics.debug) {
+    //   this.physics.debug.enable()
+    // }
   }
 
   get checkableBalls() {
