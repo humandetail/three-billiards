@@ -1,5 +1,5 @@
 import type { Point } from '../utils'
-import type { BilliardsContext } from './Context'
+import type { BilliardsContext, Player } from './Context'
 import mitt from 'mitt'
 
 type ForcePercent = number
@@ -15,6 +15,10 @@ export enum EventTypes {
   hit = 'hit',
 
   status = 'status',
+
+  remainingOperationTime = 'remainingOperationTime',
+  players = 'players',
+  targetBalls = 'targetBalls',
 }
 
 const emitter = mitt<{
@@ -25,6 +29,9 @@ const emitter = mitt<{
   [EventTypes.phi]: number
   [EventTypes.theta]: number
   [EventTypes.status]: BilliardsContext['status']
+  [EventTypes.remainingOperationTime]: number
+  [EventTypes.players]: Player[]
+  [EventTypes.targetBalls]: Player
 }>()
 
 export default emitter

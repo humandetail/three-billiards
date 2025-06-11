@@ -10,27 +10,36 @@ export default class Ball {
 
   mainBall!: ExtendedMesh
 
+  /**
+   * 开局摆球位置
+   * 15颗目标球呈三角形排列，最前端的球放在置球点上，
+   * 8号球必须位于第三排中央位置（如图）。
+   * 两底角必须分别是一颗全色球和一颗花色球，
+   * 这是为了确保开球后双方都有机会选择自己的球组。
+   *
+   *          1
+   *       2    9
+   *     10   8   3
+   *    4  11   5  12
+   *   13 14  6  15  7
+   */
   initialPositions: Array<{ x: number, z: number }> = [
-    { x: 0, z: 0 },
-
+    { x: 0, z: 0 }, // 1 排 0 【1】
+    { x: this.ballRadius * Math.sqrt(3), z: -this.ballRadius }, // 2 排 -1 【2】
+    { x: this.ballRadius * 2 * Math.sqrt(3), z: this.ballRadius * 2 }, // 3 排 1 【3】
+    { x: this.ballRadius * 3 * Math.sqrt(3), z: -this.ballRadius * 3 }, // 4 排 -2 【4】
+    { x: this.ballRadius * 3 * Math.sqrt(3), z: this.ballRadius }, // 4 排 1 【5】
+    { x: this.ballRadius * 4 * Math.sqrt(3), z: 0 }, // 5 排 0 【6】
+    { x: this.ballRadius * 4 * Math.sqrt(3), z: this.ballRadius * 4 }, // 5 排 2 【7】
+    { x: this.ballRadius * 2 * Math.sqrt(3), z: 0 }, // 3 排 0 【8】
+    { x: this.ballRadius * Math.sqrt(3), z: this.ballRadius }, // 2 排 1 【9】
+    { x: this.ballRadius * 2 * Math.sqrt(3), z: -this.ballRadius * 2 }, // 3 排 -1 【10】
+    { x: this.ballRadius * 3 * Math.sqrt(3), z: -this.ballRadius }, // 4 排 -1 【11】
+    { x: this.ballRadius * 3 * Math.sqrt(3), z: this.ballRadius * 3 }, // 4 排 2 【12】
     // r * √3（等边三角形高度）
-    { x: this.ballRadius * 4 * Math.sqrt(3), z: -this.ballRadius * 4 },
-    { x: this.ballRadius * 4 * Math.sqrt(3), z: this.ballRadius * 4 },
-
-    { x: this.ballRadius * 2 * Math.sqrt(3), z: -this.ballRadius * 2 }, // 4
-    { x: this.ballRadius * 3 * Math.sqrt(3), z: -this.ballRadius }, // 8
-    { x: this.ballRadius * 2 * Math.sqrt(3), z: this.ballRadius * 2 },
-
-    { x: this.ballRadius * 3 * Math.sqrt(3), z: -this.ballRadius * 3 },
-    { x: this.ballRadius * 2 * Math.sqrt(3), z: 0 },
-    { x: this.ballRadius * 3 * Math.sqrt(3), z: this.ballRadius },
-    { x: this.ballRadius * 3 * Math.sqrt(3), z: this.ballRadius * 3 },
-
-    { x: this.ballRadius * Math.sqrt(3), z: -this.ballRadius }, // 2
-    { x: this.ballRadius * 4 * Math.sqrt(3), z: -this.ballRadius * 2 },
-    { x: this.ballRadius * 4 * Math.sqrt(3), z: 0 },
-    { x: this.ballRadius * 4 * Math.sqrt(3), z: this.ballRadius * 2 },
-    { x: this.ballRadius * Math.sqrt(3), z: this.ballRadius }, // 3
+    { x: this.ballRadius * 4 * Math.sqrt(3), z: -this.ballRadius * 4 }, // 5 排 -2 【13】
+    { x: this.ballRadius * 4 * Math.sqrt(3), z: -this.ballRadius * 2 }, // 5 排 -1 【14】
+    { x: this.ballRadius * 4 * Math.sqrt(3), z: this.ballRadius * 2 }, // 5 排 1 【15】
   ]
 
   constructor(public mainScene: MainScene) {}

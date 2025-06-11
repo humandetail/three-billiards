@@ -239,7 +239,6 @@ export default class CueSystem {
   }
 
   private setupEvents() {
-    // @todo 使用鼠标点击射线设置
     window.addEventListener('keydown', (e) => {
       if (!context.canIControl())
         return

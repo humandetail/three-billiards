@@ -11,7 +11,8 @@ import {
 } from '../lib'
 import AngleDemodulator from '../lib/helper/AngleDemodulator'
 
-import context, { BilliardsStatus, setContext } from './Context'
+import PlayerDOM from '../lib/helper/PlayerDOM'
+import context, { BilliardsStatus, getPlayerOperationTime, setContext, setPlayer, setPlayerInfo, switchPlayer } from './Context'
 import emitter, { EventTypes } from './Emitter'
 import MainScene from './MainScene'
 
@@ -60,31 +61,61 @@ export async function setup() {
   const cueSystem = new CueSystem(mainScene, ball.mainBall)
   cueSystem.init()
   cueSystem.update()
-
   mainScene.setCueSystem(cueSystem)
 
   const pointHelper = new PointHelper('#point-helper')
   const forceHelper = new ForceHelper('#force-helper')
   const angleHelper = new AngleDemodulator('#angle-controller')
-
   // eslint-disable-next-line no-new
   new RegulatorHelper('#horizontal-regulator-helper')
-
   const releaseBtn = document.querySelector<HTMLElement>('#btn-release')!
-
-  releaseBtn.addEventListener('click', (e) => {
-    e.stopPropagation()
-    cueSystem.hit()
-  })
-
   const oAccurateRegulatorModal = document.querySelector<HTMLElement>('#accurate-regulator-modal')!
 
+  const playerDOM = new PlayerDOM()
+
+  // =============== 场景初始化完毕 ====================
+  mainScene.init()
+
+  // =============== 初始化玩家 ====================
+  setPlayer({
+    id: 'player1',
+    name: '玩家1',
+    score: 0,
+    targetBalls: [],
+    strokes: 0,
+    consecutiveHits: 0,
+    consecutiveFouls: 0,
+    consecutiveMisses: 0,
+  })
+  playerDOM.bind(1, 'player1')
+  playerDOM.set('player1', 'score', 0)
+  playerDOM.set('player1', 'name', '玩家1')
+  setPlayer({
+    id: 'player2',
+    name: '玩家2',
+    score: 0,
+    targetBalls: [],
+    strokes: 0,
+    consecutiveHits: 0,
+    consecutiveFouls: 0,
+    consecutiveMisses: 0,
+  })
+  playerDOM.bind(2, 'player2')
+  playerDOM.set('player2', 'score', 0)
+  playerDOM.set('player2', 'name', '玩家2')
+
+  switchPlayer()
+
+  // =============== 事件绑定 ====================
   oAccurateRegulatorModal.addEventListener('click', () => {
     setContext('status', BilliardsStatus.Idle)
   })
 
-  // 场景初始化完毕
-  mainScene.init()
+  releaseBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    cueSystem.hit()
+    setPlayerInfo(context.activePlayer!, 'strokes', 1)
+  })
 
   emitter.on(EventTypes.targetPoint, () => {
     cueSystem.update()
@@ -158,6 +189,8 @@ export async function setup() {
           moveHelper()
           return
         }
+        // 切换玩家
+        switchPlayer()
         cueSystem.show()
         forceHelper.progress = 0
         pointHelper.resetTarget()
@@ -175,6 +208,18 @@ export async function setup() {
         break
     }
   })
+
+  emitter.on(EventTypes.remainingOperationTime, (remainingOperationTime) => {
+    playerDOM.setActive(context.activePlayer!, 100 * remainingOperationTime / getPlayerOperationTime(context.activePlayer!))
+  })
+
+  emitter.on(EventTypes.targetBalls, (player) => {
+    playerDOM.setTargetBalls(player)
+  })
+
+  // emitter.on(EventTypes.players, (players) => {
+  //   // @todo - 更新玩家列表
+  // })
 
   window.addEventListener('click', (event) => {
     const mainBall = mainScene.mainBall!
