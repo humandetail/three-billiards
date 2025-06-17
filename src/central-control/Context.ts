@@ -1,4 +1,3 @@
-import type { ExtendedMesh } from 'enable3d'
 import type { Point } from '../utils'
 import type Player from './Player'
 import CountDown from './CountDown'

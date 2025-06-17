@@ -12,7 +12,7 @@ import {
 import AngleDemodulator from '../lib/helper/AngleDemodulator'
 
 import PlayerDOM from '../lib/helper/PlayerDOM'
-import context, { BilliardsStatus, getPlayerOperationTime, setContext, setPlayer, setPlayerInfo, settleCurrentTurn, switchPlayer } from './Context'
+import context, { BilliardsStatus, getPlayerOperationTime, setContext, setPlayer, switchPlayer } from './Context'
 import emitter, { EventTypes } from './Emitter'
 import MainScene from './MainScene'
 import Player from './Player'
