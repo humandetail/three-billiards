@@ -133,12 +133,7 @@ export default class ForceHelper extends Helper {
 
   set progress(value: number) {
     this.#progress = Math.min(Math.max(0, value), 1)
-    // if ([BilliardsStatus.Idle, BilliardsStatus.Staging].includes(context.status)) {
-    //   setContext('force', Math.round(this.#progress * this.maxForce))
-    // }
-
-    // setContext('force', Math.round(this.#progress * this.maxForce))
-    setContext('force', this.#progress)
+    setContext('cueStatus', 'force', this.#progress)
     this.draw()
   }
 
@@ -203,6 +198,7 @@ export default class ForceHelper extends Helper {
 
   draw() {
     this.clear()
+
     this.drawForceText()
 
     this.drawScale()

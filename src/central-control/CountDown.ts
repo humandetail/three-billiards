@@ -9,6 +9,7 @@ export default class CountDown {
 
   start(duration: number, callback: (time: number) => void) {
     this.duration = duration
+    this.lastTime = performance.now()
     this.callback = callback
     this.reqId = requestAnimationFrame(this.update.bind(this))
   }

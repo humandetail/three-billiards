@@ -48,7 +48,7 @@ export default class RegulatorHelper {
 
   set offsetTop(top: number) {
     this.#offset.top = top
-    setContext('theta', context.theta + 0.05)
+    setContext('cueStatus', 'theta', context.cueStatus.theta + 0.05)
   }
 
   get offsetBottom() {
@@ -57,7 +57,7 @@ export default class RegulatorHelper {
 
   set offsetBottom(bottom: number) {
     this.#offset.bottom = bottom
-    setContext('theta', context.theta - 0.05)
+    setContext('cueStatus', 'theta', context.cueStatus.theta - 0.05)
   }
 
   initEvents() {

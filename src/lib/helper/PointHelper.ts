@@ -160,7 +160,7 @@ export default class PointHelper extends Ball2D {
   set position(p: Point) {
     this.#position = p
 
-    setContext('targetPoint', p)
+    setContext('cueStatus', 'targetPoint', p)
     this.draw()
   }
 
@@ -292,7 +292,7 @@ export default class PointHelper extends Ball2D {
     ctx.textBaseline = 'middle'
     ctx.font = `Bold 10px Arial`
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
-    ctx.fillText(`${context.phi}°`, width / 2, height * 0.1)
+    ctx.fillText(`${context.cueStatus.phi}°`, width / 2, height * 0.1)
     ctx.stroke()
     ctx.restore()
   }

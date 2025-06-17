@@ -12,9 +12,10 @@ import {
 import AngleDemodulator from '../lib/helper/AngleDemodulator'
 
 import PlayerDOM from '../lib/helper/PlayerDOM'
-import context, { BilliardsStatus, getPlayerOperationTime, setContext, setPlayer, setPlayerInfo, switchPlayer } from './Context'
+import context, { BilliardsStatus, getPlayerOperationTime, setContext, setPlayer, setPlayerInfo, settleCurrentTurn, switchPlayer } from './Context'
 import emitter, { EventTypes } from './Emitter'
 import MainScene from './MainScene'
+import Player from './Player'
 
 export {
   type BilliardsContext,
@@ -76,36 +77,6 @@ export async function setup() {
   // =============== 场景初始化完毕 ====================
   mainScene.init()
 
-  // =============== 初始化玩家 ====================
-  setPlayer({
-    id: 'player1',
-    name: '玩家1',
-    score: 0,
-    targetBalls: [],
-    strokes: 0,
-    consecutiveHits: 0,
-    consecutiveFouls: 0,
-    consecutiveMisses: 0,
-  })
-  playerDOM.bind(1, 'player1')
-  playerDOM.set('player1', 'score', 0)
-  playerDOM.set('player1', 'name', '玩家1')
-  setPlayer({
-    id: 'player2',
-    name: '玩家2',
-    score: 0,
-    targetBalls: [],
-    strokes: 0,
-    consecutiveHits: 0,
-    consecutiveFouls: 0,
-    consecutiveMisses: 0,
-  })
-  playerDOM.bind(2, 'player2')
-  playerDOM.set('player2', 'score', 0)
-  playerDOM.set('player2', 'name', '玩家2')
-
-  switchPlayer()
-
   // =============== 事件绑定 ====================
   oAccurateRegulatorModal.addEventListener('click', () => {
     setContext('status', BilliardsStatus.Idle)
@@ -113,27 +84,28 @@ export async function setup() {
 
   releaseBtn.addEventListener('click', (e) => {
     e.stopPropagation()
-    cueSystem.hit()
-    setPlayerInfo(context.activePlayer!, 'strokes', 1)
+    setContext('status', BilliardsStatus.Release)
+    moveHelper()
   })
 
-  emitter.on(EventTypes.targetPoint, () => {
-    cueSystem.update()
-  })
-
-  emitter.on(EventTypes.phi, () => {
-    cueSystem.update()
+  emitter.on(EventTypes.cueStatus, (cueStatus) => {
+    cueSystem.show()
     pointHelper.draw()
-  })
-
-  emitter.on(EventTypes.force, (force) => {
-    cueSystem.update()
-    if (force > 0) {
+    forceHelper.draw()
+    angleHelper.draw()
+    if (cueStatus.force > 0) {
       releaseBtn.style.visibility = 'visible'
     }
     else {
       releaseBtn.style.visibility = 'hidden'
     }
+  })
+
+  emitter.on(EventTypes.switchPlayer, () => {
+    pointHelper.resetTarget()
+    forceHelper.reset()
+    angleHelper.reset()
+    releaseBtn.style.visibility = 'hidden'
   })
 
   function moveHelper() {
@@ -173,9 +145,6 @@ export async function setup() {
         break
 
       case BilliardsStatus.Shooting:
-        break
-
-      case BilliardsStatus.ShotCompleted:
         cueSystem.hide()
         break
 
@@ -187,30 +156,17 @@ export async function setup() {
       default:
         if (context.prevStatus === BilliardsStatus.Advanced) {
           moveHelper()
-          return
         }
-        // 切换玩家
-        switchPlayer()
-        cueSystem.show()
-        forceHelper.progress = 0
-        pointHelper.resetTarget()
-        releaseBtn.style.visibility = 'hidden'
-
-        if (context.inPocketBalls.has(mainScene.mainBall!)) {
-          mainScene.setBallPosition(mainScene.mainBall!, mainScene.mainBallInitialPosition)
-        }
-
-        if (context.inPocketBalls.size === 15) {
-          // 游戏结束
-          // eslint-disable-next-line no-alert
-          alert('游戏结束')
-        }
-        break
     }
   })
 
+  emitter.on(EventTypes.activePlayer, (id) => {
+    playerDOM.setActive(id)
+  })
+
   emitter.on(EventTypes.remainingOperationTime, (remainingOperationTime) => {
-    playerDOM.setActive(context.activePlayer!, 100 * remainingOperationTime / getPlayerOperationTime(context.activePlayer!))
+    playerDOM.setPercentage(context.activePlayer!, 100 * remainingOperationTime / getPlayerOperationTime(context.activePlayer!))
+    playerDOM.setRestTime(context.activePlayer!, remainingOperationTime)
   })
 
   emitter.on(EventTypes.targetBalls, (player) => {
@@ -245,9 +201,22 @@ export async function setup() {
         newTheta += 360
 
       // 更新 theta，重新设置杆子位置
-      setContext('theta', newTheta)
+      setContext('cueStatus', 'theta', newTheta)
     }
   })
+
+  // =============== 初始化玩家 ====================
+  const player1 = new Player('player1', '玩家1')
+  setPlayer(player1)
+  playerDOM.bind(1, player1.id)
+  playerDOM.set(player1.id, 'score', player1.score)
+  playerDOM.set(player1.id, 'name', player1.name)
+  const player2 = new Player('player2', '玩家2')
+  setPlayer(player2)
+  playerDOM.bind(2, player2.id)
+  playerDOM.set(player2.id, 'score', player2.score)
+  playerDOM.set(player2.id, 'name', player2.name)
+  switchPlayer(false)
 }
 
 // export async function setup() {

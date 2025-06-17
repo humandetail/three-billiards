@@ -1,4 +1,5 @@
 import { BilliardsStatus, context, emitter, EventTypes, setContext } from '../../central-control'
+import { SETTINGS } from '../../central-control/Context'
 import { toRadians } from '../../config'
 import { createCanvas } from '../../utils'
 import ArrowButton from './ArrowButton'
@@ -92,12 +93,12 @@ export default class AngleDemodulator extends Ball2D {
   }
 
   get angle() {
-    return context.phi
+    return context.cueStatus.phi
   }
 
   set angle(value: number) {
     const angle = Math.max(0, Math.min(90, value))
-    setContext('phi', angle)
+    setContext('cueStatus', 'phi', angle)
     this.draw()
   }
 
@@ -113,11 +114,7 @@ export default class AngleDemodulator extends Ball2D {
   init() {
     this.initEvents()
 
-    emitter.on(EventTypes.targetPoint, () => {
-      this.draw()
-    })
-
-    emitter.on(EventTypes.force, () => {
+    emitter.on(EventTypes.cueStatus, () => {
       this.draw()
     })
 
@@ -235,11 +232,11 @@ export default class AngleDemodulator extends Ball2D {
 
   drawCue() {
     const { ctx, center, ballRadius, arcRadius, angle } = this
-    const { targetPoint, safePercent, force } = context
+    const { targetPoint, force } = context.cueStatus
 
     ctx.save()
 
-    const L = -targetPoint.y * ballRadius * safePercent
+    const L = -targetPoint.y * ballRadius * SETTINGS.safePointPercent
     const mergeX = L * Math.sin(toRadians(-angle))
     const mergeY = -L * Math.cos(toRadians(-angle))
     ctx.translate(center.x + mergeX, center.y + mergeY)
@@ -341,5 +338,9 @@ export default class AngleDemodulator extends Ball2D {
     // 转换为0-90度
     const degrees = Math.round(angle * 180 / Math.PI)
     return Math.min(90, Math.max(0, degrees))
+  }
+
+  reset() {
+    this.angle = 0
   }
 }

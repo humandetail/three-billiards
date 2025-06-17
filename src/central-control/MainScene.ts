@@ -3,7 +3,7 @@ import type CueSystem from '../lib/CueSystem'
 import { Scene3D, THREE } from 'enable3d'
 import throttle from 'lodash.throttle'
 import config from '../config'
-import context, { addBallToPocket, BilliardsStatus, setContext } from './Context'
+import context, { addBallToPocket, BilliardsStatus, setContext, SETTINGS } from './Context'
 
 export default class MainScene extends Scene3D {
   cueSystem?: CueSystem
@@ -107,9 +107,7 @@ export default class MainScene extends Scene3D {
             this.setBallPosition(ball, { x: pocket.position.x, y: pocket.position.y + config.table.height / 2 - config.ball.radius * 2 * 1.5, z: pocket.position.z })
 
             ;(ball as any).inPocket = true
-            addBallToPocket(ball)
-
-            // @todo - 检测入球是否为已方球
+            addBallToPocket(ball.name.split('-').pop()!)
           }
         })
       })
@@ -118,7 +116,7 @@ export default class MainScene extends Scene3D {
         this.physics.add.collider(pocket, this.mainBall, (type) => {
           if (type === 'start') {
             this.setBallPosition(this.mainBall!, { x: pocket.position.x, y: pocket.position.y + config.table.height / 2 - config.ball.radius * 2 * 1.5, z: pocket.position.z })
-            addBallToPocket(this.mainBall!)
+            addBallToPocket(this.mainBall!.name.split('-').pop()!)
           }
         })
       }
@@ -185,7 +183,7 @@ export default class MainScene extends Scene3D {
 
   #checkBallsStatic = throttle(() => {
     const balls = [this.mainBall!, ...this.checkableBalls]
-    const { speedThreshold, angularSpeedThreshold } = context
+    const { speedThreshold, angularSpeedThreshold } = SETTINGS
     const isAllStatic = balls.every((ball) => {
       const velocity = ball.body.velocity
       const angularVelocity = ball.body.angularVelocity
@@ -198,9 +196,9 @@ export default class MainScene extends Scene3D {
         ball.body.setVelocity(0, 0, 0)
         ball.body.setAngularVelocity(0, 0, 0)
       })
-      setContext('status', BilliardsStatus.Idle)
+      setContext('status', BilliardsStatus.ShotCompleted)
     }
-  }, context.checkStaticInterval)
+  }, SETTINGS.checkStaticInterval)
 
   update(time: number, delta: number) {
     super.update(time, delta)
@@ -223,7 +221,7 @@ export default class MainScene extends Scene3D {
 
     // 检测球是否都静止了
     // 不需要每帧检测，只需要在每次击球后检测
-    if (context.status === BilliardsStatus.ShotCompleted) {
+    if (context.status === BilliardsStatus.Shooting) {
       this.#checkBallsStatic()
     }
 

@@ -4,6 +4,7 @@ import { ExtendedMesh } from 'enable3d'
 import * as THREE from 'three'
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
 import { BilliardsStatus, context, setContext } from '../central-control'
+import { SETTINGS } from '../central-control/Context'
 import config from '../config'
 import { getIntersectionPoints, setGeometryColor } from '../utils'
 
@@ -245,10 +246,10 @@ export default class CueSystem {
 
       switch (e.key) {
         case 'ArrowLeft':
-          setContext('theta', context.theta + 1)
+          setContext('cueStatus', 'theta', context.cueStatus.theta + 1)
           break
         case 'ArrowRight':
-          setContext('theta', context.theta - 1)
+          setContext('cueStatus', 'theta', context.cueStatus.theta - 1)
           break
       }
     })
@@ -260,11 +261,10 @@ export default class CueSystem {
   }
 
   hit() {
-    if (context.force === 0)
+    if (context.cueStatus.force === 0)
       return
 
-    this.#hitForce = context.force
-    setContext('status', BilliardsStatus.Shooting)
+    this.#hitForce = context.cueStatus.force
 
     this.#reduceStep = this.#shotDuration
 
@@ -276,7 +276,7 @@ export default class CueSystem {
   private takingTheShot() {
     this.#reqId = requestAnimationFrame(this.takingTheShot.bind(this))
 
-    if (context.force <= 0) {
+    if (context.cueStatus.force <= 0) {
       cancelAnimationFrame(this.#reqId)
       this.#reduceStep = 0
       // 给球施加方向力
@@ -286,7 +286,7 @@ export default class CueSystem {
 
     this.#reduceStep += this.#shotDuration
     this.#currentForce -= this.#reduceStep
-    setContext('force', context.force - this.#reduceStep)
+    setContext('cueStatus', 'force', context.cueStatus.force - this.#reduceStep)
   }
 
   private hitBall() {
@@ -314,7 +314,7 @@ export default class CueSystem {
     const { x, y, z } = contactPoint
     this.ball.body.applyImpulse(impulseDirection, new THREE.Vector3(x, y, z))
 
-    setContext('status', BilliardsStatus.ShotCompleted)
+    setContext('status', BilliardsStatus.Shooting)
   }
 
   hide() {
@@ -386,10 +386,10 @@ export default class CueSystem {
       this.cue,
       this.ball,
       this.ballRadius,
-      context.force,
-      context.phi,
-      context.theta,
-      -1 * context.targetPoint.y * context.safePercent,
+      context.cueStatus.force,
+      context.cueStatus.phi,
+      context.cueStatus.theta,
+      -1 * context.cueStatus.targetPoint.y * SETTINGS.safePointPercent,
     )
   }
 }

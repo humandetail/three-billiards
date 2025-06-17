@@ -1,4 +1,4 @@
-import type { Player } from '../../central-control/Context'
+import type Player from '../../central-control/Player'
 
 interface PlayerElements {
   avatar: HTMLElement
@@ -6,6 +6,7 @@ interface PlayerElements {
   score: HTMLElement
   targetBalls: HTMLElement
   container: HTMLElement
+  clock: HTMLElement
 }
 
 export default class PlayerDOM {
@@ -25,7 +26,9 @@ export default class PlayerDOM {
       return `${acc}
         <section class="player" id="player-${index + 1}">
           <div class="player-info">
-            <div class="player-avatar" id="player-${index + 1}-avatar"></div>
+            <div class="player-avatar" id="player-${index + 1}-avatar">
+              <div class="player-clock" id="player-${index + 1}-clock"></div>
+            </div>
             <div class="player-name" id="player-${index + 1}-name"></div>
             <div class="player-score" id="player-${index + 1}-score"></div>
           </div>
@@ -46,6 +49,7 @@ export default class PlayerDOM {
       score: document.querySelector<HTMLElement>('#player-1-score')!,
       targetBalls: document.querySelector<HTMLElement>('#player-1-target-balls')!,
       container: document.querySelector<HTMLElement>('#player-1')!,
+      clock: document.querySelector<HTMLElement>('#player-1-clock')!,
     })
 
     this.elements.set('player2', {
@@ -54,6 +58,7 @@ export default class PlayerDOM {
       score: document.querySelector<HTMLElement>('#player-2-score')!,
       targetBalls: document.querySelector<HTMLElement>('#player-2-target-balls')!,
       container: document.querySelector<HTMLElement>('#player-2')!,
+      clock: document.querySelector<HTMLElement>('#player-2-clock')!,
     })
   }
 
@@ -80,13 +85,12 @@ export default class PlayerDOM {
     el.textContent = value.toString()
   }
 
-  setActive(playerId: string, percentage: number) {
+  setActive(playerId: string) {
     const player = this.keys.get(playerId)
     if (!player) {
       throw new Error(`Player ${playerId} not found`)
     }
     const el = this.elements.get(player)!.container
-    el.style.setProperty('--percentage', `${percentage}%`)
     el.classList.add('active')
 
     this.removeActive([...this.elements.keys()].filter(key => key !== player)[0])
@@ -98,6 +102,24 @@ export default class PlayerDOM {
       throw new Error(`Player ${playerId} not found`)
     }
     this.elements.get(player)!.container.classList.remove('active')
+  }
+
+  setPercentage(playerId: string, percentage: number) {
+    const player = this.keys.get(playerId)
+    if (!player) {
+      throw new Error(`Player ${playerId} not found`)
+    }
+    this.elements.get(player)!.container.style.setProperty('--percentage', `${percentage}%`)
+  }
+
+  setRestTime(playerId: string, restTime: number) {
+    const player = this.keys.get(playerId)
+    if (!player) {
+      throw new Error(`Player ${playerId} not found`)
+    }
+    const el = this.elements.get(player)!.clock
+    el.textContent = restTime <= 0 ? '' : `${Math.round(restTime)}`
+    el.style.visibility = restTime <= 0 ? 'hidden' : 'visible'
   }
 
   setTargetBalls(player: Player) {
@@ -118,7 +140,5 @@ export default class PlayerDOM {
     }
 
     this.elements.get(key)!.targetBalls.innerHTML = innerHTML
-
-    
   }
 }
