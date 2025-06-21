@@ -416,12 +416,8 @@ export default class Table {
       shape.lineTo(tangent1.x, tangent1.y)
 
       // 替代 arcTo(B, tangent2, r)
-      const arcPoints1 = arcToPoints(tangent1, B, tangent2, r)
+      const arcPoints1 = arcToPoints(tangent1, B, tangent2, r, 32, index === 5)
       arcPoints1.forEach(p => shape.lineTo(p.x, p.y))
-
-      // 替代 arcTo(tangent2, C, r)
-      const arcPoints2 = arcToPoints(B, tangent2, C, r)
-      arcPoints2.forEach(p => shape.lineTo(p.x, p.y))
 
       shape.lineTo(tangent3.x, tangent3.y)
 

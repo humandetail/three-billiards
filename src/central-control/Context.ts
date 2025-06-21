@@ -246,8 +246,8 @@ export function settleCurrentTurn() {
     setPlayerInfo(activePlayer.id, 'consecutiveFouls', activePlayer.consecutiveFouls + 1)
     removeBallFromPocket('0')
 
-    // 处理剩余袋中的球
-    if (!isBreakShot) {
+    // 已区分球，处理剩余袋中的球
+    if (!isBreakShot && !activeHasNoTarget && !freeHasNoTarget) {
       setTargetBalls(false)
     }
 
@@ -267,12 +267,12 @@ export function settleCurrentTurn() {
     // --- 分配目标球（第一次确定目标球） ---
     if (activeHasNoTarget && freeHasNoTarget && !isBreakShot) {
       console.log('分配目标球')
-      const firstBall = currentTurnBalls.find(ball => fullBalls.includes(ball) || halfBalls.includes(ball))
+      const firstBall = currentTurnBalls.values().next().value
       if (firstBall) {
         const isFull = fullBalls.includes(firstBall)
 
-        setPlayerInfo(activePlayer.id, 'targetBalls', (isFull ? fullBalls : halfBalls).filter(b => b !== firstBall && !prevPocketedBalls.has(b)))
-        setPlayerInfo(freePlayer.id, 'targetBalls', (isFull ? halfBalls : fullBalls).filter(b => !prevPocketedBalls.has(b)))
+        setPlayerInfo(activePlayer.id, 'targetBalls', (isFull ? fullBalls : halfBalls).filter(b => ![...currentTurnBalls, ...prevPocketedBalls].includes(b)))
+        setPlayerInfo(freePlayer.id, 'targetBalls', (isFull ? halfBalls : fullBalls).filter(b => ![...currentTurnBalls, ...prevPocketedBalls].includes(b)))
 
         // 当前玩家击中目标，继续击球
         needSwitch && switchPlayer(false)

@@ -129,7 +129,7 @@ export function setGeometryColor(geometry: THREE.BufferGeometry, color: THREE.Co
 /**
  * 模拟 canvas 的 arcTo 方法
  */
-export function arcToPoints(p1: Point, p2: Point, p3: Point, radius = 5, segments = 32) {
+export function arcToPoints(p1: Point, p2: Point, p3: Point, radius = 5, segments = 32, fixedAngle = false) {
   const points = []
 
   const v1 = new THREE.Vector2(p1.x - p2.x, p1.y - p2.y).normalize()
@@ -142,8 +142,17 @@ export function arcToPoints(p1: Point, p2: Point, p3: Point, radius = 5, segment
   const dist = radius / Math.sin(angle / 2)
   const center = new THREE.Vector2(p2.x, p2.y).addScaledVector(dir, dist)
 
-  const startAngle = Math.atan2(p1.y - center.y, p1.x - center.x)
-  const endAngle = Math.atan2(p3.y - center.y, p3.x - center.x)
+  let startAngle = Math.atan2(p1.y - center.y, p1.x - center.x)
+  let endAngle = Math.atan2(p3.y - center.y, p3.x - center.x)
+
+  if (fixedAngle) {
+    if (startAngle < 0) {
+      startAngle += 2 * Math.PI
+    }
+    if (endAngle < 0) {
+      endAngle += 2 * Math.PI
+    }
+  }
 
   const clockwise = v1.x * v2.y - v1.y * v2.x < 0
 
