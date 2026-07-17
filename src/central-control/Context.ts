@@ -2,6 +2,7 @@ import type { Point } from '../utils'
 import type Player from './Player'
 import CountDown from './CountDown'
 import emitter, { EventTypes } from './Emitter'
+import { settleCurrentTurn } from './TurnSettlement'
 
 export enum BilliardsStatus {
   Idle = 'idle',
@@ -137,37 +138,36 @@ export function setContext(key: keyof BilliardsContext, ...restArgs: [value: Bil
     case 'status':
       context.status = value as BilliardsStatus
       emitter.emit(EventTypes.status, value as BilliardsStatus)
-
-      switch (value) {
-        case BilliardsStatus.Shooting:
-          emitter.emit(EventTypes.remainingOperationTime, 0)
-          countDown.stop()
-          break
-        case BilliardsStatus.ShotCompleted:
-          settleCurrentTurn()
-          break
-        default:
-          break
-      }
-      break
-    case 'winner':
-      endGame(value as string)
       break
     case 'remainingOperationTime':
       context.remainingOperationTime = value as number
-
       emitter.emit(EventTypes.remainingOperationTime, value as number)
-
-      if ((value as number) <= 0) {
-        // 给当前玩家计一次超时
-        setPlayerInfo(context.activePlayer, 'consecutiveMisses', context.players.find(p => p.id === context.activePlayer)!.consecutiveMisses + 1)
-        // 倒计时结束，切换玩家
-        switchPlayer()
-      }
-
       break
   }
 }
+
+// =============== 副作用通过事件监听处理 ===============
+
+/** 状态变更副作用 */
+emitter.on(EventTypes.status, (status) => {
+  switch (status) {
+    case BilliardsStatus.Shooting:
+      emitter.emit(EventTypes.remainingOperationTime, 0)
+      countDown.stop()
+      break
+    case BilliardsStatus.ShotCompleted:
+      settleCurrentTurn(context)
+      break
+  }
+})
+
+/** 倒计时归零 → 超时处理 */
+emitter.on(EventTypes.remainingOperationTime, (time) => {
+  if (time <= 0 && context.status !== BilliardsStatus.Shooting) {
+    setPlayerInfo(context.activePlayer, 'consecutiveMisses', context.players.find(p => p.id === context.activePlayer)!.consecutiveMisses + 1)
+    switchPlayer()
+  }
+})
 
 function resetCueStatus() {
   context.cueStatus = { ...initialCueStatus }
@@ -188,138 +188,6 @@ export function removeBallFromPocket(name: string) {
   context.pocketedBalls.delete(name)
 
   // @todo - 移球
-}
-
-/**
- * 结算当前轮
- */
-export function settleCurrentTurn() {
-  // eslint-disable-next-line no-console
-  console.log('结算')
-
-  const activePlayer = context.players.find(p => p.id === context.activePlayer)!
-  const freePlayer = context.players.find(p => p.id !== context.activePlayer)!
-
-  const { prevPocketedBalls, pocketedBalls } = context
-
-  const currentTurnPocketedBalls = new Set(
-    [...pocketedBalls].filter(ball => !prevPocketedBalls.has(ball)),
-  )
-  const currentTurnBalls = [...currentTurnPocketedBalls]
-  const total = currentTurnBalls.length
-
-  const isBreakShot = activePlayer.strokes === 0 && freePlayer.strokes === 0
-  const activeHasNoTarget = activePlayer.targetBalls.length === 0
-  const freeHasNoTarget = freePlayer.targetBalls.length === 0
-
-  setPlayerInfo(activePlayer.id, 'strokes', 0)
-
-  if (total === 0) {
-    // 未进球：切换回合
-    console.log('未进球：切换回合')
-    switchPlayer(true)
-    return
-  }
-
-  const fullBalls = ['1', '2', '3', '4', '5', '6', '7']
-  const halfBalls = ['9', '10', '11', '12', '13', '14', '15']
-
-  // 黑8进袋
-  if (currentTurnPocketedBalls.has('8')) {
-    console.log('黑8进袋')
-    const onlyBlack8Left = activePlayer.targetBalls.length === 1 && activePlayer.targetBalls[0] === '8'
-
-    if (onlyBlack8Left) {
-      // 正确击黑8赢得比赛
-      endGame(activePlayer.id)
-    }
-    else {
-      // 黑8未到击球时机，直接输
-      endGame(freePlayer.id)
-    }
-    return
-  }
-
-  // 白球进袋：犯规
-  if (currentTurnPocketedBalls.has('0')) {
-    console.log('白球进袋：犯规')
-    setPlayerInfo(activePlayer.id, 'consecutiveFouls', activePlayer.consecutiveFouls + 1)
-    removeBallFromPocket('0')
-
-    // 已区分球，处理剩余袋中的球
-    if (!isBreakShot && !activeHasNoTarget && !freeHasNoTarget) {
-      setTargetBalls(false)
-    }
-
-    switchPlayer(true)
-    return
-  }
-
-  setTargetBalls()
-
-  function setTargetBalls(needSwitch = true) {
-    if (isBreakShot) {
-      console.log('break shot')
-      needSwitch && switchPlayer(false)
-      return
-    }
-
-    // --- 分配目标球（第一次确定目标球） ---
-    if (activeHasNoTarget && freeHasNoTarget && !isBreakShot) {
-      console.log('分配目标球')
-      const firstBall = currentTurnBalls.values().next().value
-      if (firstBall) {
-        const isFull = fullBalls.includes(firstBall)
-
-        setPlayerInfo(activePlayer.id, 'targetBalls', (isFull ? fullBalls : halfBalls).filter(b => ![...currentTurnBalls, ...prevPocketedBalls].includes(b)))
-        setPlayerInfo(freePlayer.id, 'targetBalls', (isFull ? halfBalls : fullBalls).filter(b => ![...currentTurnBalls, ...prevPocketedBalls].includes(b)))
-
-        // 当前玩家击中目标，继续击球
-        needSwitch && switchPlayer(false)
-        return
-      }
-    }
-
-    // --- 判断是否进了自己的目标球 ---
-    const activeTargetBalls = currentTurnBalls.filter(ball => activePlayer.targetBalls.includes(ball))
-    const freeTargetBalls = currentTurnBalls.filter(ball => freePlayer.targetBalls.includes(ball))
-
-    if (activeTargetBalls.length > 0) {
-      console.log('进了自己的目标球')
-      // 更新目标球状态
-      const newTargets = activePlayer.targetBalls.filter(b => !activeTargetBalls.includes(b))
-      setPlayerInfo(activePlayer.id, 'targetBalls', newTargets)
-      setPlayerInfo(activePlayer.id, 'consecutiveHits', activePlayer.consecutiveHits + 1)
-
-      // 若只剩下黑8，目标改为黑8
-      if (newTargets.length === 0) {
-        setPlayerInfo(activePlayer.id, 'targetBalls', ['8'])
-      }
-
-      needSwitch && switchPlayer(false)
-    }
-    else {
-      console.log('进了对方目标球')
-      // 更新目标球状态
-      const newFreeTargets = freePlayer.targetBalls.filter(b => !freeTargetBalls.includes(b))
-      setPlayerInfo(freePlayer.id, 'targetBalls', newFreeTargets)
-
-      // 若只剩下黑8
-      if (newFreeTargets.length === 0) {
-        setPlayerInfo(freePlayer.id, 'targetBalls', ['8'])
-      }
-
-      needSwitch && switchPlayer(true)
-    }
-  }
-}
-
-function endGame(winner: string) {
-  // eslint-disable-next-line no-console
-  console.info(`winner is ${context.players.find(p => p.id === winner as string)!.name}`)
-  // @todo 通知所有玩家
-  // emitter.emit(EventTypes.winner, value as string)
-  setContext('status', BilliardsStatus.GameOver)
 }
 
 /**

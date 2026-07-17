@@ -10,7 +10,7 @@ import { getIntersectionPoints, setGeometryColor } from '../utils'
 
 export class Cue {
   private config = config.cue
-  private segments = 128
+  private segments = 64
 
   constructor() {}
 
@@ -239,20 +239,26 @@ export default class CueSystem {
     this.setupEvents()
   }
 
-  private setupEvents() {
-    window.addEventListener('keydown', (e) => {
-      if (!context.canIControl())
-        return
+  #keydownHandler = (e: KeyboardEvent) => {
+    if (!context.canIControl())
+      return
 
-      switch (e.key) {
-        case 'ArrowLeft':
-          setContext('cueStatus', 'theta', context.cueStatus.theta + 1)
-          break
-        case 'ArrowRight':
-          setContext('cueStatus', 'theta', context.cueStatus.theta - 1)
-          break
-      }
-    })
+    switch (e.key) {
+      case 'ArrowLeft':
+        setContext('cueStatus', 'theta', context.cueStatus.theta + 1)
+        break
+      case 'ArrowRight':
+        setContext('cueStatus', 'theta', context.cueStatus.theta - 1)
+        break
+    }
+  }
+
+  private setupEvents() {
+    window.addEventListener('keydown', this.#keydownHandler)
+  }
+
+  destroy() {
+    window.removeEventListener('keydown', this.#keydownHandler)
   }
 
   setMaxForce(force: number) {

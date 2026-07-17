@@ -19,6 +19,13 @@ export default class Table {
   boardTopY = config.table.leg.height + config.table.height
   boardBottomY = config.table.leg.height
 
+  // 缓存材质，避免重复创建
+  #clothMaterial = new THREE.MeshPhysicalMaterial({ color: config.colors.cloth, clearcoat: 0.92, clearcoatRoughness: 0.35 })
+  #woodMaterial = new THREE.MeshPhysicalMaterial({ color: config.colors.wood, clearcoat: 0.92, clearcoatRoughness: 0.35 })
+  #sealsMaterial = new THREE.MeshPhysicalMaterial({ color: config.colors.seals, clearcoat: 0.92, clearcoatRoughness: 0.35 })
+  #bodyMaterial = new THREE.MeshPhysicalMaterial({ color: config.colors.body, clearcoat: 0.92, clearcoatRoughness: 0.35 })
+  #legMaterial = new THREE.MeshPhongMaterial({ color: config.colors.leg })
+
   constructor(public mainScene: MainScene) {}
 
   init() {
@@ -64,7 +71,7 @@ export default class Table {
     // const tableBoardGeometry = new THREE.BoxGeometry(config.table.width, config.table.height, config.table.depth)
     const tableBoardGeometry = this.#generateTableBoardGeometry()
     tableBoardGeometry.rotateX(Math.PI / 2)
-    const tableBoard = new ExtendedMesh(tableBoardGeometry, new THREE.MeshPhysicalMaterial({ color: config.colors.cloth, clearcoat: 0.92, clearcoatRoughness: 0.35 }))
+    const tableBoard = new ExtendedMesh(tableBoardGeometry, this.#clothMaterial)
     tableBoard.position.set(0, this.boardTopY - config.table.height / 2, 0)
     this.mainScene.add.existing(tableBoard)
     this.mainScene.physics.add.existing(tableBoard as any, { shape: 'convex', mass: 0 })
@@ -81,7 +88,7 @@ export default class Table {
   createCushionRubbers() {
     const cushionRubbers = this.#generateCushionGeometries()
     cushionRubbers.forEach((geometry, index) => {
-      const mesh = new ExtendedMesh(geometry, new THREE.MeshPhysicalMaterial({ color: config.colors.cloth, clearcoat: 0.92, clearcoatRoughness: 0.35 }))
+      const mesh = new ExtendedMesh(geometry, this.#clothMaterial)
       mesh.rotateX(Math.PI / 2)
       mesh.position.set(0, this.boardTopY + config.cushion.height - config.cushion.contactHeight / 2, 0)
       this.mainScene.add.existing(mesh)
@@ -102,7 +109,7 @@ export default class Table {
   createCushionWood() {
     const cushionWood = this.#generateCushionWoodGeometries()
     cushionWood.forEach((geometry, index) => {
-      const mesh = new ExtendedMesh(geometry, new THREE.MeshPhysicalMaterial({ color: config.colors.wood, clearcoat: 0.92, clearcoatRoughness: 0.35 }))
+      const mesh = new ExtendedMesh(geometry, this.#woodMaterial)
       mesh.rotateX(Math.PI / 2)
       mesh.position.set(0, this.boardBottomY + (config.table.height + config.cushion.height) / 2, 0)
       this.mainScene.add.existing(mesh)
@@ -115,7 +122,7 @@ export default class Table {
   createPocketSeals() {
     const pocketSeals = this.#generatePocketSealGeometries()
     pocketSeals.forEach((geometry, index) => {
-      const mesh = new ExtendedMesh(geometry, new THREE.MeshPhysicalMaterial({ color: config.colors.seals, clearcoat: 0.92, clearcoatRoughness: 0.35 }))
+      const mesh = new ExtendedMesh(geometry, this.#sealsMaterial)
       mesh.rotateX(Math.PI / 2)
       mesh.position.set(0, this.boardTopY + config.cushion.height / 2, 0)
       this.mainScene.add.existing(mesh)
@@ -130,7 +137,7 @@ export default class Table {
 
   createTableBody() {
     const tableBody = this.#generateTableBodyGeometries()
-    const mesh = new ExtendedMesh(tableBody, new THREE.MeshPhysicalMaterial({ color: config.colors.body, clearcoat: 0.92, clearcoatRoughness: 0.35 }))
+    const mesh = new ExtendedMesh(tableBody, this.#bodyMaterial)
     mesh.position.set(0, this.boardBottomY - config.table.body.depth / 2, 0)
     this.mainScene.add.existing(mesh)
     mesh.name = 'tableBody'
@@ -140,7 +147,7 @@ export default class Table {
 
   createTableLegs() {
     const tableLegs = this.#generateTableLegsGeometries()
-    const mesh = new ExtendedMesh(tableLegs, new THREE.MeshPhongMaterial({ color: config.colors.leg }))
+    const mesh = new ExtendedMesh(tableLegs, this.#legMaterial)
     mesh.position.set(0, 0, 0)
     this.mainScene.add.existing(mesh)
     mesh.name = 'tableLegs'

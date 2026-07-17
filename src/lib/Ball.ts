@@ -64,8 +64,8 @@ export default class Ball {
         y: this.tableTop + ballRadius,
         z,
         radius: ballRadius,
-        widthSegments: 128,
-        heightSegments: 128,
+        widthSegments: 32,
+        heightSegments: 32,
       },
       {
         physical: {
